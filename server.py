@@ -2123,6 +2123,12 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
         # Enregistrement des réponses d'identité "+ sur vous" (soi)
         elif path.startswith("/api/profiles/") and path.endswith("/identity-answers/self"):
             pid = int(path.split("/")[3])
+            c.execute("SELECT role FROM profiles WHERE id = ?", (pid,))
+            prof_row = c.fetchone()
+            if prof_row and prof_row["role"] == "admin":
+                conn.close()
+                return self._send_json({"error": "Un administrateur ne répond pas aux questionnaires."}, 403)
+
             if "answers" in data and isinstance(data["answers"], list):
                 answers_list = data["answers"]
             elif "question_id" in data:
@@ -2171,6 +2177,12 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
         # Enregistrement des critères d'identité "+ sur l'autre" (tolérances partenaire)
         elif path.startswith("/api/profiles/") and path.endswith("/identity-answers/partner"):
             pid = int(path.split("/")[3])
+            c.execute("SELECT role FROM profiles WHERE id = ?", (pid,))
+            prof_row = c.fetchone()
+            if prof_row and prof_row["role"] == "admin":
+                conn.close()
+                return self._send_json({"error": "Un administrateur ne répond pas aux questionnaires."}, 403)
+
             if "criteria" in data and isinstance(data["criteria"], list):
                 criteria_list = data["criteria"]
             elif "question_id" in data:
@@ -2255,6 +2267,12 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
             if not profile_id or not answers_list:
                 conn.close()
                 return self._send_json({"error": "Données incomplètes."}, 400)
+
+            c.execute("SELECT role FROM profiles WHERE id = ?", (profile_id,))
+            prof_row = c.fetchone()
+            if prof_row and prof_row["role"] == "admin":
+                conn.close()
+                return self._send_json({"error": "Un administrateur ne répond pas aux questionnaires."}, 403)
                 
             for ans in answers_list:
                 c.execute("""

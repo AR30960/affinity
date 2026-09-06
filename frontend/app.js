@@ -283,16 +283,29 @@ function checkProfileCompleteness() {
   if (!rechercheDe) missing.push("À la recherche de");
   if (!bio) missing.push("Présentation");
 
-  // Condition stricte : 100% dans "+ sur vous" ET 100% dans "+ sur l'autre" (Classe 0 - Identité)
   const curProf = getActiveProfile();
+
+  // Pour un Administrateur : ne répond pas aux questions, statut de supervision sans avertissement
+  if (curProf && curProf.role === 'admin') {
+    banner.className = 'ckp-completeness-status complete';
+    banner.style.background = 'rgba(14, 165, 233, 0.12)';
+    banner.style.border = '1px solid rgba(14, 165, 233, 0.3)';
+    if (iconEl) iconEl.textContent = '👑';
+    if (titleEl) {
+      titleEl.textContent = 'Compte Administrateur (Superviseur Système)';
+      titleEl.style.color = '#38bdf8';
+    }
+    if (btnInfo) btnInfo.style.display = 'none';
+    return;
+  }
+
+  // Condition stricte pour les membres : 100% dans "+ sur vous" ET 100% dans "+ sur l'autre" (Classe 0 - Identité)
   let identityComplete = true;
   const selfPct = state.selfCompletionPct ?? 0;
   const partnerPct = state.partnerCompletionPct ?? 0;
 
-  if (curProf && curProf.role !== 'admin') {
-    if (selfPct < 100 || partnerPct < 100) {
-      identityComplete = false;
-    }
+  if (selfPct < 100 || partnerPct < 100) {
+    identityComplete = false;
   }
 
   state.currentMissingFields = missing;
@@ -301,13 +314,23 @@ function checkProfileCompleteness() {
 
   if (missing.length === 0 && identityComplete) {
     banner.className = 'ckp-completeness-status complete';
+    banner.style.background = '';
+    banner.style.border = '';
     if (iconEl) iconEl.textContent = '✅';
-    if (titleEl) titleEl.textContent = 'Profil complété';
+    if (titleEl) {
+      titleEl.textContent = 'Profil complété';
+      titleEl.style.color = '';
+    }
     if (btnInfo) btnInfo.style.display = 'none';
   } else {
     banner.className = 'ckp-completeness-status incomplete';
+    banner.style.background = '';
+    banner.style.border = '';
     if (iconEl) iconEl.textContent = '⚠️';
-    if (titleEl) titleEl.textContent = 'Profil à compléter';
+    if (titleEl) {
+      titleEl.textContent = 'Profil à compléter';
+      titleEl.style.color = '';
+    }
     if (btnInfo) btnInfo.style.display = 'inline-flex';
   }
 }
@@ -466,6 +489,12 @@ async function openIdentityDeck(mode = 'self', targetProfileId = null) {
   const ckpVal = document.getElementById('ckpProfileId')?.value;
   const ckpId = ckpVal ? Number(ckpVal) : null;
   const profId = targetProfileId || (ckpId && !isNaN(ckpId) ? ckpId : null) || (curProf ? curProf.id : state.activeProfileId) || 1;
+
+  const targetProf = state.profiles ? state.profiles.find(p => p.id === profId) : null;
+  if (targetProf && targetProf.role === 'admin') {
+    showToast("👑 En tant qu'administrateur, vous supervisez le système et ne répondez pas aux questionnaires.");
+    return;
+  }
 
   state.identityDeckMode = mode || 'self';
   const modal = document.getElementById('modalIdentityDeck');
@@ -1281,6 +1310,12 @@ function switchTab(tabName) {
     return;
   }
 
+  if (tabName === 'questionnaire' && isCurrentAdmin()) {
+    showToast("👑 En tant qu'administrateur, vous supervisez la banque de questions et ne répondez pas aux questionnaires.");
+    switchTab('questions-bank');
+    return;
+  }
+
   document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
 
@@ -1638,6 +1673,41 @@ function applyRolePermissionsUi() {
       if (currentActivePane && currentActivePane.id === 'tab-questions-bank') {
         switchTab('dashboard');
       }
+    }
+  }
+
+  // 3c. Onglet Questionnaire dans la sidebar (Masqué pour l'Administrateur qui ne répond pas aux questions)
+  const navQuestionnaire = document.getElementById('navQuestionnaireItem');
+  if (navQuestionnaire) {
+    if (isCurrentAdmin()) {
+      navQuestionnaire.style.display = 'none';
+      const currentActivePane = document.querySelector('.tab-pane.active');
+      if (currentActivePane && currentActivePane.id === 'tab-questionnaire') {
+        switchTab('questions-bank');
+      }
+    } else {
+      navQuestionnaire.style.display = 'flex';
+    }
+  }
+
+  // 3d. Adaptation du Hero Banner du Dashboard selon le rôle
+  const btnHeroAction = document.getElementById('btnHeroAction');
+  const heroTextP = document.getElementById('heroBannerSubtitle');
+  if (isCurrentAdmin()) {
+    if (btnHeroAction) {
+      btnHeroAction.textContent = 'Gérer la banque de questions';
+      btnHeroAction.onclick = () => switchTab('questions-bank');
+    }
+    if (heroTextP) {
+      heroTextP.textContent = "Supervisez les profils membres, administrez la banque de questions et pilotez les calculs d'affinités électives.";
+    }
+  } else {
+    if (btnHeroAction) {
+      btnHeroAction.textContent = 'Commencer à répondre';
+      btnHeroAction.onclick = () => switchTab('questionnaire');
+    }
+    if (heroTextP) {
+      heroTextP.textContent = "Complétez votre profil, répondez aux axes Vécu (V), Actuel (A), Découverte (D) et Partage (P), et révélez la proximité élective entre profils.";
     }
   }
 
@@ -2355,13 +2425,13 @@ function renderProfilesGrid(filter = '') {
           <button class="btn btn-sm btn-primary" onclick="openProfileCockpitDirect(${p.id})" title="Consulter et modifier ce profil">
             <span>👤</span> ${isAdmin ? 'Mon Profil' : 'Voir le Profil'}
           </button>
-          <button class="btn btn-sm btn-outline" onclick="openIdentityDeck('self', ${p.id})" title="Répondre à vos caractéristiques personnelles (+ sur moi)">
-            <span>👤</span> + sur moi
-          </button>
-          <button class="btn btn-sm btn-outline partner-btn" onclick="openIdentityDeck('partner', ${p.id})" title="Définir les critères pour l'autre (+ sur l'autre)">
-            <span>👥</span> + sur l'autre
-          </button>
           ${!isAdmin ? `
+            <button class="btn btn-sm btn-outline" onclick="openIdentityDeck('self', ${p.id})" title="Répondre à vos caractéristiques personnelles (+ sur moi)">
+              <span>👤</span> + sur moi
+            </button>
+            <button class="btn btn-sm btn-outline partner-btn" onclick="openIdentityDeck('partner', ${p.id})" title="Définir les critères pour l'autre (+ sur l'autre)">
+              <span>👥</span> + sur l'autre
+            </button>
             <button class="btn btn-sm btn-secondary" onclick="selectAndGoToQuestionnaire(${p.id})" title="Accéder aux questionnaires généraux">
               <span>✍️</span> Questionnaire
             </button>
@@ -2542,10 +2612,28 @@ function renderSingleUserProfile() {
   if (fAime) fAime.value = p.aime_chez_moi || '';
   if (fAimePas) fAimePas.value = p.aime_pas_chez_moi || '';
 
+  const isAdminProfile = (p.role === 'admin');
+
+  // Pour l'administrateur : masquer l'accès aux questionnaires d'identité (+ sur moi / + sur l'autre)
+  const btnIdentitySelf = document.getElementById('btnOpenIdentityQuestionsTop');
+  const btnIdentityPartner = document.getElementById('btnOpenPartnerQuestionsTop');
+  if (btnIdentitySelf) btnIdentitySelf.style.display = isAdminProfile ? 'none' : 'inline-flex';
+  if (btnIdentityPartner) btnIdentityPartner.style.display = isAdminProfile ? 'none' : 'inline-flex';
+
+  // Pour l'administrateur : masquer la carte KPI des réponses aux questions
+  const kpiAnswersCard = document.getElementById('ckpKpiAnswersCard');
+  if (kpiAnswersCard) kpiAnswersCard.style.display = isAdminProfile ? 'none' : 'flex';
+
+  // Pour l'administrateur : masquer l'onglet Demandes Admin
+  const btnCkpAdminReq = document.getElementById('btnCkpTabAdminRequests');
+  if (btnCkpAdminReq) btnCkpAdminReq.style.display = isAdminProfile ? 'none' : 'inline-flex';
+
   checkHabiteCommuneCoherence();
   checkProfileCompleteness();
   updateIdentityCompletionBadge();
-  loadIdentityAnswers(p.id);
+  if (!isAdminProfile) {
+    loadIdentityAnswers(p.id);
+  }
 
   // 3. Visibilité de l'onglet Matchs selon le rôle
   const btnMatches = document.getElementById('btnCkpTabMatches');
@@ -2558,7 +2646,9 @@ function renderSingleUserProfile() {
 
   // 4. Chargement des sous-panneaux
   loadProfileCatalogAccess(p.id);
-  loadProfileAdminRequests(p.id);
+  if (!isAdminProfile) {
+    loadProfileAdminRequests(p.id);
+  }
   if (isSub) {
     loadProfileCockpitMatches(p.id);
   }
@@ -2638,6 +2728,11 @@ async function loadProfileCatalogAccess(profileId) {
     if (kpiClasses) kpiClasses.textContent = `${allowedClassesCount} / ${totalClassesCount}`;
     if (kpiAnswers) kpiAnswers.textContent = `${totalAnswered} / ${totalQuestions}`;
     if (badgeCatalog) badgeCatalog.textContent = `${accessPct}%`;
+
+    const profObj = state.profiles ? state.profiles.find(p => p.id === pid) : null;
+    const isAdm = (profObj && profObj.role === 'admin');
+    const answersCard = document.getElementById('ckpKpiAnswersCard');
+    if (answersCard) answersCard.style.display = isAdm ? 'none' : 'flex';
 
     state.currentClasses = classes;
     state.currentPacks = packs;
@@ -4224,6 +4319,12 @@ function renderQuestionsDeck() {
 // Enregistrement d'une réponse
 async function recordAnswer(questionId, axis, value) {
   if (!state.activeProfileId) return;
+
+  const activeProf = getActiveProfile();
+  if (activeProf && activeProf.role === 'admin') {
+    showToast("👑 Un administrateur supervise le système et ne répond pas aux questions.");
+    return;
+  }
 
   // Mise à jour optimiste dans l'état local
   state.answersMap[`${questionId}_${axis}`] = value;

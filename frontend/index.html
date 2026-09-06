@@ -66,7 +66,7 @@
           <span class="nav-icon">👤</span>
           <span class="nav-label" id="navProfilesLabel">Mon Profil</span>
         </button>
-        <button class="nav-item" data-tab="questionnaire">
+        <button class="nav-item" id="navQuestionnaireItem" data-tab="questionnaire">
           <span class="nav-icon">✍️</span>
           <span class="nav-label">Questionnaires</span>
         </button>
@@ -162,9 +162,9 @@
         <div class="hero-banner">
           <div class="hero-text">
             <h2>Bienvenue dans l'univers <span>Affinity</span></h2>
-            <p>Complétez votre profil, répondez aux axes <strong>Vécu (V), Actuel (A), Découverte (D) et Partage (P)</strong>, et révélez la proximité élective entre profils.</p>
+            <p id="heroBannerSubtitle">Complétez votre profil, répondez aux axes <strong>Vécu (V), Actuel (A), Découverte (D) et Partage (P)</strong>, et révélez la proximité élective entre profils.</p>
             <div class="hero-buttons">
-              <button class="btn btn-primary" onclick="switchTab('questionnaire')">Commencer à répondre</button>
+              <button class="btn btn-primary" id="btnHeroAction" onclick="switchTab('questionnaire')">Commencer à répondre</button>
               <button class="btn btn-outline" onclick="switchTab('affinity')">Simuler un calcul d'affinité</button>
             </div>
           </div>
@@ -598,7 +598,7 @@
                       <div class="ckp-kpi-lbl">Classes Autorisées</div>
                     </div>
                   </div>
-                  <div class="ckp-kpi-card">
+                  <div class="ckp-kpi-card" id="ckpKpiAnswersCard">
                     <div class="ckp-kpi-icon">✍️</div>
                     <div class="ckp-kpi-data">
                       <div class="ckp-kpi-val" id="ckpKpiAnswersCount">0 / 0</div>
