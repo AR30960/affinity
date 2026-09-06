@@ -792,7 +792,7 @@ async function savePartnerAnswer(qid, minVal, maxVal, options, indifferent) {
 
 // AFFINITY - Client Web/Desktop
 
-const API_BASE = window.location.origin.includes('localhost') 
+const API_BASE = (window.location.origin && window.location.origin.startsWith('http'))
   ? window.location.origin 
   : 'http://localhost:8765';
 
