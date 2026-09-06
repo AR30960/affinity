@@ -231,9 +231,8 @@ function checkHabiteCommuneCoherence() {
 function checkProfileCompleteness() {
   const banner = document.getElementById('ckpCompletenessStatus');
   const titleEl = document.getElementById('ckpStatusTitle');
-  const descEl = document.getElementById('ckpMissingFieldsDesc');
   const iconEl = document.getElementById('ckpStatusIcon');
-  const tooltipWrap = document.getElementById('ckpTooltipContainer');
+  const btnInfo = document.getElementById('btnOpenCompletenessModal');
   const fullNameEl = document.getElementById('myProfileFullName');
 
   if (!banner) return;
@@ -257,17 +256,17 @@ function checkProfileCompleteness() {
   }
 
   const missing = [];
-  if (!pseudo) missing.push("Pseudo");
+  if (!pseudo) missing.push("Pseudo public");
   if (!prenom) missing.push("Prénom");
   if (!nom) missing.push("Nom");
-  if (!sexe) missing.push("Sexe");
+  if (!sexe) missing.push("Sexe (Homme / Femme)");
   if (!birth) missing.push("Date de naissance");
   if (!habPays || !habDept || !habCommune) {
     const sub = [];
     if (!habPays) sub.push("Pays");
     if (!habDept) sub.push("Département");
     if (!habCommune) sub.push("Commune");
-    missing.push(`J'habite ici (${sub.join(', ')})`);
+    missing.push(`Lieu de résidence (${sub.join(', ')})`);
   }
   if (!rechercheDe) missing.push("À la recherche de");
   if (!bio) missing.push("Présentation");
@@ -284,30 +283,60 @@ function checkProfileCompleteness() {
     }
   }
 
+  state.currentMissingFields = missing;
+  state.currentSelfPct = selfPct;
+  state.currentPartnerPct = partnerPct;
+
   if (missing.length === 0 && identityComplete) {
     banner.className = 'ckp-completeness-status complete';
     if (iconEl) iconEl.textContent = '✅';
     if (titleEl) titleEl.textContent = 'Profil complété';
-    if (descEl) {
-      descEl.textContent = '';
-      descEl.style.display = 'none'; // Pas de texte superflu sous Profil complété
-    }
-    if (tooltipWrap) tooltipWrap.style.display = 'none';
+    if (btnInfo) btnInfo.style.display = 'none';
   } else {
     banner.className = 'ckp-completeness-status incomplete';
     if (iconEl) iconEl.textContent = '⚠️';
     if (titleEl) titleEl.textContent = 'Profil à compléter';
-    if (tooltipWrap) tooltipWrap.style.display = 'inline-flex';
-    if (descEl) {
-      descEl.style.display = 'block';
-      const reasons = [];
-      if (missing.length > 0) reasons.push(`Champs obligatoires manquants : ${missing.join(', ')}`);
-      if (selfPct < 100) reasons.push(`Questionnaire "+ sur vous" incomplet (${selfPct}%)`);
-      if (partnerPct < 100) reasons.push(`Questionnaire "+ sur l'autre" incomplet (${partnerPct}%)`);
-      descEl.textContent = reasons.join(' - ');
-    }
+    if (btnInfo) btnInfo.style.display = 'inline-flex';
   }
 }
+
+function openProfileCompletenessModal() {
+  const modal = document.getElementById('modalProfileCompletenessInfo');
+  const container = document.getElementById('completenessModalList');
+  if (!modal || !container) return;
+
+  const missing = state.currentMissingFields || [];
+  const selfPct = state.currentSelfPct ?? 0;
+  const partnerPct = state.currentPartnerPct ?? 0;
+
+  if (missing.length === 0 && selfPct >= 100 && partnerPct >= 100) {
+    container.innerHTML = `
+      <div style="text-align: center; padding: 12px;">
+        <span style="font-size: 32px; display: block; margin-bottom: 6px;">🎉</span>
+        <strong style="color: #34d399; font-size: 1rem;">Votre profil est 100% complété !</strong>
+        <p style="margin-top: 6px; font-size: 0.85rem; color: var(--text-dim);">
+          Toutes les informations obligatoires et les questionnaires d'identité sont validés.
+        </p>
+      </div>
+    `;
+  } else {
+    let html = '<ul style="margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 8px;">';
+    if (missing.length > 0) {
+      html += `<li><strong>Champs obligatoires (*) non renseignés :</strong><br><span style="color: #f87171;">${missing.join(', ')}</span></li>`;
+    }
+    if (selfPct < 100) {
+      html += `<li><strong>Questionnaire « + sur vous » :</strong> <span style="color: #fbbf24;">${selfPct}%</span> complété (100% requis)</li>`;
+    }
+    if (partnerPct < 100) {
+      html += `<li><strong>Questionnaire « + sur l'autre » :</strong> <span style="color: #fbbf24;">${partnerPct}%</span> complété (100% requis)</li>`;
+    }
+    html += '</ul>';
+    container.innerHTML = html;
+  }
+
+  modal.style.display = 'flex';
+}
+window.openProfileCompletenessModal = openProfileCompletenessModal;
 
 function onHabitePaysChange() {
   const paysEl = document.getElementById('ckpHabitePays');
@@ -1515,6 +1544,10 @@ function exitRoleSimulation() {
 
 // Fermeture de la fiche individuelle et retour immédiat à la liste de gestion des profils
 function exitToProfilesList() {
+  if (state.realAdminId) {
+    revertToAdmin();
+    return;
+  }
   exitRoleSimulation();
   const profilesAdminView = document.getElementById('profilesAdminView');
   const singleProfileUserView = document.getElementById('singleProfileUserView');
@@ -1643,8 +1676,65 @@ function applyRolePermissionsUi() {
     btnNewProfile.style.display = isCurrentAdmin() ? 'inline-flex' : 'none';
   }
 
+  // 8. Boutons persistants Revenir Administrateur (sidebar et header)
+  const isReal = isRealAdmin();
+  const currentPid = state.activeProfileId;
+  const realAdminPid = state.realAdminId || (state.profiles ? state.profiles.find(p => p.role === 'admin')?.id : null);
+  const showRevert = Boolean(isReal && (currentPid !== realAdminPid || state.simulatedRole));
+
+  const btnRevertSidebar = document.getElementById('btnRevertToAdmin');
+  const btnRevertHeader = document.getElementById('btnHeaderRevertAdmin');
+  if (btnRevertSidebar) {
+    btnRevertSidebar.style.display = showRevert ? 'flex' : 'none';
+  }
+  if (btnRevertHeader) {
+    btnRevertHeader.style.display = showRevert ? 'inline-flex' : 'none';
+  }
+
   renderQuestionsTable();
 }
+
+function revertToAdmin() {
+  let adminId = state.realAdminId;
+  if (!adminId && state.profiles) {
+    const adm = state.profiles.find(p => p.role === 'admin');
+    if (adm) adminId = adm.id;
+  }
+  if (!adminId) adminId = 1;
+
+  state.realAdminId = adminId;
+  state.simulatedRole = null;
+  state.simulatedProfileId = null;
+
+  // Masquer les bandeaux et sélecteurs de simulation
+  const banner = document.getElementById('roleSimulationBanner');
+  if (banner) banner.style.display = 'none';
+
+  const select = document.getElementById('selectSimulatedRole');
+  if (select) select.value = 'none';
+
+  const headerBox = document.getElementById('headerSimProfileBox');
+  if (headerBox) headerBox.style.display = 'none';
+
+  const exitBar = document.getElementById('ckpAdminExitBar');
+  if (exitBar) exitBar.style.display = 'none';
+
+  // Rétablir le profil actif sur l'administrateur
+  setActiveProfile(adminId);
+  applyRolePermissionsUi();
+
+  // Si on était dans la vue unitaire, rétablir la vue complète des profils
+  const profilesAdminView = document.getElementById('profilesAdminView');
+  const singleProfileUserView = document.getElementById('singleProfileUserView');
+  if (profilesAdminView && singleProfileUserView) {
+    profilesAdminView.style.display = 'block';
+    singleProfileUserView.style.display = 'none';
+  }
+
+  showToast('👑 Session Administrateur rétablie');
+  renderProfilesGrid();
+}
+window.revertToAdmin = revertToAdmin;
 
 function updateAffinityAccessUi() {
   const role = getActiveRole();
@@ -2252,6 +2342,10 @@ function renderProfilesGrid(filter = '') {
 
 // Ouvrir directement la fiche cockpit pour un profil sélectionné
 function openProfileCockpitDirect(profileId) {
+  if (!state.realAdminId && state.profiles) {
+    const adm = state.profiles.find(p => p.role === 'admin');
+    if (adm) state.realAdminId = adm.id;
+  }
   setActiveProfile(profileId);
   const profilesAdminView = document.getElementById('profilesAdminView');
   const singleProfileUserView = document.getElementById('singleProfileUserView');
@@ -3916,7 +4010,7 @@ function renderQuestionsDeck() {
     { val: 9, label: 'Impossible' }
   ];
 
-  deck.innerHTML = adminBannerHtml + filtered.map(q => {
+  function renderSingleQuestionCard(q, isSub = false) {
     const isMulti = (q.type === 'M' || q.type === 'MULTI');
     let answersUi = '';
 
@@ -4006,19 +4100,17 @@ function renderQuestionsDeck() {
       `;
     }
 
-    const isSubquestion = Boolean(q.n_quest_lie && q.n_quest_lie !== 0 && q.n_quest_lie !== q.id && q.classe !== 8);
     const isParent = Boolean(q.subquestions_count && q.subquestions_count > 0);
-
     let hierBadge = '';
-    if (isSubquestion) {
+    if (isSub) {
       const parentName = q.parent_texte ? escapeHtml(q.parent_texte) : `#${q.n_quest_lie}`;
-      hierBadge = `<span class="badge-tag subquestion-tag" title="Sous-question rattachée à la question #${q.n_quest_lie}">↳ Sous-question de : ${parentName}</span>`;
+      hierBadge = `<span class="badge-tag subquestion-tag" title="Question de précision attachée à #${q.n_quest_lie}">↳ Précision de #${q.n_quest_lie} : ${parentName}</span>`;
     } else if (isParent) {
-      hierBadge = `<span class="badge-tag parent-tag" title="Cette question regroupe ${q.subquestions_count} sous-question(s)">📂 Question Principale (${q.subquestions_count} s-q)</span>`;
+      hierBadge = `<span class="badge-tag parent-tag" title="Question d'origine regroupant ${q.subquestions_count} question(s) de précision">📂 Question d'origine (${q.subquestions_count} précision${q.subquestions_count > 1 ? 's' : ''})</span>`;
     }
 
     return `
-      <div class="question-card ${isSubquestion ? 'is-subquestion' : ''}" id="qcard-${q.id}">
+      <div class="question-card ${isSub ? 'is-subquestion' : ''}" id="qcard-${q.id}">
         <div class="q-card-header">
           <div class="q-badge-group">
             <span class="badge-tag">#${q.id} &bull; ${q.thematique} &bull; ${q.sujet}</span>
@@ -4028,11 +4120,63 @@ function renderQuestionsDeck() {
           </div>
           ${isCurrentAdmin() ? `<button class="btn-text-icon" title="Modifier la question" onclick="openEditQuestionModal(${q.id})" style="font-size:14px; padding:4px 8px; border-radius:6px; background:rgba(255,255,255,0.05);">✏️ Modifier</button>` : ''}
         </div>
-        <div class="q-text">${isSubquestion ? '<span class="subquestion-indicator">↳</span> ' : ''}${q.texte}</div>
+        <div class="q-text">${isSub ? '<span class="subquestion-indicator">↳</span> ' : ''}${q.texte}</div>
         ${answersUi}
       </div>
     `;
-  }).join('');
+  }
+
+  // Rendu hiérarchique selon le filtre sélectionné
+  if (hierarchieFilter === 'MAIN') {
+    deck.innerHTML = adminBannerHtml + filtered.map(q => renderSingleQuestionCard(q, false)).join('');
+  } else if (hierarchieFilter === 'SUB') {
+    deck.innerHTML = adminBannerHtml + filtered.map(q => renderSingleQuestionCard(q, true)).join('');
+  } else {
+    // Regroupement hiérarchique complet : Question d'origine -> Questions de précision attachées
+    const mainQuestions = filtered.filter(q => !q.n_quest_lie || q.n_quest_lie === 0 || q.n_quest_lie === q.id || q.classe === 8);
+    const subQuestions = filtered.filter(q => q.n_quest_lie && q.n_quest_lie !== 0 && q.n_quest_lie !== q.id && q.classe !== 8);
+
+    const renderedSubIds = new Set();
+    let deckHtml = '';
+
+    mainQuestions.forEach(mainQ => {
+      // 1. Carte de la question d'origine
+      deckHtml += renderSingleQuestionCard(mainQ, false);
+
+      // 2. Questions de précision attachées à cette question d'origine
+      const attachedSubs = subQuestions.filter(sq => sq.n_quest_lie === mainQ.id);
+      if (attachedSubs.length > 0) {
+        attachedSubs.forEach(sq => renderedSubIds.add(sq.id));
+        const answeredSubs = attachedSubs.filter(sq => isQuestionAnswered(sq)).length;
+
+        deckHtml += `
+          <div class="q-attached-subquestions-wrap" id="attached-subs-${mainQ.id}">
+            <div class="q-attached-header">
+              <div class="q-attached-title">
+                <span style="font-size:14px;">📎</span>
+                <strong>${attachedSubs.length} question${attachedSubs.length > 1 ? 's' : ''} de précision attachée${attachedSubs.length > 1 ? 's' : ''}</strong>
+                <span style="opacity:0.75; font-size:11px;">(précise la question #${mainQ.id})</span>
+              </div>
+              <div class="q-attached-progress">
+                ${answeredSubs}/${attachedSubs.length} répondue${attachedSubs.length > 1 ? 's' : ''}
+              </div>
+            </div>
+            <div class="q-attached-list">
+              ${attachedSubs.map(sq => renderSingleQuestionCard(sq, true)).join('')}
+            </div>
+          </div>
+        `;
+      }
+    });
+
+    // 3. Sous-questions orphelines éventuelles (dont la question parente a été filtrée)
+    const orphanSubs = subQuestions.filter(sq => !renderedSubIds.has(sq.id));
+    if (orphanSubs.length > 0) {
+      deckHtml += orphanSubs.map(sq => renderSingleQuestionCard(sq, true)).join('');
+    }
+
+    deck.innerHTML = adminBannerHtml + deckHtml;
+  }
 }
 
 // Enregistrement d'une réponse
@@ -4781,7 +4925,33 @@ function renderQuestionsTable() {
     4: '4 - Privées', 5: '5 - A caractère sexuel', 8: '8 - Identité', 9: '9 - Amorales / Interdits'
   };
 
-  tbody.innerHTML = filtered.map(q => {
+  // Ordonnancement hiérarchique : Regrouper les sous-questions immédiatement sous leur question d'origine
+  let sortedQuestions = [];
+  if (filterHierarchie === 'ALL') {
+    const mainList = filtered.filter(q => !q.n_quest_lie || q.n_quest_lie === 0 || q.n_quest_lie === q.id || q.classe === 8);
+    const subList = filtered.filter(q => q.n_quest_lie && q.n_quest_lie !== 0 && q.n_quest_lie !== q.id && q.classe !== 8);
+    const addedSubIds = new Set();
+
+    mainList.forEach(mQ => {
+      sortedQuestions.push(mQ);
+      const childSubs = subList.filter(sQ => sQ.n_quest_lie === mQ.id);
+      childSubs.forEach(sQ => {
+        sortedQuestions.push(sQ);
+        addedSubIds.add(sQ.id);
+      });
+    });
+
+    // Ajouter les sous-questions dont le parent n'est pas dans mainList
+    subList.forEach(sQ => {
+      if (!addedSubIds.has(sQ.id)) {
+        sortedQuestions.push(sQ);
+      }
+    });
+  } else {
+    sortedQuestions = filtered;
+  }
+
+  tbody.innerHTML = sortedQuestions.map(q => {
     let typeBadgeHtml = '<span class="badge-tag type">Multi-Axes (M)</span>';
     if (q.type === 'P') {
       typeBadgeHtml = '<span class="badge-tag type" style="background:#0284c7; color:#fff;">Précis (P)</span>';
@@ -4803,11 +4973,11 @@ function renderQuestionsTable() {
 
     let hierHtml = '';
     if (q.subquestions_count && q.subquestions_count > 0) {
-      hierHtml = `<div style="margin-top:5px;"><span class="badge-tag parent-tag" style="font-size:10.5px; padding:2px 7px;" title="${q.subquestions_count} sous-question(s) rattachée(s)">📂 Question Principale (${q.subquestions_count} s-q)</span></div>`;
+      hierHtml = `<div style="margin-top:5px;"><span class="badge-tag parent-tag" style="font-size:10.5px; padding:2px 7px;" title="${q.subquestions_count} question(s) de précision rattachée(s)">📂 Question Principale (${q.subquestions_count} précision${q.subquestions_count > 1 ? 's' : ''})</span></div>`;
     } else if (q.n_quest_lie && q.n_quest_lie !== 0 && q.classe !== 8) {
-      const pTitle = q.parent_texte ? `Sous-question de #${q.n_quest_lie} : ${escapeHtml(q.parent_texte)}` : `Sous-question de #${q.n_quest_lie}`;
+      const pTitle = q.parent_texte ? `Précision de #${q.n_quest_lie} : ${escapeHtml(q.parent_texte)}` : `Précision de #${q.n_quest_lie}`;
       const shortParent = q.parent_texte ? ` (${escapeHtml(q.parent_texte.substring(0, 30))}...)` : '';
-      hierHtml = `<div style="margin-top:5px;"><span class="badge-tag subquestion-tag" style="font-size:10.5px; padding:2px 7px;" title="${pTitle}">↳ Sous-question de #${q.n_quest_lie}${shortParent}</span></div>`;
+      hierHtml = `<div style="margin-top:5px;"><span class="badge-tag subquestion-tag" style="font-size:10.5px; padding:2px 7px;" title="${pTitle}">↳ Précision de #${q.n_quest_lie}${shortParent}</span></div>`;
     } else if (q.classe === 8 && q.n_quest_lie) {
       hierHtml = `<div style="margin-top:5px;"><span class="badge-tag" style="font-size:10px; padding:2px 6px; background:rgba(124,58,237,0.15); color:#c084fc; border:1px solid rgba(124,58,237,0.3);" title="Question miroir #${q.n_quest_lie}">↔ Miroir #${q.n_quest_lie}</span></div>`;
     }
@@ -4823,16 +4993,22 @@ function renderQuestionsTable() {
       <td>${typeBadgeHtml}</td>
       <td>${cibleBadgeHtml}</td>
       <td>
-        <div style="${isSub ? 'padding-left:12px; border-left:2px solid var(--accent-cyan);' : ''}">
-          ${q.texte}
+        <div style="${isSub ? 'padding-left:16px; border-left:2.5px solid var(--accent-cyan);' : ''}">
+          ${isSub ? '<span style="color:var(--accent-cyan); font-weight:bold; margin-right:4px;">↳</span>' : ''}${q.texte}
           ${hierHtml}
         </div>
       </td>
       <td style="text-align:right; white-space:nowrap;">
         ${isCurrentAdmin() ? `
-        <button class="btn btn-sm btn-outline" onclick="openEditQuestionModal(${q.id})" title="Modifier cette question">
-          ✏️ Modifier
-        </button>` : `<span style="font-size:11px; color:var(--text-dim); padding:4px 8px;">Lecture</span>`}
+          ${!isSub && q.classe !== 8 ? `
+            <button class="btn btn-sm btn-outline" onclick="openAddAttachedQuestionModal(${q.id})" title="Ajouter une question de précision rattachée à celle-ci" style="color: #38bdf8; border-color: rgba(56,189,248,0.4); margin-right: 6px;">
+              <span>➕</span> Préciser
+            </button>
+          ` : ''}
+          <button class="btn btn-sm btn-outline" onclick="openEditQuestionModal(${q.id})" title="Modifier cette question">
+            ✏️ Modifier
+          </button>
+        ` : `<span style="font-size:11px; color:var(--text-dim); padding:4px 8px;">Lecture</span>`}
       </td>
     </tr>
   `;
@@ -4951,20 +5127,88 @@ function onEditQSujetSelectChange() {
   }
 }
 
+function onHierarchyTypeChange() {
+  const isSub = document.getElementById('hierarchyTypeSub')?.checked;
+  const boxLie = document.getElementById('boxEditQNQuestLie');
+  const optMain = document.getElementById('optHierarchyMain');
+  const optSub = document.getElementById('optHierarchySub');
+  const inheritFeedback = document.getElementById('inheritFeedback');
+
+  if (isSub) {
+    if (boxLie) boxLie.style.display = 'block';
+    if (optSub) optSub.classList.add('active');
+    if (optMain) optMain.classList.remove('active');
+  } else {
+    if (boxLie) boxLie.style.display = 'none';
+    if (optMain) optMain.classList.add('active');
+    if (optSub) optSub.classList.remove('active');
+    const sel = document.getElementById('editQNQuestLie');
+    if (sel) sel.value = '0';
+    if (inheritFeedback) inheritFeedback.style.display = 'none';
+  }
+}
+window.onHierarchyTypeChange = onHierarchyTypeChange;
+
+function onEditQNQuestLieChange() {
+  const sel = document.getElementById('editQNQuestLie');
+  const inheritFeedback = document.getElementById('inheritFeedback');
+  if (!sel) return;
+
+  const parentId = parseInt(sel.value, 10);
+  if (parentId > 0) {
+    const parent = state.questions.find(q => q.id === parentId);
+    if (parent) {
+      // Héritage de la thématique
+      const themaSel = document.getElementById('editQThematiqueSelect');
+      if (themaSel && parent.thematique) {
+        themaSel.value = parent.thematique;
+        document.getElementById('editQThematique').value = parent.thematique;
+        updateModalSujetsDropdown(parent.sujet);
+      }
+      // Héritage de la classe, cible et type
+      if (parent.classe !== undefined) {
+        document.getElementById('editQClasse').value = parent.classe;
+      }
+      if (parent.cible !== undefined) {
+        document.getElementById('editQCible').value = parent.cible;
+      }
+      if (parent.type) {
+        document.getElementById('editQType').value = (parent.type === 'MULTI' ? 'M' : parent.type);
+      }
+
+      toggleConfigReponsesSection();
+      if (inheritFeedback) {
+        inheritFeedback.style.display = 'block';
+        inheritFeedback.textContent = `✓ Thématique (${parent.thematique}), sujet (${parent.sujet}) et classe ${parent.classe} hérités de la question d'origine #${parent.id}.`;
+      }
+    }
+  } else {
+    if (inheritFeedback) inheritFeedback.style.display = 'none';
+  }
+}
+window.onEditQNQuestLieChange = onEditQNQuestLieChange;
+
 function populateEditQNQuestLieSelect(currentQid = null, selectedParentId = 0) {
   const sel = document.getElementById('editQNQuestLie');
   if (!sel) return;
-  sel.innerHTML = '<option value="0">0 - Aucune (Question principale indépendante)</option>';
+  sel.innerHTML = '<option value="0">-- Sélectionner la question d\'origine parente --</option>';
 
-  const candidates = state.questions.filter(q => q.id !== currentQid);
+  // Seules les questions d'origine principales (non sous-questions) peuvent être des questions d'origine
+  const candidates = state.questions.filter(q => {
+    if (q.id === currentQid) return false;
+    if (q.classe === 8) return false;
+    const isSub = Boolean(q.n_quest_lie && q.n_quest_lie !== 0 && q.n_quest_lie !== q.id);
+    return !isSub;
+  });
+
   candidates.sort((a, b) => (a.thematique || '').localeCompare(b.thematique || '') || a.id - b.id);
 
   candidates.forEach(q => {
     const opt = document.createElement('option');
     opt.value = q.id;
-    const subCountTxt = q.subquestions_count > 0 ? ` [${q.subquestions_count} s-q]` : '';
-    const cleanText = (q.texte || '').substring(0, 45) + ((q.texte || '').length > 45 ? '...' : '');
-    opt.textContent = `#${q.id} [${q.thematique}] ${cleanText}${subCountTxt}`;
+    const subCountTxt = q.subquestions_count > 0 ? ` [${q.subquestions_count} précision${q.subquestions_count > 1 ? 's' : ''}]` : '';
+    const cleanText = (q.texte || '').substring(0, 50) + ((q.texte || '').length > 50 ? '...' : '');
+    opt.textContent = `#${q.id} [${q.thematique} &bull; ${q.sujet}] ${cleanText}${subCountTxt}`;
     if (q.id === selectedParentId) {
       opt.selected = true;
     }
@@ -4972,10 +5216,41 @@ function populateEditQNQuestLieSelect(currentQid = null, selectedParentId = 0) {
   });
 }
 
+function openAddAttachedQuestionModal(parentQid) {
+  openAddQuestionModal();
+  const parent = state.questions.find(q => q.id === parentQid);
+  if (!parent) return;
+
+  document.getElementById('editQModalTitle').textContent = `Ajouter une précision à la question #${parentQid}`;
+  document.getElementById('editQIdBadge').textContent = 'Précision';
+
+  const radioSub = document.getElementById('hierarchyTypeSub');
+  if (radioSub) radioSub.checked = true;
+  onHierarchyTypeChange();
+
+  populateEditQNQuestLieSelect(null, parentQid);
+  const sel = document.getElementById('editQNQuestLie');
+  if (sel) sel.value = String(parentQid);
+  onEditQNQuestLieChange();
+
+  const inputTexte = document.getElementById('editQTexte');
+  if (inputTexte) {
+    inputTexte.value = '';
+    inputTexte.placeholder = `Précision liée à "${parent.texte}"...`;
+    inputTexte.focus();
+  }
+}
+window.openAddAttachedQuestionModal = openAddAttachedQuestionModal;
+
 function openAddQuestionModal() {
   document.getElementById('editQId').value = '';
   document.getElementById('editQModalTitle').textContent = 'Créer une nouvelle question';
   document.getElementById('editQIdBadge').textContent = 'Nouveau';
+
+  // Par défaut, question d'origine principale
+  const radioMain = document.getElementById('hierarchyTypeMain');
+  if (radioMain) radioMain.checked = true;
+  onHierarchyTypeChange();
 
   // Initialisation des listes déroulantes de thématique et sujet
   populateModalThematiques('Identité', 'Identité');
@@ -5016,6 +5291,18 @@ function openEditQuestionModal(qid) {
 
   populateModalThematiques(q.thematique, q.sujet);
   populateEditQNQuestLieSelect(q.id, q.n_quest_lie || 0);
+
+  // Hiérarchie : question d'origine ou question de précision attachée
+  const isSub = Boolean(q.n_quest_lie && q.n_quest_lie !== 0 && q.n_quest_lie !== q.id && q.classe !== 8);
+  if (isSub) {
+    const radioSub = document.getElementById('hierarchyTypeSub');
+    if (radioSub) radioSub.checked = true;
+  } else {
+    const radioMain = document.getElementById('hierarchyTypeMain');
+    if (radioMain) radioMain.checked = true;
+  }
+  onHierarchyTypeChange();
+
   document.getElementById('editQClasse').value = q.classe ?? 1;
   document.getElementById('editQType').value = (q.type === 'MULTI' ? 'M' : (q.type || 'M'));
   document.getElementById('editQCible').value = q.cible ?? 0;
@@ -5544,4 +5831,9 @@ window.handleBatchValidation = handleBatchValidation;
 window.resetPendingFilters = resetPendingFilters;
 window.renderQuestionsDeck = renderQuestionsDeck;
 window.resetBankFilters = resetBankFilters;
+window.revertToAdmin = revertToAdmin;
+window.openProfileCompletenessModal = openProfileCompletenessModal;
+window.onHierarchyTypeChange = onHierarchyTypeChange;
+window.onEditQNQuestLieChange = onEditQNQuestLieChange;
+window.openAddAttachedQuestionModal = openAddAttachedQuestionModal;
 

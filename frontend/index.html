@@ -52,6 +52,9 @@
             </div>
           </div>
         </div>
+        <button id="btnRevertToAdmin" class="btn btn-xs btn-primary btn-revert-admin" onclick="revertToAdmin()" style="display: none; width: 100%; margin-top: 8px; justify-content: center; font-size: 11.5px; font-weight: 700; background: linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%); border: none; padding: 6px 10px; border-radius: 6px; box-shadow: 0 2px 8px rgba(14, 165, 233, 0.3); color: #fff; cursor: pointer;">
+          <span>👑 Revenir Administrateur</span>
+        </button>
       </div>
 
       <nav class="nav-menu">
@@ -141,6 +144,9 @@
               </select>
             </div>
           </div>
+          <button id="btnHeaderRevertAdmin" class="btn btn-sm btn-outline" onclick="revertToAdmin()" style="display: none; align-items: center; gap: 6px; border-color: #38bdf8; color: #38bdf8; font-weight: 600; padding: 6px 12px; border-radius: var(--radius-sm);">
+            <span>👑</span> Revenir Administrateur
+          </button>
           <button id="btnNewProfileModal" class="btn btn-secondary" style="display: none;">
             <span>+</span> Nouveau Profil
           </button>
@@ -313,21 +319,16 @@
                   </div>
                 </div>
 
-                <!-- Bannière d'état de complétude de Mon Profil avec infobulle -->
+                <!-- Bannière d'état de complétude de Mon Profil (1 seule ligne compacte) -->
                 <div id="ckpCompletenessStatus" class="ckp-completeness-status incomplete">
-                  <span class="ckp-status-icon" id="ckpStatusIcon">⚠️</span>
-                  <div class="ckp-status-content">
-                    <div class="ckp-status-title-row">
-                      <strong class="ckp-status-title" id="ckpStatusTitle">Profil à compléter</strong>
-                      <div class="ckp-tooltip-container" id="ckpTooltipContainer">
-                        <span class="ckp-tooltip-trigger" tabindex="0" aria-label="Informations de complétude">ℹ️</span>
-                        <div class="ckp-tooltip-bubble" id="ckpTooltipBubble" role="tooltip">
-                          Pour que votre profil soit complété, vous devez renseigner tous les champs obligatoires (*) et répondre à 100% des questions dans « + sur moi » et « + sur l'autre ».
-                        </div>
-                      </div>
-                    </div>
-                    <span class="ckp-status-desc" id="ckpMissingFieldsDesc">Champs obligatoires (*) manquants : Nom, Sexe, Date de naissance, J'habite ici, À la recherche de, Présentation</span>
+                  <div class="ckp-status-left-row">
+                    <span class="ckp-status-icon" id="ckpStatusIcon">⚠️</span>
+                    <strong class="ckp-status-title" id="ckpStatusTitle">Profil à compléter</strong>
                   </div>
+                  <button type="button" class="btn-info-circle" id="btnOpenCompletenessModal" onclick="openProfileCompletenessModal()" title="Voir les critères pour compléter votre profil" aria-label="Informations complétude profil">
+                    ℹ️
+                  </button>
+                  <span class="ckp-status-desc" id="ckpMissingFieldsDesc" style="display:none;"></span>
                 </div>
 
                 <!-- Formulaire compact avec scrollbar fine si nécessaire -->
@@ -1726,18 +1727,83 @@
   </div>
 
 
+  <!-- MODAL: INFORMATIONS COMPLÉTUDE DU PROFIL -->
+  <div class="modal-backdrop" id="modalProfileCompletenessInfo" style="display:none;">
+    <div class="modal-window modal-md">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:24px;">ℹ️</span>
+          <div>
+            <h3 style="margin:0;">Complétude de Votre Profil</h3>
+            <p class="modal-desc" style="margin:2px 0 0 0;">Critères requis pour débloquer le Calculateur d'Affinité</p>
+          </div>
+        </div>
+        <button class="modal-close" onclick="closeModals()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding:18px 22px;">
+        <div style="background:rgba(245, 158, 11, 0.1); border-left:4px solid #f59e0b; border-radius:6px; padding:12px 14px; margin-bottom:16px; font-size:0.85rem; color:#fde68a; line-height:1.45;">
+          ⚠️ <strong>Règle Affinity :</strong> Les calculs d'affinité croisée exigent que les profils soient complétés à 100% (champs obligatoires * et questionnaires d'identité) afin de garantir la pertinence et la réciprocité des résultats.
+        </div>
+        <h4 style="font-size:0.9rem; margin-bottom:10px; color:var(--text-main);">Éléments restant à compléter :</h4>
+        <div id="completenessModalList" style="font-size:0.86rem; line-height:1.6; color:var(--text-dim);">
+          <!-- Rempli dynamiquement par JS -->
+        </div>
+      </div>
+      <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:10px; padding:12px 20px;">
+        <button type="button" class="btn btn-primary" onclick="closeModals()">Compris, je complète mon profil</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL 4: CRÉER / MODIFIER QUESTION -->
   <div class="modal-backdrop" id="modalEditQuestion" style="display:none;">
     <div class="modal-window modal-lg">
       <div class="modal-header">
         <div>
           <h3><span id="editQModalTitle">Modifier la question</span> <span id="editQIdBadge" class="badge-tag">#0</span></h3>
-          <p class="modal-desc" id="editQModalDesc">Modifiez l'intitulé, la thématique, le sujet, la classe, le type, la cible et les réponses possibles de cette question.</p>
+          <p class="modal-desc" id="editQModalDesc">Modifiez l'intitulé, la hiérarchie, la thématique, le sujet, la classe, le type, la cible et les réponses possibles de cette question.</p>
         </div>
         <button class="modal-close" onclick="closeModals()">&times;</button>
       </div>
       <form id="formEditQuestion">
         <input type="hidden" id="editQId">
+
+        <!-- Hiérarchie de la question : Question d'origine vs Question de précision attachée -->
+        <div class="form-group" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 12px 14px; margin-bottom: 14px;">
+          <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 8px;">
+            Rôle hiérarchique de la question *
+          </label>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <label class="q-hierarchy-option" id="optHierarchyMain" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: 6px; cursor: pointer; background: rgba(255,255,255,0.02); transition: all 0.2s ease;">
+              <input type="radio" name="editQHierarchyType" id="hierarchyTypeMain" value="MAIN" onchange="onHierarchyTypeChange()" checked>
+              <div>
+                <strong style="display: block; font-size: 0.86rem;">📌 Question d'origine</strong>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">Question principale autonome</span>
+              </div>
+            </label>
+            <label class="q-hierarchy-option" id="optHierarchySub" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: 6px; cursor: pointer; background: rgba(255,255,255,0.02); transition: all 0.2s ease;">
+              <input type="radio" name="editQHierarchyType" id="hierarchyTypeSub" value="SUB" onchange="onHierarchyTypeChange()">
+              <div>
+                <strong style="display: block; font-size: 0.86rem;">📎 Question attachée (Précision)</strong>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">Précise une question d'origine (N_QUEST_LIE)</span>
+              </div>
+            </label>
+          </div>
+
+          <!-- Sélecteur de la question parente liée (affiché uniquement si sous-question) -->
+          <div id="boxEditQNQuestLie" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border-subtle);">
+            <label for="editQNQuestLie" style="font-size: 0.82rem; font-weight: 600; color: #38bdf8;">
+              Question d'origine à préciser (N_QUEST_LIE) *
+            </label>
+            <select id="editQNQuestLie" class="form-control" onchange="onEditQNQuestLieChange()" style="margin-top: 4px;">
+              <option value="0">-- Sélectionner la question d'origine --</option>
+            </select>
+            <div id="inheritFeedback" style="display: none; margin-top: 6px; font-size: 0.78rem; color: #34d399;">
+              ✓ Thématique, sujet et classe automatiquement hérités de la question d'origine.
+            </div>
+          </div>
+        </div>
+
         <div class="form-row">
           <div class="form-group col">
             <label for="editQThematiqueSelect">Thématique *</label>
@@ -1793,16 +1859,6 @@
         <div class="form-group">
           <label for="editQTexte">Intitulé complet de la question *</label>
           <textarea id="editQTexte" class="form-control" rows="3" required placeholder="Saisissez l'intitulé complet de la question..."></textarea>
-        </div>
-
-        <div class="form-group">
-          <label for="editQNQuestLie">Question parente liée (N_QUEST_LIE)</label>
-          <select id="editQNQuestLie" class="form-control">
-            <option value="0">0 - Aucune (Question principale indépendante)</option>
-          </select>
-          <small style="color:var(--text-dim); font-size:11.5px; display:block; margin-top:4px;">
-            Permet de définir cette question comme sous-question d'une question principale (ex: "Boire du vin rouge" rattachée à "Boire du vin").
-          </small>
         </div>
 
         <!-- SECTION CONFIGURATION ADAPTATIVE DES RÉPONSES SELON LE TYPE DE QUESTION -->
