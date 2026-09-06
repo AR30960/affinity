@@ -1046,33 +1046,37 @@
           <div class="section-toolbar" style="flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px;">
             <div class="search-box" style="min-width: 240px; max-width: 320px;">
               <span class="search-icon">🔍</span>
-              <input type="text" id="pendingSearchInput" placeholder="Rechercher dans les propositions...">
+              <input type="text" id="pendingSearchInput" placeholder="Rechercher dans les propositions..." oninput="renderPendingQuestionsTable()">
             </div>
             
             <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-              <select id="pendingFilterClasse" class="custom-select" style="min-width: 170px;">
+              <select id="pendingFilterClasse" class="custom-select" style="min-width: 190px;" onchange="renderPendingQuestionsTable()">
                 <option value="ALL">Toutes les classes</option>
-                <option value="5">Classe 5 - A caractère sexuel</option>
+                <option value="1">Classe 1 - Standards</option>
+                <option value="2">Classe 2 - Personnelles</option>
+                <option value="3">Classe 3 - Intimes</option>
+                <option value="4">Classe 4 - Privées</option>
+                <option value="5">Classe 5 - À caractère sexuel</option>
                 <option value="9">Classe 9 - Interdits / Fantasmes</option>
               </select>
-              <select id="pendingFilterType" class="custom-select" style="min-width: 150px;">
+              <select id="pendingFilterType" class="custom-select" style="min-width: 150px;" onchange="renderPendingQuestionsTable()">
                 <option value="ALL">Tous les types</option>
                 <option value="M">Multi-Axes (M)</option>
                 <option value="G">Goût Unique (G)</option>
               </select>
-              <select id="pendingFilterCible" class="custom-select" style="min-width: 150px;">
+              <select id="pendingFilterCible" class="custom-select" style="min-width: 150px;" onchange="renderPendingQuestionsTable()">
                 <option value="ALL">Toutes les cibles</option>
                 <option value="0">0 - Mixte (Tous)</option>
                 <option value="1">1 - Hommes</option>
                 <option value="2">2 - Femmes</option>
               </select>
               <button id="btnResetPendingFilters" class="btn btn-outline btn-sm" onclick="resetPendingFilters()" style="padding: 8px 12px;">
-                Effacer filtres
+                🔄 Effacer filtres
               </button>
             </div>
 
             <div style="margin-left: auto;">
-              <span id="pendingFilteredCountBadge" class="badge-soft" style="font-size: 12px; padding: 6px 12px; background: rgba(245,158,11,0.15); color: #fbbf24;">150 propositions</span>
+              <span id="pendingFilteredCountBadge" class="badge-soft" style="font-size: 12px; padding: 6px 12px; background: rgba(245,158,11,0.15); color: #fbbf24;">Chargement...</span>
             </div>
           </div>
 
@@ -1504,6 +1508,17 @@
           <div class="form-group col">
             <label>Identifiant Unique de Match (Calculé)</label>
             <input type="text" id="idAffDisplay" class="form-control" readonly style="opacity:0.8; font-weight:700; color:var(--accent-cyan);">
+          </div>
+        </div>
+
+        <!-- Contact & Sécurité du Compte -->
+        <div class="form-row" style="margin-bottom: 14px;">
+          <div class="form-group col">
+            <label for="idEmail">Adresse e-mail <span style="font-weight: 400; color: var(--text-muted); font-size: 0.85em;">(non obligatoire)</span></label>
+            <input type="email" id="idEmail" class="form-control" placeholder="Ex: contact@domaine.com">
+            <div style="margin-top: 5px; padding: 6px 10px; background: rgba(245, 158, 11, 0.12); border-left: 3px solid #f59e0b; border-radius: 4px; font-size: 11.5px; color: #fbbf24; line-height: 1.35;">
+              ⚠️ <strong>Information sécurité</strong> : Si elle n'est pas renseignée = pas de récupération en cas de mot de passe oublié et certaines fonctionnalités de l'application ne pourront être activées.
+            </div>
           </div>
         </div>
 
@@ -2179,8 +2194,13 @@
           <label for="loginInput" style="display: block; font-size: 0.85rem; margin-bottom: 6px; font-weight: 500;">Pseudo ou N° de Profil</label>
           <input type="text" id="loginInput" class="form-input" placeholder="Ex: ar30960, André, AFF-7..." required autofocus autocomplete="username">
         </div>
-        <div class="form-group" style="margin-bottom: 20px;">
-          <label for="loginPassword" style="display: block; font-size: 0.85rem; margin-bottom: 6px; font-weight: 500;">Mot de passe</label>
+        <div class="form-group" style="margin-bottom: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <label for="loginPassword" style="font-size: 0.85rem; font-weight: 500; margin-bottom: 0;">Mot de passe</label>
+            <a href="javascript:void(0)" id="btnShowForgotLink" onclick="switchAuthView('forgot')" style="font-size: 0.8rem; color: #38bdf8; text-decoration: none; font-weight: 500;">
+              🔑 Mot de passe oublié ?
+            </a>
+          </div>
           <input type="password" id="loginPassword" class="form-input" placeholder="••••••••" required autocomplete="current-password">
         </div>
         <div id="loginFeedback" class="auth-feedback" style="display: none; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 0.85rem;"></div>
@@ -2198,18 +2218,13 @@
           <label for="regPseudo" style="display: block; font-size: 0.85rem; margin-bottom: 6px; font-weight: 500;">Votre Pseudo *</label>
           <input type="text" id="regPseudo" class="form-input" placeholder="Ex: Julie, Marc..." required autocomplete="nickname">
         </div>
-        <div class="form-row" style="display: flex; gap: 12px; margin-bottom: 14px;">
-          <div class="form-group" style="flex: 1;">
-            <label for="regSexe" style="display: block; font-size: 0.85rem; margin-bottom: 6px; font-weight: 500;">Vous êtes *</label>
-            <select id="regSexe" class="form-select" required>
-              <option value="1">Homme</option>
-              <option value="2">Femme</option>
-              <option value="0">Autre</option>
-            </select>
-          </div>
-          <div class="form-group" style="flex: 1;">
-            <label for="regBirth" style="display: block; font-size: 0.85rem; margin-bottom: 6px; font-weight: 500;">Naissance</label>
-            <input type="date" id="regBirth" class="form-input">
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label for="regEmail" style="display: block; font-size: 0.85rem; margin-bottom: 6px; font-weight: 500;">
+            Adresse e-mail <span style="font-weight: 400; color: var(--text-muted);">(non obligatoire)</span>
+          </label>
+          <input type="email" id="regEmail" class="form-input" placeholder="exemple@domaine.com" autocomplete="email">
+          <div style="margin-top: 6px; padding: 8px 10px; background: rgba(245, 158, 11, 0.12); border-left: 3px solid #f59e0b; border-radius: 4px; font-size: 0.76rem; color: #fbbf24; line-height: 1.35;">
+            ⚠️ <strong>Important</strong> : Si elle n'est pas renseignée = pas de récupération possible en cas de mot de passe oublié, et certaines fonctionnalités de l'application ne pourront pas être activées.
           </div>
         </div>
         <div class="form-group" style="margin-bottom: 20px;">
@@ -2219,6 +2234,50 @@
         <div id="registerFeedback" class="auth-feedback" style="display: none; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 0.85rem;"></div>
         <button type="submit" class="btn btn-secondary" id="btnSubmitRegister" style="width: 100%; justify-content: center; padding: 12px; font-size: 1rem;">
           <span>✨</span> Créer mon profil Invité
+        </button>
+      </form>
+
+      <!-- Formulaire Étape 1 : Mot de passe oublié (Demande de réinitialisation) -->
+      <form id="formForgotPassword" class="auth-form" style="display: none;">
+        <div style="margin-bottom: 16px; font-size: 0.85rem; color: var(--text-muted); line-height: 1.45;">
+          Saisissez votre pseudo, code profil ou adresse e-mail. Un code temporaire de réinitialisation vous sera délivré pour changer votre mot de passe.
+        </div>
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label for="forgotLoginInput" style="display: block; font-size: 0.85rem; margin-bottom: 6px; font-weight: 500;">Pseudo ou Adresse e-mail *</label>
+          <input type="text" id="forgotLoginInput" class="form-input" placeholder="Ex: Julie, ar30960 ou exemple@mail.com" required>
+        </div>
+        <div id="forgotFeedback" class="auth-feedback" style="display: none; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 0.85rem;"></div>
+        <button type="submit" class="btn btn-primary" id="btnSubmitForgot" style="width: 100%; justify-content: center; padding: 12px; font-size: 0.95rem; margin-bottom: 10px;">
+          <span>📨</span> Obtenir un code de réinitialisation
+        </button>
+        <button type="button" class="btn btn-outline" onclick="switchAuthView('login')" style="width: 100%; justify-content: center; padding: 10px; font-size: 0.88rem;">
+          ← Retour à la connexion
+        </button>
+      </form>
+
+      <!-- Formulaire Étape 2 : Réinitialisation du mot de passe avec code -->
+      <form id="formResetPassword" class="auth-form" style="display: none;">
+        <div id="resetMaskedNotice" style="margin-bottom: 16px; padding: 10px 12px; background: rgba(56, 189, 248, 0.12); border-left: 3px solid #38bdf8; border-radius: 6px; font-size: 0.82rem; color: #bae6fd; line-height: 1.4;">
+          Code généré pour <strong id="resetTargetIdentifier">votre compte</strong>.
+        </div>
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label for="resetCodeInput" style="display: block; font-size: 0.85rem; margin-bottom: 6px; font-weight: 500;">Code de réinitialisation (6 chiffres) *</label>
+          <input type="text" id="resetCodeInput" class="form-input" placeholder="Ex: 123456" maxlength="6" required style="letter-spacing: 3px; font-weight: 700; font-size: 1.1rem; text-align: center;">
+        </div>
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label for="resetNewPassword" style="display: block; font-size: 0.85rem; margin-bottom: 6px; font-weight: 500;">Nouveau mot de passe *</label>
+          <input type="password" id="resetNewPassword" class="form-input" placeholder="Au moins 4 caractères" required autocomplete="new-password">
+        </div>
+        <div class="form-group" style="margin-bottom: 18px;">
+          <label for="resetConfirmPassword" style="display: block; font-size: 0.85rem; margin-bottom: 6px; font-weight: 500;">Confirmer le nouveau mot de passe *</label>
+          <input type="password" id="resetConfirmPassword" class="form-input" placeholder="Répéter le mot de passe" required autocomplete="new-password">
+        </div>
+        <div id="resetFeedback" class="auth-feedback" style="display: none; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 0.85rem;"></div>
+        <button type="submit" class="btn btn-primary" id="btnSubmitReset" style="width: 100%; justify-content: center; padding: 12px; font-size: 0.95rem; margin-bottom: 10px;">
+          <span>🔒</span> Valider le nouveau mot de passe
+        </button>
+        <button type="button" class="btn btn-outline" onclick="switchAuthView('login')" style="width: 100%; justify-content: center; padding: 10px; font-size: 0.88rem;">
+          ← Annuler et revenir
         </button>
       </form>
     </div>

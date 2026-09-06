@@ -931,6 +931,7 @@ function initEventListeners() {
 
     const bodyData = {
       pseudo: document.getElementById('idPseudo')?.value.trim() || undefined,
+      email: document.getElementById('idEmail')?.value.trim() || '',
       prenom: document.getElementById('idPrenom')?.value.trim() || '',
       nom: document.getElementById('idNom')?.value.trim() || '',
       sexe: parseInt(document.getElementById('idSexe')?.value, 10) || 0,
@@ -1683,31 +1684,67 @@ function closeAuthModal() {
   }
 }
 
+function switchAuthView(view) {
+  const btnToggleLogin = document.getElementById('btnToggleLogin');
+  const btnToggleRegister = document.getElementById('btnToggleRegister');
+  const formLogin = document.getElementById('formLogin');
+  const formRegister = document.getElementById('formRegister');
+  const formForgot = document.getElementById('formForgotPassword');
+  const formReset = document.getElementById('formResetPassword');
+  const tabsContainer = document.querySelector('.auth-tabs-toggle');
+  const subtitle = document.getElementById('authSubtitle');
+
+  // Cacher tous les formulaires
+  if (formLogin) formLogin.style.display = 'none';
+  if (formRegister) formRegister.style.display = 'none';
+  if (formForgot) formForgot.style.display = 'none';
+  if (formReset) formReset.style.display = 'none';
+
+  if (view === 'login') {
+    if (tabsContainer) tabsContainer.style.display = 'flex';
+    if (btnToggleLogin) btnToggleLogin.classList.add('active');
+    if (btnToggleRegister) btnToggleRegister.classList.remove('active');
+    if (formLogin) formLogin.style.display = 'block';
+    if (subtitle) subtitle.textContent = 'Accès sécurisé à votre espace relationnel';
+    document.getElementById('loginInput')?.focus();
+  } else if (view === 'register') {
+    if (tabsContainer) tabsContainer.style.display = 'flex';
+    if (btnToggleRegister) btnToggleRegister.classList.add('active');
+    if (btnToggleLogin) btnToggleLogin.classList.remove('active');
+    if (formRegister) formRegister.style.display = 'block';
+    if (subtitle) subtitle.textContent = 'Création instantanée de votre profil Invité';
+    document.getElementById('regPseudo')?.focus();
+  } else if (view === 'forgot') {
+    if (tabsContainer) tabsContainer.style.display = 'none';
+    if (formForgot) formForgot.style.display = 'block';
+    if (subtitle) subtitle.textContent = 'Récupération de mot de passe';
+    document.getElementById('forgotLoginInput')?.focus();
+  } else if (view === 'reset') {
+    if (tabsContainer) tabsContainer.style.display = 'none';
+    if (formReset) formReset.style.display = 'block';
+    if (subtitle) subtitle.textContent = 'Définir un nouveau mot de passe';
+    document.getElementById('resetCodeInput')?.focus();
+  }
+}
+window.switchAuthView = switchAuthView;
+
 function setupAuthListeners() {
   const btnToggleLogin = document.getElementById('btnToggleLogin');
   const btnToggleRegister = document.getElementById('btnToggleRegister');
   const formLogin = document.getElementById('formLogin');
   const formRegister = document.getElementById('formRegister');
+  const formForgot = document.getElementById('formForgotPassword');
+  const formReset = document.getElementById('formResetPassword');
   const btnLogout = document.getElementById('btnLogout');
 
-  if (btnToggleLogin && btnToggleRegister) {
-    btnToggleLogin.addEventListener('click', () => {
-      btnToggleLogin.classList.add('active');
-      btnToggleRegister.classList.remove('active');
-      formLogin.style.display = 'block';
-      formRegister.style.display = 'none';
-      document.getElementById('authSubtitle').textContent = 'Accès sécurisé à votre espace relationnel';
-    });
-
-    btnToggleRegister.addEventListener('click', () => {
-      btnToggleRegister.classList.add('active');
-      btnToggleLogin.classList.remove('active');
-      formLogin.style.display = 'none';
-      formRegister.style.display = 'block';
-      document.getElementById('authSubtitle').textContent = 'Création instantanée de votre profil Invité';
-    });
+  if (btnToggleLogin) {
+    btnToggleLogin.addEventListener('click', () => switchAuthView('login'));
+  }
+  if (btnToggleRegister) {
+    btnToggleRegister.addEventListener('click', () => switchAuthView('register'));
   }
 
+  // Connexion
   if (formLogin) {
     formLogin.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -1753,12 +1790,12 @@ function setupAuthListeners() {
     });
   }
 
+  // Inscription (sans sexe ni date de naissance, avec e-mail optionnel)
   if (formRegister) {
     formRegister.addEventListener('submit', async (e) => {
       e.preventDefault();
       const pseudo = document.getElementById('regPseudo').value.trim();
-      const sexe = parseInt(document.getElementById('regSexe').value, 10);
-      const date_naissance = document.getElementById('regBirth').value;
+      const email = (document.getElementById('regEmail')?.value || '').trim();
       const password = document.getElementById('regPassword').value.trim();
       const feedback = document.getElementById('registerFeedback');
       const btnSubmit = document.getElementById('btnSubmitRegister');
@@ -1772,7 +1809,7 @@ function setupAuthListeners() {
         const res = await fetch(`${API_BASE}/api/auth/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pseudo, sexe, date_naissance, password })
+          body: JSON.stringify({ pseudo, email, password })
         });
         const data = await res.json();
         if (!res.ok) {
@@ -1799,6 +1836,123 @@ function setupAuthListeners() {
     });
   }
 
+  // Mot de passe oublié - Étape 1 : Demande de code
+  if (formForgot) {
+    formForgot.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const login_or_email = document.getElementById('forgotLoginInput').value.trim();
+      const feedback = document.getElementById('forgotFeedback');
+      const btnSubmit = document.getElementById('btnSubmitForgot');
+
+      if (!login_or_email) return;
+      btnSubmit.disabled = true;
+      btnSubmit.textContent = 'Vérification en cours...';
+      feedback.style.display = 'none';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ login_or_email })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          feedback.textContent = data.error || 'Impossible de traiter la demande.';
+          feedback.style.display = 'block';
+          feedback.style.background = 'rgba(239, 68, 68, 0.15)';
+          feedback.style.color = '#ef4444';
+          feedback.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+        } else {
+          state.lastForgotIdentifier = login_or_email;
+          const targetNotice = document.getElementById('resetTargetIdentifier');
+          if (targetNotice) targetNotice.textContent = data.email_masked ? `${data.pseudo} (${data.email_masked})` : data.pseudo;
+          
+          // Préremplir le code de réinitialisation pour une expérience directe et fluide
+          const codeInput = document.getElementById('resetCodeInput');
+          if (codeInput && data.reset_code) {
+            codeInput.value = data.reset_code;
+          }
+          
+          switchAuthView('reset');
+          const resetFeed = document.getElementById('resetFeedback');
+          if (resetFeed) {
+            resetFeed.innerHTML = `✅ <strong>Code généré avec succès !</strong><br><span style="font-size:12px;">Votre code à 6 chiffres est : <strong style="color:#38bdf8; font-size:15px; letter-spacing:1px;">${data.reset_code}</strong> (valable 15 minutes). Saisissez votre nouveau mot de passe ci-dessous.</span>`;
+            resetFeed.style.display = 'block';
+            resetFeed.style.background = 'rgba(16, 185, 129, 0.15)';
+            resetFeed.style.color = '#34d399';
+            resetFeed.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+          }
+        }
+      } catch (err) {
+        feedback.textContent = 'Erreur réseau, veuillez réessayer.';
+        feedback.style.display = 'block';
+      } finally {
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = '<span>📨</span> Obtenir un code de réinitialisation';
+      }
+    });
+  }
+
+  // Mot de passe oublié - Étape 2 : Validation du nouveau mot de passe
+  if (formReset) {
+    formReset.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const login_or_email = state.lastForgotIdentifier || document.getElementById('forgotLoginInput')?.value.trim();
+      const reset_code = document.getElementById('resetCodeInput').value.trim();
+      const new_password = document.getElementById('resetNewPassword').value.trim();
+      const confirm_password = document.getElementById('resetConfirmPassword').value.trim();
+      const feedback = document.getElementById('resetFeedback');
+      const btnSubmit = document.getElementById('btnSubmitReset');
+
+      if (!reset_code || !new_password) return;
+      if (new_password !== confirm_password) {
+        feedback.textContent = 'Les mots de passe ne correspondent pas.';
+        feedback.style.display = 'block';
+        feedback.style.background = 'rgba(239, 68, 68, 0.15)';
+        feedback.style.color = '#ef4444';
+        feedback.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+        return;
+      }
+
+      btnSubmit.disabled = true;
+      btnSubmit.textContent = 'Réinitialisation en cours...';
+      feedback.style.display = 'none';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/reset-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ login_or_email, reset_code, new_password })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          feedback.textContent = data.error || 'Erreur lors de la réinitialisation.';
+          feedback.style.display = 'block';
+          feedback.style.background = 'rgba(239, 68, 68, 0.15)';
+          feedback.style.color = '#ef4444';
+          feedback.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+        } else {
+          showToast('Mot de passe réinitialisé avec succès ! Veuillez vous connecter.', 'success');
+          switchAuthView('login');
+          const loginIn = document.getElementById('loginInput');
+          if (loginIn && login_or_email) loginIn.value = login_or_email;
+          const loginPwd = document.getElementById('loginPassword');
+          if (loginPwd) {
+            loginPwd.value = '';
+            loginPwd.focus();
+          }
+        }
+      } catch (err) {
+        feedback.textContent = 'Erreur réseau, veuillez réessayer.';
+        feedback.style.display = 'block';
+      } finally {
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = '<span>🔒</span> Valider le nouveau mot de passe';
+      }
+    });
+  }
+
+  // Déconnexion
   if (btnLogout) {
     btnLogout.addEventListener('click', async () => {
       if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
@@ -3348,9 +3502,11 @@ async function openIdentityCardModal(profileId) {
   document.getElementById('idProfileId').value = profileId;
   document.getElementById('modalIdTitle').textContent = `Fiche d'identité de ${prof?.pseudo || 'ce profil'}`;
 
-  // Remplir pseudo et ID calculé
+  // Remplir pseudo, email et ID calculé
   const elPseudo = document.getElementById('idPseudo');
   if (elPseudo) elPseudo.value = prof?.pseudo || '';
+  const elEmail = document.getElementById('idEmail');
+  if (elEmail) elEmail.value = prof?.email || '';
   const elAff = document.getElementById('idAffDisplay');
   if (elAff) elAff.value = formatAffId(profileId);
 
@@ -5025,9 +5181,32 @@ function switchBankView(view) {
       btnArbitrage.style.borderColor = '#f59e0b';
       btnArbitrage.style.color = '#fbbf24';
     }
+    // Par défaut afficher toutes les questions à arbitrer sans filtre résiduel
+    const s = document.getElementById('pendingSearchInput');
+    if (s) s.value = '';
+    const fc = document.getElementById('pendingFilterClasse');
+    if (fc) fc.value = 'ALL';
+    const ft = document.getElementById('pendingFilterType');
+    if (ft) ft.value = 'ALL';
+    const fcb = document.getElementById('pendingFilterCible');
+    if (fcb) fcb.value = 'ALL';
+
     loadPendingQuestions();
   }
 }
+
+function resetPendingFilters() {
+  const s = document.getElementById('pendingSearchInput');
+  if (s) s.value = '';
+  const fc = document.getElementById('pendingFilterClasse');
+  if (fc) fc.value = 'ALL';
+  const ft = document.getElementById('pendingFilterType');
+  if (ft) ft.value = 'ALL';
+  const fcb = document.getElementById('pendingFilterCible');
+  if (fcb) fcb.value = 'ALL';
+  renderPendingQuestionsTable();
+}
+window.resetPendingFilters = resetPendingFilters;
 
 async function loadPendingQuestions() {
   try {
@@ -5099,14 +5278,15 @@ function renderPendingQuestionsTable() {
   const filterCible = document.getElementById('pendingFilterCible')?.value || 'ALL';
 
   const filtered = (state.pendingQuestions || []).filter(q => {
-    if (filterClasse !== 'ALL' && q.classe !== parseInt(filterClasse, 10)) return false;
-    if (filterType !== 'ALL' && q.type !== filterType) return false;
-    if (filterCible !== 'ALL' && q.cible !== parseInt(filterCible, 10)) return false;
+    if (filterClasse !== 'ALL' && String(q.classe) !== String(filterClasse)) return false;
+    if (filterType !== 'ALL' && String(q.type).toUpperCase() !== String(filterType).toUpperCase()) return false;
+    if (filterCible !== 'ALL' && String(q.cible) !== String(filterCible)) return false;
     if (searchTerm) {
       const matchText = (q.texte || '').toLowerCase().includes(searchTerm);
       const matchSujet = (q.sujet || '').toLowerCase().includes(searchTerm);
+      const matchThema = (q.thematique || '').toLowerCase().includes(searchTerm);
       const matchId = String(q.id).includes(searchTerm);
-      if (!matchText && !matchSujet && !matchId) return false;
+      if (!matchText && !matchSujet && !matchThema && !matchId) return false;
     }
     return true;
   });

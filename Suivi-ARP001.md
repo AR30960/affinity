@@ -95,9 +95,21 @@ L'application **Affinity** est un moteur de calcul d'affinités électives basé
   - Filtres hiérarchiques ajoutés à la fois dans le **Questionnaire** et dans la **Banque de questions** (Tous les niveaux / Questions principales uniquement / Sous-questions uniquement / Questions mères).
   - Administration & Édition : intégration du sélecteur de question parente `editQNQuestLie` dans le formulaire modal de création et de modification de questions.
 
+- **Fait - 06/09/2026** : ~~Super je ne vois pas dans la banque de questions tes nouvelles questions. Il y a toujours Arbitrage Jeu 3 avec d'anciennes références aux 150 questions. Remplace par un bouton Espace d'Arbitrage. Les questions que tu génères affecte les au jeu 3 sans le mentionner dans le bouton. en revanche dans la validation permet de choisir le jeu dans lequel valider la questions~~
+  - Renommage du bouton en « ⚖️ Espace d'Arbitrage ».
+  - Suppression des 150 anciennes questions longues et insertion de 60 questions synthétiques directes pré-assignées au Jeu 3 en statut `pending_review`.
+  - Intégration d'un sélecteur de jeu/pack cible (Jeu 1, Jeu 2, Jeu 3) lors de la validation unitaire et lors de la validation par lot.
+- **Fait - 06/09/2026** : ~~Dans l'espace d'arbitrage par défaut afficher toutes les questions à arbitrer et vérifie que le rafraichissement fonctionne quand on selection un filtre (ce n'est pas le cas). Pour la création d'un compte enlève moi ta demande sexe et date de naissance. En revanche dans les profils demande une adresse mail non obligatoire en précisant que si elle n'est pas renseigné = pas de récupération mot de passe oublié et que certaines fonctionnalités de l'application ne pourront être activées. Gère "mot de passe oublié".~~
+  - Espace d'Arbitrage : affichage par défaut de l'ensemble des 60 questions à arbitrer.
+  - Ajout des triggers dynamiques `onchange` et `oninput` sur tous les sélecteurs de filtres (Recherche texte, Classe 1-2-3-4-5-9, Types, Cibles) et implémentation de `resetPendingFilters()`.
+  - Inscription épurée : suppression complète des demandes de sexe et de date de naissance lors de la création de compte.
+  - Champ adresse e-mail non obligatoire dans l'inscription et dans la Fiche d'identité avec message d'information sécurité (si non renseignée = pas de récupération en cas de mot de passe oublié et certaines fonctionnalités avancées restent désactivées).
+  - Gestion complète de « Mot de passe oublié » : modalité de demande avec code temporaire à 6 chiffres, contrôle de la présence d'e-mail, réinitialisation sécurisée et mise à jour du mot de passe.
+
 ---
 
 ## 4. NOUVELLES DEMANDES
 
 *(Inscrivez ici vos prochaines demandes. Une fois prise en compte, l'assistant les passera en « Fait - [Date] » avec le texte barré).*
+
 
