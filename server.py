@@ -418,6 +418,48 @@ def create_session(profile_id: int) -> str:
     conn.close()
     return token
 
+def get_full_profile_data(c, profile_id):
+    c.execute("""
+        SELECT p.id, p.pseudo, p.code_profil, p.avatar, p.role, p.email, p.created_at,
+               i.prenom, i.nom, i.sexe, i.date_naissance, i.ville, i.statut, i.bio,
+               i.situation_famille, i.recherche_de,
+               i.pays_naissance, i.habite_pays, i.habite_region_dept, i.habite_commune,
+               i.travail_pays, i.travail_region_dept, i.travail_commune,
+               i.taille, i.poids, i.pointure, i.tour_poitrine, i.tour_taille, i.tour_hanches, i.mensurations,
+               i.origines, i.couleur_cheveux, i.style, i.aime_chez_moi, i.aime_pas_chez_moi,
+               (CASE WHEN i.prenom IS NOT NULL AND i.prenom != '' THEN 1 ELSE 0 END) as has_identity,
+               (SELECT COUNT(DISTINCT question_id) FROM answers WHERE profile_id = p.id) as answers_count,
+               (SELECT COUNT(DISTINCT a.question_id) FROM answers a JOIN questions q ON a.question_id = q.id WHERE a.profile_id = p.id AND q.classe = 8) as identity_answers_count,
+               (SELECT COUNT(DISTINCT question_id) FROM identity_answers_self WHERE profile_id = p.id AND (valeur_num IS NOT NULL OR (valeur_text IS NOT NULL AND valeur_text != ''))) as identity_self_count,
+               (SELECT COUNT(DISTINCT question_id) FROM identity_answers_partner WHERE profile_id = p.id AND (indifferent = 1 OR (min_val IS NOT NULL AND max_val IS NOT NULL) OR (options_json IS NOT NULL AND options_json != '[]'))) as identity_partner_count,
+               (SELECT COUNT(*) FROM questions WHERE classe = 8) as identity_questions_total,
+               pqa.allowed_packs, pqa.allowed_classes, pqa.allowed_types
+        FROM profiles p
+        LEFT JOIN identity_cards i ON p.id = i.profile_id
+        LEFT JOIN profile_question_access pqa ON p.id = pqa.profile_id
+        WHERE p.id = ?
+    """, (profile_id,))
+    row = c.fetchone()
+    if not row:
+        return None
+    p = dict(row)
+    ap = p.get("allowed_packs")
+    ac = p.get("allowed_classes")
+    at = p.get("allowed_types")
+    p["question_access"] = {
+        "allowed_packs": json.loads(ap) if ap and ap != "ALL" else "ALL",
+        "allowed_classes": json.loads(ac) if ac and ac != "ALL" else "ALL",
+        "allowed_types": json.loads(at) if at and at != "ALL" else "ALL"
+    }
+    if p.get("date_naissance"):
+        p_age, _ = validate_birth_date_and_age(p["date_naissance"])
+        p["age"] = p_age
+    else:
+        p["age"] = None
+    p["identity_self_answers_count"] = max(p.get("identity_answers_count", 0), p.get("identity_self_count", 0))
+    p["identity_partner_answers_count"] = p.get("identity_partner_count", 0)
+    return p
+
 def get_session_profile(token: str):
     if not token:
         return None
@@ -425,15 +467,16 @@ def get_session_profile(token: str):
     c = conn.cursor()
     now_str = datetime.now(timezone.utc).isoformat()
     row = c.execute("""
-        SELECT p.id, p.pseudo, p.code_profil, p.role, p.avatar, p.email
-        FROM sessions s
-        JOIN profiles p ON s.profile_id = p.id
-        WHERE s.token = ? AND s.expires_at > ?
+        SELECT profile_id
+        FROM sessions
+        WHERE token = ? AND expires_at > ?
     """, (token, now_str)).fetchone()
+    if not row:
+        conn.close()
+        return None
+    prof_data = get_full_profile_data(c, row["profile_id"])
     conn.close()
-    if row:
-        return dict(row)
-    return None
+    return prof_data
 
 def delete_session(token: str):
     if not token:
@@ -1233,11 +1276,10 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                 parts = path.split("/")
                 pid = int(parts[3])
                 if len(parts) == 4:
-                    c.execute("SELECT * FROM profiles WHERE id = ?", (pid,))
-                    prof = c.fetchone()
+                    prof = get_full_profile_data(c, pid)
                     conn.close()
                     if prof:
-                        return self._send_json(dict(prof))
+                        return self._send_json(prof)
                     return self._send_json({"error": "Profil introuvable"}, 404)
                 elif len(parts) == 5 and parts[4] == "identity":
                     c.execute("SELECT * FROM identity_cards WHERE profile_id = ?", (pid,))
@@ -1764,14 +1806,7 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                 return self._send_json({"error": "Identifiant ou mot de passe incorrect."}, 401)
             
             token = create_session(prof["id"])
-            prof_dict = {
-                "id": prof["id"],
-                "pseudo": prof["pseudo"],
-                "code_profil": prof["code_profil"],
-                "role": prof["role"],
-                "avatar": prof["avatar"],
-                "email": prof["email"]
-            }
+            prof_dict = get_full_profile_data(c, prof["id"])
             conn.close()
             return self._send_json({"success": True, "token": token, "profile": prof_dict})
 
@@ -1798,14 +1833,7 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                 c.execute("INSERT OR REPLACE INTO profile_question_access (profile_id, allowed_packs, allowed_classes, allowed_types) VALUES (?, 'ALL', '[\"1\"]', 'ALL')", (pid,))
                 conn.commit()
                 token = create_session(pid)
-                prof_dict = {
-                    "id": pid,
-                    "pseudo": pseudo,
-                    "code_profil": code_prof,
-                    "role": "guest",
-                    "avatar": "user",
-                    "email": email
-                }
+                prof_dict = get_full_profile_data(c, pid)
                 conn.close()
                 return self._send_json({"success": True, "token": token, "profile": prof_dict}, 201)
             except sqlite3.IntegrityError:

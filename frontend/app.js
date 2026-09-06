@@ -901,6 +901,15 @@ function removeAuthToken() {
   localStorage.removeItem('affinity_token');
 }
 
+function authFetch(url, options = {}) {
+  const token = getAuthToken();
+  const headers = Object.assign({}, options.headers || {});
+  if (token && !headers['Authorization']) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return fetch(url, Object.assign({}, options, { headers }));
+}
+
 let state = {
   profiles: [],
   activeProfileId: null,
@@ -1974,10 +1983,20 @@ function setupAuthListeners() {
           setAuthToken(data.token);
           state.currentUser = data.profile;
           state.activeProfileId = data.profile.id;
-          if (data.profile.role === 'admin') state.realAdminId = data.profile.id;
+          if (data.profile.role === 'admin') {
+            state.realAdminId = data.profile.id;
+          } else {
+            state.realAdminId = null;
+            state.simulatedRole = null;
+            state.simulatedProfileId = null;
+          }
           closeAuthModal();
           showToast(`Bienvenue ${data.profile.pseudo} !`, 'success');
           await loadInitialData();
+          if (data.profile.role !== 'admin') {
+            switchTab('profiles');
+            renderSingleUserProfile();
+          }
         }
       } catch (err) {
         feedback.textContent = 'Erreur réseau, veuillez réessayer.';
@@ -2183,7 +2202,7 @@ async function loadInitialData() {
   }
 
   try {
-    const meRes = await fetch(`${API_BASE}/api/auth/me`);
+    const meRes = await authFetch(`${API_BASE}/api/auth/me`);
     if (!meRes.ok) {
       removeAuthToken();
       openAuthModal();
@@ -2208,6 +2227,9 @@ async function loadInitialData() {
     await loadProfiles();
     if (state.activeProfileId) {
       setActiveProfile(state.activeProfileId);
+      if (!isCurrentAdmin()) {
+        renderSingleUserProfile();
+      }
     }
   } catch (err) {
     console.error('Erreur chargement profil initial:', err);
@@ -2223,7 +2245,7 @@ async function loadInitialData() {
 // Profils
 async function loadProfiles() {
   try {
-    const res = await fetch(`${API_BASE}/api/profiles`);
+    const res = await authFetch(`${API_BASE}/api/profiles`);
     const data = await res.json();
     state.profiles = data.profiles || [];
     
@@ -2534,9 +2556,25 @@ function copyMyAffId() {
 // ==========================================================================
 // VUE COCKPIT PROFIL INDIVIDUEL COMPACT (INVITÉ & ABONNÉ)
 // ==========================================================================
-function renderSingleUserProfile() {
-  const p = getActiveProfile();
+async function renderSingleUserProfile() {
+  let p = getActiveProfile();
+  if (!p && state.currentUser) {
+    p = state.currentUser;
+  }
   if (!p) return;
+
+  // Récupération systématique et fraîche de la fiche d'identité enregistrée en base
+  try {
+    const resId = await authFetch(`${API_BASE}/api/profiles/${p.id}/identity`);
+    if (resId.ok) {
+      const cardData = await resId.json();
+      if (cardData && typeof cardData === 'object') {
+        Object.assign(p, cardData);
+      }
+    }
+  } catch (e) {
+    console.warn("Erreur chargement identité profil:", e);
+  }
 
   const affId = formatAffId(p.id);
   const role = p.role || 'guest';
