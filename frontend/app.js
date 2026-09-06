@@ -2090,6 +2090,11 @@ function setupAuthListeners() {
           const targetNotice = document.getElementById('resetTargetIdentifier');
           if (targetNotice) targetNotice.textContent = data.email_masked ? `${data.pseudo} (${data.email_masked})` : data.pseudo;
           
+          const banner = document.getElementById('resetCodeBanner');
+          if (banner && data.reset_code) {
+            banner.textContent = data.reset_code;
+          }
+
           // Préremplir le code de réinitialisation pour une expérience directe et fluide
           const codeInput = document.getElementById('resetCodeInput');
           if (codeInput && data.reset_code) {
@@ -2099,7 +2104,7 @@ function setupAuthListeners() {
           switchAuthView('reset');
           const resetFeed = document.getElementById('resetFeedback');
           if (resetFeed) {
-            resetFeed.innerHTML = `✅ <strong>Code généré avec succès !</strong><br><span style="font-size:12px;">Votre code à 6 chiffres est : <strong style="color:#38bdf8; font-size:15px; letter-spacing:1px;">${data.reset_code}</strong> (valable 15 minutes). Saisissez votre nouveau mot de passe ci-dessous.</span>`;
+            resetFeed.innerHTML = `✅ <strong>Code de réinitialisation :</strong> <span style="color:#38bdf8; font-size:16px; font-weight:bold; letter-spacing:2px;">${data.reset_code}</span><br><span style="font-size:12px;">Le code est déjà renseigné ci-dessous. Définissez simplement votre nouveau mot de passe.</span>`;
             resetFeed.style.display = 'block';
             resetFeed.style.background = 'rgba(16, 185, 129, 0.15)';
             resetFeed.style.color = '#34d399';
@@ -2111,7 +2116,7 @@ function setupAuthListeners() {
         feedback.style.display = 'block';
       } finally {
         btnSubmit.disabled = false;
-        btnSubmit.innerHTML = '<span>📨</span> Obtenir un code de réinitialisation';
+        btnSubmit.innerHTML = '<span>🔑</span> Afficher le code de réinitialisation';
       }
     });
   }
@@ -2696,6 +2701,25 @@ async function renderSingleUserProfile() {
   const btnCkpAdminReq = document.getElementById('btnCkpTabAdminRequests');
   if (btnCkpAdminReq) btnCkpAdminReq.style.display = isAdminProfile ? 'none' : 'inline-flex';
 
+  // 🔐 Sécurité & Changement de mot de passe (accessible sur son propre profil)
+  const secSection = document.getElementById('ckpSecuritySection');
+  const isOwnProfile = (!state.currentUser || p.id === state.currentUser.id);
+  if (secSection) {
+    secSection.style.display = isOwnProfile ? 'block' : 'none';
+  }
+  const pwdPanel = document.getElementById('ckpChangePasswordPanel');
+  if (pwdPanel) pwdPanel.style.display = 'none';
+  const pwdArrow = document.getElementById('ckpPasswordToggleArrow');
+  if (pwdArrow) pwdArrow.textContent = '▼';
+  const oldPwd = document.getElementById('ckpOldPassword');
+  const newPwd = document.getElementById('ckpNewPassword');
+  const confPwd = document.getElementById('ckpConfirmNewPassword');
+  if (oldPwd) oldPwd.value = '';
+  if (newPwd) newPwd.value = '';
+  if (confPwd) confPwd.value = '';
+  const pwdFeed = document.getElementById('ckpChangePasswordFeedback');
+  if (pwdFeed) { pwdFeed.style.display = 'none'; pwdFeed.textContent = ''; }
+
   checkHabiteCommuneCoherence();
   checkProfileCompleteness();
   updateIdentityCompletionBadge();
@@ -2721,6 +2745,126 @@ async function renderSingleUserProfile() {
     loadProfileCockpitMatches(p.id);
   }
 }
+
+// Déplier / replier le formulaire de changement de mot de passe dans le profil
+function toggleChangePasswordPanel() {
+  const panel = document.getElementById('ckpChangePasswordPanel');
+  const arrow = document.getElementById('ckpPasswordToggleArrow');
+  if (!panel) return;
+  const isHidden = (panel.style.display === 'none' || !panel.style.display);
+  panel.style.display = isHidden ? 'block' : 'none';
+  if (arrow) arrow.textContent = isHidden ? '▲' : '▼';
+  if (isHidden) {
+    document.getElementById('ckpOldPassword')?.focus();
+  }
+}
+window.toggleChangePasswordPanel = toggleChangePasswordPanel;
+
+// Soumission du changement de mot de passe depuis le profil
+async function submitChangePassword() {
+  const oldPwdInput = document.getElementById('ckpOldPassword');
+  const newPwdInput = document.getElementById('ckpNewPassword');
+  const confPwdInput = document.getElementById('ckpConfirmNewPassword');
+  const feedback = document.getElementById('ckpChangePasswordFeedback');
+  const btnSubmit = document.getElementById('btnSubmitChangePassword');
+
+  const old_password = oldPwdInput?.value || '';
+  const new_password = newPwdInput?.value?.trim() || '';
+  const confirm_password = confPwdInput?.value?.trim() || '';
+
+  if (!old_password) {
+    if (feedback) {
+      feedback.textContent = 'Veuillez saisir votre mot de passe actuel.';
+      feedback.style.display = 'block';
+      feedback.style.background = 'rgba(239, 68, 68, 0.15)';
+      feedback.style.color = '#ef4444';
+      feedback.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+    }
+    oldPwdInput?.focus();
+    return;
+  }
+
+  if (new_password.length < 4) {
+    if (feedback) {
+      feedback.textContent = 'Le nouveau mot de passe doit comporter au moins 4 caractères.';
+      feedback.style.display = 'block';
+      feedback.style.background = 'rgba(239, 68, 68, 0.15)';
+      feedback.style.color = '#ef4444';
+      feedback.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+    }
+    newPwdInput?.focus();
+    return;
+  }
+
+  if (new_password !== confirm_password) {
+    if (feedback) {
+      feedback.textContent = 'La confirmation ne correspond pas au nouveau mot de passe.';
+      feedback.style.display = 'block';
+      feedback.style.background = 'rgba(239, 68, 68, 0.15)';
+      feedback.style.color = '#ef4444';
+      feedback.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+    }
+    confPwdInput?.focus();
+    return;
+  }
+
+  if (btnSubmit) {
+    btnSubmit.disabled = true;
+    btnSubmit.textContent = 'Modification en cours...';
+  }
+  if (feedback) feedback.style.display = 'none';
+
+  try {
+    const res = await authFetch(`${API_BASE}/api/auth/change-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ old_password, new_password })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (feedback) {
+        feedback.textContent = data.error || 'Erreur lors de la modification du mot de passe.';
+        feedback.style.display = 'block';
+        feedback.style.background = 'rgba(239, 68, 68, 0.15)';
+        feedback.style.color = '#ef4444';
+        feedback.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+      }
+    } else {
+      if (feedback) {
+        feedback.textContent = '✔ Mot de passe modifié avec succès !';
+        feedback.style.display = 'block';
+        feedback.style.background = 'rgba(16, 185, 129, 0.15)';
+        feedback.style.color = '#34d399';
+        feedback.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+      }
+      showToast('Votre mot de passe a été mis à jour avec succès.', 'success');
+      if (oldPwdInput) oldPwdInput.value = '';
+      if (newPwdInput) newPwdInput.value = '';
+      if (confPwdInput) confPwdInput.value = '';
+      setTimeout(() => {
+        const panel = document.getElementById('ckpChangePasswordPanel');
+        if (panel) panel.style.display = 'none';
+        const arrow = document.getElementById('ckpPasswordToggleArrow');
+        if (arrow) arrow.textContent = '▼';
+        if (feedback) feedback.style.display = 'none';
+      }, 3000);
+    }
+  } catch (err) {
+    if (feedback) {
+      feedback.textContent = 'Erreur réseau, impossible de modifier le mot de passe.';
+      feedback.style.display = 'block';
+      feedback.style.background = 'rgba(239, 68, 68, 0.15)';
+      feedback.style.color = '#ef4444';
+      feedback.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+    }
+  } finally {
+    if (btnSubmit) {
+      btnSubmit.disabled = false;
+      btnSubmit.innerHTML = '<span>🔒</span> Enregistrer le nouveau mot de passe';
+    }
+  }
+}
+window.submitChangePassword = submitChangePassword;
 
 // Bascule des onglets du cockpit profil
 function switchCockpitSubTab(tabName) {

@@ -1857,13 +1857,9 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                 return self._send_json({"error": "Aucun profil trouvé avec cet identifiant ou cette adresse e-mail."}, 404)
             
             user_email = (prof["email"] or "").strip()
-            if not user_email:
-                conn.close()
-                return self._send_json({
-                    "error": "Aucune adresse e-mail n'est associée à ce compte. Conformément aux règles de sécurité, la réinitialisation automatique est impossible sans e-mail renseigné. Veuillez contacter l'administrateur (ar30960)."
-                }, 400)
+            masked = mask_email(user_email) if user_email else None
             
-            # Génération du code temporaire sécurisé à 6 chiffres
+            # Génération du code temporaire à 6 chiffres (valable 15 minutes)
             reset_code = f"{secrets.randbelow(900000) + 100000}"
             expires_at = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
             
@@ -1872,14 +1868,13 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
             conn.commit()
             conn.close()
             
-            masked = mask_email(user_email)
             return self._send_json({
                 "success": True,
                 "profile_id": prof["id"],
                 "pseudo": prof["pseudo"],
                 "email_masked": masked,
                 "reset_code": reset_code,
-                "message": f"Un code de réinitialisation sécurisé à 6 chiffres a été généré pour {masked}."
+                "message": f"Code de réinitialisation généré : {reset_code}"
             })
 
         elif path == "/api/auth/reset-password":

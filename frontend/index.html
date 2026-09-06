@@ -400,8 +400,8 @@
                     <div class="ckp-form-field" style="grid-column: span 2;">
                       <label for="ckpInputEmail">Adresse e-mail <span style="font-weight: 400; color: var(--text-muted);">(non obligatoire)</span></label>
                       <input type="email" id="ckpInputEmail" class="ckp-input" placeholder="exemple@domaine.com" autocomplete="email">
-                      <div style="margin-top: 5px; padding: 6px 10px; background: rgba(245, 158, 11, 0.12); border-left: 3px solid #f59e0b; border-radius: 4px; font-size: 0.76rem; color: #fbbf24; line-height: 1.35;">
-                        ⚠️ <strong>Important</strong> : Si elle n'est pas renseignée = pas de récupération possible en cas de mot de passe oublié, et certaines fonctionnalités de l'application ne pourront pas être activées.
+                      <div style="margin-top: 5px; padding: 6px 10px; background: rgba(56, 189, 248, 0.1); border-left: 3px solid #38bdf8; border-radius: 4px; font-size: 0.76rem; color: #bae6fd; line-height: 1.35;">
+                        ℹ️ <strong>Adresse e-mail</strong> : Facultative. La réinitialisation en cas d'oubli s'effectue directement via un code affiché à l'écran.
                       </div>
                     </div>
                   </div>
@@ -551,6 +551,40 @@
                     <div class="ckp-form-field">
                       <label for="ckpInputAimePasChezMoi">⚡ Ce que je n'aime pas</label>
                       <textarea id="ckpInputAimePasChezMoi" class="ckp-input ckp-textarea" rows="2" placeholder="Ex: Mon impatience, la monotonie..."></textarea>
+                    </div>
+                  </div>
+
+                  <!-- 🔐 Sécurité & Mot de passe -->
+                  <div id="ckpSecuritySection" class="ckp-security-section" style="margin-top: 16px; padding: 14px 16px; background: rgba(15, 23, 42, 0.55); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="toggleChangePasswordPanel()" id="ckpTogglePasswordHeader" title="Cliquer pour afficher / masquer le formulaire de changement de mot de passe">
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 1.1rem;">🔐</span>
+                        <strong style="font-size: 0.88rem; color: var(--text-color);">Changer mon mot de passe</strong>
+                      </div>
+                      <span id="ckpPasswordToggleArrow" style="font-size: 0.85rem; color: var(--text-muted); font-weight: bold;">▼</span>
+                    </div>
+
+                    <div id="ckpChangePasswordPanel" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08);">
+                      <div class="ckp-form-grid">
+                        <div class="ckp-form-field" style="grid-column: span 2;">
+                          <label for="ckpOldPassword" style="font-size: 0.8rem;">Ancien mot de passe *</label>
+                          <input type="password" id="ckpOldPassword" class="ckp-input" placeholder="Saisir votre mot de passe actuel" autocomplete="current-password">
+                        </div>
+                        <div class="ckp-form-field">
+                          <label for="ckpNewPassword" style="font-size: 0.8rem;">Nouveau mot de passe *</label>
+                          <input type="password" id="ckpNewPassword" class="ckp-input" placeholder="4 caractères minimum" autocomplete="new-password">
+                        </div>
+                        <div class="ckp-form-field">
+                          <label for="ckpConfirmNewPassword" style="font-size: 0.8rem;">Confirmer le mot de passe *</label>
+                          <input type="password" id="ckpConfirmNewPassword" class="ckp-input" placeholder="Répéter le mot de passe" autocomplete="new-password">
+                        </div>
+                      </div>
+                      <div id="ckpChangePasswordFeedback" style="display: none; margin-top: 10px; padding: 8px 12px; border-radius: 6px; font-size: 0.82rem; line-height: 1.4;"></div>
+                      <div style="margin-top: 12px; display: flex; justify-content: flex-end;">
+                        <button type="button" id="btnSubmitChangePassword" class="btn btn-primary btn-sm" onclick="submitChangePassword()" style="font-weight: 600; padding: 8px 16px;">
+                          <span>🔒</span> Enregistrer le nouveau mot de passe
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -2242,15 +2276,15 @@
       <!-- Formulaire Étape 1 : Mot de passe oublié (Demande de réinitialisation) -->
       <form id="formForgotPassword" class="auth-form" style="display: none;">
         <div style="margin-bottom: 16px; font-size: 0.85rem; color: var(--text-muted); line-height: 1.45;">
-          Saisissez votre pseudo, code profil ou adresse e-mail. Un code temporaire de réinitialisation vous sera délivré pour changer votre mot de passe.
+          Saisissez votre pseudo ou identifiant profil. Le code de réinitialisation sera généré et s'affichera directement à l'écran pour définir immédiatement votre nouveau mot de passe.
         </div>
         <div class="form-group" style="margin-bottom: 16px;">
-          <label for="forgotLoginInput" style="display: block; font-size: 0.85rem; margin-bottom: 6px; font-weight: 500;">Pseudo ou Adresse e-mail *</label>
+          <label for="forgotLoginInput" style="display: block; font-size: 0.85rem; margin-bottom: 6px; font-weight: 500;">Pseudo ou Code profil *</label>
           <input type="text" id="forgotLoginInput" class="form-input" placeholder="Ex: Julie, ar30960 ou exemple@mail.com" required>
         </div>
         <div id="forgotFeedback" class="auth-feedback" style="display: none; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 0.85rem;"></div>
         <button type="submit" class="btn btn-primary" id="btnSubmitForgot" style="width: 100%; justify-content: center; padding: 12px; font-size: 0.95rem; margin-bottom: 10px;">
-          <span>📨</span> Obtenir un code de réinitialisation
+          <span>🔑</span> Afficher le code de réinitialisation
         </button>
         <button type="button" class="btn btn-outline" onclick="switchAuthView('login')" style="width: 100%; justify-content: center; padding: 10px; font-size: 0.88rem;">
           ← Retour à la connexion
@@ -2259,8 +2293,9 @@
 
       <!-- Formulaire Étape 2 : Réinitialisation du mot de passe avec code -->
       <form id="formResetPassword" class="auth-form" style="display: none;">
-        <div id="resetMaskedNotice" style="margin-bottom: 16px; padding: 10px 12px; background: rgba(56, 189, 248, 0.12); border-left: 3px solid #38bdf8; border-radius: 6px; font-size: 0.82rem; color: #bae6fd; line-height: 1.4;">
-          Code généré pour <strong id="resetTargetIdentifier">votre compte</strong>.
+        <div id="resetMaskedNotice" style="margin-bottom: 16px; padding: 12px 14px; background: rgba(56, 189, 248, 0.12); border-left: 3px solid #38bdf8; border-radius: 6px; font-size: 0.85rem; color: #bae6fd; line-height: 1.5;">
+          Code de réinitialisation pour <strong id="resetTargetIdentifier">votre compte</strong> :
+          <div style="margin-top: 6px; font-size: 1.25rem; font-weight: 800; letter-spacing: 3px; color: #38bdf8;" id="resetCodeBanner">------</div>
         </div>
         <div class="form-group" style="margin-bottom: 14px;">
           <label for="resetCodeInput" style="display: block; font-size: 0.85rem; margin-bottom: 6px; font-weight: 500;">Code de réinitialisation (6 chiffres) *</label>
