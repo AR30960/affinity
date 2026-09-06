@@ -34,8 +34,11 @@
       <!-- Active Profile Widget -->
       <div class="active-profile-card">
         <div class="ap-header">
-          <span class="ap-label">Profil actif pour saisie</span>
-          <button id="btnSwitchProfileQuick" class="btn-text-icon" title="Changer de profil">&#8646;</button>
+          <span class="ap-label">Profil connecté</span>
+          <div style="display: flex; gap: 4px;">
+            <button id="btnSwitchProfileQuick" class="btn-text-icon" title="Changer de profil (Admin)" style="display: none;">&#8646;</button>
+            <button id="btnLogout" class="btn-text-icon" title="Se déconnecter" style="color: #ff4772;">🚪</button>
+          </div>
         </div>
         <div class="ap-body" id="activeProfileWidget">
           <div class="ap-avatar" id="activeAvatar">?</div>
@@ -2157,6 +2160,81 @@
           <span>✍️</span> Renseigner cette thématique ➔
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- Modal d'Authentification / Connexion / Inscription -->
+  <div class="modal-backdrop" id="authModal" style="display: none; z-index: 99999; backdrop-filter: blur(12px); background: rgba(10, 14, 26, 0.90);">
+    <div class="modal-card auth-modal-card" style="max-width: 440px; margin: auto; padding: 28px;">
+      <div class="auth-header" style="text-align: center; margin-bottom: 24px;">
+        <div class="auth-brand-icon" style="margin-bottom: 12px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 48px; height: 48px;">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="url(#brandGradAuth)"/>
+            <defs>
+              <linearGradient id="brandGradAuth" x1="2" y1="3" x2="22" y2="21.35" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#FF3366" />
+                <stop offset="1" stop-color="#7928CA" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <h2 class="auth-title" style="font-size: 1.6rem; font-weight: 800; margin: 0 0 6px 0; letter-spacing: 0.5px;">AFFINITY</h2>
+        <p class="auth-subtitle" id="authSubtitle" style="color: var(--text-muted, #94a3b8); font-size: 0.9rem; margin: 0 0 18px 0;">Accès sécurisé à votre espace relationnel</p>
+        
+        <div class="auth-tabs-toggle" style="display: flex; background: rgba(255,255,255,0.06); padding: 4px; border-radius: 12px; margin-bottom: 8px;">
+          <button type="button" class="auth-toggle-btn active" id="btnToggleLogin" style="flex: 1; padding: 8px 12px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Se connecter</button>
+          <button type="button" class="auth-toggle-btn" id="btnToggleRegister" style="flex: 1; padding: 8px 12px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Créer un compte</button>
+        </div>
+      </div>
+
+      <!-- Formulaire Connexion -->
+      <form id="formLogin" class="auth-form">
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label for="loginInput" style="display: block; font-size: 0.85rem; margin-bottom: 6px; font-weight: 500;">Pseudo ou N° de Profil</label>
+          <input type="text" id="loginInput" class="form-input" placeholder="Ex: ar30960, André, AFF-7..." required autofocus autocomplete="username">
+        </div>
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label for="loginPassword" style="display: block; font-size: 0.85rem; margin-bottom: 6px; font-weight: 500;">Mot de passe</label>
+          <input type="password" id="loginPassword" class="form-input" placeholder="••••••••" required autocomplete="current-password">
+        </div>
+        <div id="loginFeedback" class="auth-feedback" style="display: none; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 0.85rem;"></div>
+        <button type="submit" class="btn btn-primary" id="btnSubmitLogin" style="width: 100%; justify-content: center; padding: 12px; font-size: 1rem;">
+          <span>🔐</span> Se connecter
+        </button>
+        <div class="auth-footer-help" style="text-align: center; margin-top: 14px; font-size: 0.8rem; color: var(--text-muted, #94a3b8);">
+          <span>Administrateur : connectez-vous avec <strong>ar30960</strong></span>
+        </div>
+      </form>
+
+      <!-- Formulaire Inscription Invité -->
+      <form id="formRegister" class="auth-form" style="display: none;">
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label for="regPseudo" style="display: block; font-size: 0.85rem; margin-bottom: 6px; font-weight: 500;">Votre Pseudo *</label>
+          <input type="text" id="regPseudo" class="form-input" placeholder="Ex: Julie, Marc..." required autocomplete="nickname">
+        </div>
+        <div class="form-row" style="display: flex; gap: 12px; margin-bottom: 14px;">
+          <div class="form-group" style="flex: 1;">
+            <label for="regSexe" style="display: block; font-size: 0.85rem; margin-bottom: 6px; font-weight: 500;">Vous êtes *</label>
+            <select id="regSexe" class="form-select" required>
+              <option value="1">Homme</option>
+              <option value="2">Femme</option>
+              <option value="0">Autre</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex: 1;">
+            <label for="regBirth" style="display: block; font-size: 0.85rem; margin-bottom: 6px; font-weight: 500;">Naissance</label>
+            <input type="date" id="regBirth" class="form-input">
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label for="regPassword" style="display: block; font-size: 0.85rem; margin-bottom: 6px; font-weight: 500;">Créer un mot de passe *</label>
+          <input type="password" id="regPassword" class="form-input" placeholder="Au moins 4 caractères" required autocomplete="new-password">
+        </div>
+        <div id="registerFeedback" class="auth-feedback" style="display: none; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 0.85rem;"></div>
+        <button type="submit" class="btn btn-secondary" id="btnSubmitRegister" style="width: 100%; justify-content: center; padding: 12px; font-size: 1rem;">
+          <span>✨</span> Créer mon profil Invité
+        </button>
+      </form>
     </div>
   </div>
 

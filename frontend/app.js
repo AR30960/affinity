@@ -796,12 +796,48 @@ const API_BASE = (window.location.origin && window.location.origin.startsWith('h
   ? window.location.origin 
   : 'http://localhost:8765';
 
+// Intercepteur global pour ajouter le token d'authentification à toutes les requêtes API
+const originalFetch = window.fetch;
+window.fetch = function(url, options = {}) {
+  const token = localStorage.getItem('affinity_token');
+  if (token && typeof url === 'string' && url.includes('/api/')) {
+    options = options || {};
+    options.headers = options.headers || {};
+    if (options.headers instanceof Headers) {
+      if (!options.headers.has('Authorization')) {
+        options.headers.set('Authorization', `Bearer ${token}`);
+      }
+    } else if (Array.isArray(options.headers)) {
+      options.headers.push(['Authorization', `Bearer ${token}`]);
+    } else {
+      if (!options.headers['Authorization']) {
+        options.headers['Authorization'] = `Bearer ${token}`;
+      }
+    }
+  }
+  return originalFetch(url, options);
+};
+
+function getAuthToken() {
+  return localStorage.getItem('affinity_token');
+}
+
+function setAuthToken(token) {
+  if (token) localStorage.setItem('affinity_token', token);
+  else localStorage.removeItem('affinity_token');
+}
+
+function removeAuthToken() {
+  localStorage.removeItem('affinity_token');
+}
+
 let state = {
   profiles: [],
   activeProfileId: null,
   realAdminId: null, // ID du profil administrateur connecté
   simulatedRole: null, // Mode test administrateur : null, 'subscriber', 'guest'
   simulatedProfileId: null, // ID du profil incarné lors du test
+  currentUser: null,
   currentCatalog: [],
   questions: [],
   pendingQuestions: [],
@@ -827,6 +863,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function initEventListeners() {
   setupBirthDateValidation();
   setupGeographicAndCompletenessListeners();
+  setupAuthListeners();
   // Navigation par onglets
   document.querySelectorAll('.nav-item').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -846,11 +883,18 @@ function initEventListeners() {
   // Fermeture des modales sur clic extérieur (backdrop) ou touche Escape
   document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
     backdrop.addEventListener('click', (e) => {
-      if (e.target === backdrop) closeModals();
+      if (e.target === backdrop) {
+        // Empêcher la fermeture de la modale d'authentification si non connecté
+        if (backdrop.id === 'authModal' && !state.activeProfileId) return;
+        closeModals();
+      }
     });
   });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeModals();
+    if (e.key === 'Escape') {
+      if (!state.activeProfileId) return;
+      closeModals();
+    }
   });
 
   // Formulaire Création Profil
@@ -1272,8 +1316,14 @@ function getLoggedInAdmin() {
 }
 
 function isRealAdmin() {
-  const adm = getLoggedInAdmin();
-  return !!adm;
+  if (state.currentUser && state.currentUser.role === 'admin') {
+    return true;
+  }
+  if (state.realAdminId) {
+    const me = state.profiles.find(p => p.id === state.realAdminId);
+    return me?.role === 'admin';
+  }
+  return false;
 }
 
 function getActiveRole() {
@@ -1618,13 +1668,188 @@ function updateAffinityAccessUi() {
   }
 }
 
+function openAuthModal() {
+  const modal = document.getElementById('authModal');
+  if (modal) {
+    modal.style.display = 'flex';
+    document.getElementById('loginInput')?.focus();
+  }
+}
+
+function closeAuthModal() {
+  const modal = document.getElementById('authModal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+}
+
+function setupAuthListeners() {
+  const btnToggleLogin = document.getElementById('btnToggleLogin');
+  const btnToggleRegister = document.getElementById('btnToggleRegister');
+  const formLogin = document.getElementById('formLogin');
+  const formRegister = document.getElementById('formRegister');
+  const btnLogout = document.getElementById('btnLogout');
+
+  if (btnToggleLogin && btnToggleRegister) {
+    btnToggleLogin.addEventListener('click', () => {
+      btnToggleLogin.classList.add('active');
+      btnToggleRegister.classList.remove('active');
+      formLogin.style.display = 'block';
+      formRegister.style.display = 'none';
+      document.getElementById('authSubtitle').textContent = 'Accès sécurisé à votre espace relationnel';
+    });
+
+    btnToggleRegister.addEventListener('click', () => {
+      btnToggleRegister.classList.add('active');
+      btnToggleLogin.classList.remove('active');
+      formLogin.style.display = 'none';
+      formRegister.style.display = 'block';
+      document.getElementById('authSubtitle').textContent = 'Création instantanée de votre profil Invité';
+    });
+  }
+
+  if (formLogin) {
+    formLogin.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const login = document.getElementById('loginInput').value.trim();
+      const password = document.getElementById('loginPassword').value.trim();
+      const feedback = document.getElementById('loginFeedback');
+      const btnSubmit = document.getElementById('btnSubmitLogin');
+
+      if (!login || !password) return;
+      btnSubmit.disabled = true;
+      btnSubmit.textContent = 'Connexion en cours...';
+      feedback.style.display = 'none';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ login, password })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          feedback.textContent = data.error || 'Erreur lors de la connexion.';
+          feedback.style.display = 'block';
+          feedback.style.background = 'rgba(239, 68, 68, 0.15)';
+          feedback.style.color = '#ef4444';
+          feedback.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+        } else {
+          setAuthToken(data.token);
+          state.currentUser = data.profile;
+          state.activeProfileId = data.profile.id;
+          if (data.profile.role === 'admin') state.realAdminId = data.profile.id;
+          closeAuthModal();
+          showToast(`Bienvenue ${data.profile.pseudo} !`, 'success');
+          await loadInitialData();
+        }
+      } catch (err) {
+        feedback.textContent = 'Erreur réseau, veuillez réessayer.';
+        feedback.style.display = 'block';
+      } finally {
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = '<span>🔐</span> Se connecter';
+      }
+    });
+  }
+
+  if (formRegister) {
+    formRegister.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const pseudo = document.getElementById('regPseudo').value.trim();
+      const sexe = parseInt(document.getElementById('regSexe').value, 10);
+      const date_naissance = document.getElementById('regBirth').value;
+      const password = document.getElementById('regPassword').value.trim();
+      const feedback = document.getElementById('registerFeedback');
+      const btnSubmit = document.getElementById('btnSubmitRegister');
+
+      if (!pseudo || !password) return;
+      btnSubmit.disabled = true;
+      btnSubmit.textContent = 'Création en cours...';
+      feedback.style.display = 'none';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pseudo, sexe, date_naissance, password })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          feedback.textContent = data.error || 'Erreur lors de l\'inscription.';
+          feedback.style.display = 'block';
+          feedback.style.background = 'rgba(239, 68, 68, 0.15)';
+          feedback.style.color = '#ef4444';
+          feedback.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+        } else {
+          setAuthToken(data.token);
+          state.currentUser = data.profile;
+          state.activeProfileId = data.profile.id;
+          closeAuthModal();
+          showToast(`Compte créé avec succès ! Bienvenue ${data.profile.pseudo}`, 'success');
+          await loadInitialData();
+        }
+      } catch (err) {
+        feedback.textContent = 'Erreur réseau, veuillez réessayer.';
+        feedback.style.display = 'block';
+      } finally {
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = '<span>✨</span> Créer mon profil Invité';
+      }
+    });
+  }
+
+  if (btnLogout) {
+    btnLogout.addEventListener('click', async () => {
+      if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
+        try {
+          await fetch(`${API_BASE}/api/auth/logout`, { method: 'POST' });
+        } catch (e) {}
+        removeAuthToken();
+        state.currentUser = null;
+        state.activeProfileId = null;
+        state.realAdminId = null;
+        openAuthModal();
+        showToast('Vous avez été déconnecté.', 'info');
+      }
+    });
+  }
+}
+
 // Chargement initial
 async function loadInitialData() {
+  const token = getAuthToken();
+  if (!token) {
+    openAuthModal();
+    return;
+  }
+
+  try {
+    const meRes = await fetch(`${API_BASE}/api/auth/me`);
+    if (!meRes.ok) {
+      removeAuthToken();
+      openAuthModal();
+      return;
+    }
+    const meData = await meRes.json();
+    state.currentUser = meData.user;
+    state.activeProfileId = meData.user.id;
+    if (meData.user.role === 'admin') {
+      state.realAdminId = meData.user.id;
+    } else {
+      state.realAdminId = null;
+    }
+    closeAuthModal();
+  } catch (err) {
+    console.error('Erreur vérification session:', err);
+    openAuthModal();
+    return;
+  }
+
   try {
     await loadProfiles();
-    if (state.profiles.length > 0) {
-      const adminProf = state.profiles.find(p => p.role === 'admin') || state.profiles[0];
-      setActiveProfile(adminProf.id);
+    if (state.activeProfileId) {
+      setActiveProfile(state.activeProfileId);
     }
   } catch (err) {
     console.error('Erreur chargement profil initial:', err);
@@ -1726,15 +1951,41 @@ function updateProfileDropdowns() {
   }).join('');
 
   if (qSelect) {
-    qSelect.innerHTML = memberProfiles.length > 0 
-      ? memberOptionsHtml 
-      : '<option value="">Aucun membre disponible</option>';
+    if (!isRealAdmin() && state.activeProfileId) {
+      const myProf = state.profiles.find(p => p.id === state.activeProfileId);
+      if (myProf) {
+        qSelect.innerHTML = `<option value="${myProf.id}">${myProf.pseudo}</option>`;
+        qSelect.value = myProf.id;
+        qSelect.disabled = true;
+      }
+    } else {
+      qSelect.innerHTML = memberProfiles.length > 0 
+        ? memberOptionsHtml 
+        : '<option value="">Aucun membre disponible</option>';
+      qSelect.disabled = false;
+      const activeIsMember = memberProfiles.some(p => p.id === state.activeProfileId);
+      if (activeIsMember) {
+        qSelect.value = state.activeProfileId;
+      } else if (memberProfiles.length > 0) {
+        qSelect.value = memberProfiles[0].id;
+      }
+    }
   }
 
   if (aff1) {
-    aff1.innerHTML = memberProfiles.length > 0 
-      ? memberOptionsHtml 
-      : '<option value="">Aucun membre disponible</option>';
+    if (!isRealAdmin() && state.activeProfileId) {
+      const myProf = state.profiles.find(p => p.id === state.activeProfileId);
+      if (myProf) {
+        aff1.innerHTML = `<option value="${myProf.id}">⭐ ${myProf.pseudo} (Moi)</option>`;
+        aff1.value = myProf.id;
+        aff1.disabled = true;
+      }
+    } else {
+      aff1.innerHTML = memberProfiles.length > 0 
+        ? memberOptionsHtml 
+        : '<option value="">Aucun membre disponible</option>';
+      aff1.disabled = false;
+    }
   }
 
   if (aff2) {
@@ -1743,16 +1994,6 @@ function updateProfileDropdowns() {
       : '<option value="">Aucun membre disponible</option>';
     if (memberProfiles.length > 1) {
       aff2.selectedIndex = 1;
-    }
-  }
-
-  // Si le profil actif est un membre, synchroniser le sélecteur questionnaire
-  if (qSelect) {
-    const activeIsMember = memberProfiles.some(p => p.id === state.activeProfileId);
-    if (activeIsMember) {
-      qSelect.value = state.activeProfileId;
-    } else if (memberProfiles.length > 0) {
-      qSelect.value = memberProfiles[0].id;
     }
   }
 

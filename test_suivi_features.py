@@ -8,14 +8,14 @@ def run_tests():
     conn = server.get_db()
     c = conn.cursor()
     
-    # 1. Vérification profil administrateur Anji ADM-1
+    # 1. Vérification profil administrateur ar30960 ADM-1
     c.execute("SELECT pseudo, role, code_profil FROM profiles WHERE id = 1")
     admin_prof = c.fetchone()
     assert admin_prof is not None, "Profil 1 introuvable"
-    assert admin_prof["pseudo"] == "Anji", f"Expected pseudo 'Anji', got '{admin_prof['pseudo']}'"
+    assert admin_prof["pseudo"] == "ar30960", f"Expected pseudo 'ar30960', got '{admin_prof['pseudo']}'"
     assert admin_prof["role"] == "admin", f"Expected role 'admin', got '{admin_prof['role']}'"
     assert admin_prof["code_profil"] == "ADM-1", f"Expected code_profil 'ADM-1', got '{admin_prof['code_profil']}'"
-    print("Test 1 Réussi : Profil 1 est Anji (ADM-1).")
+    print("Test 1 Réussi : Profil 1 est ar30960 (ADM-1).")
 
     # 2. Vérification conversion type MULTI -> M
     c.execute("SELECT COUNT(*) as cnt FROM questions WHERE type = 'MULTI'")

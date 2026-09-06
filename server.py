@@ -6,7 +6,9 @@ import os
 import sys
 import urllib.parse
 import math
-from datetime import datetime
+import hashlib
+import secrets
+from datetime import datetime, timedelta, timezone
 
 PORT = int(os.environ.get("PORT", 8765))
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -382,6 +384,55 @@ def validate_birth_date_and_age(birth_date_str):
     
     return age, None
 
+def hash_password(password: str, salt: str = None):
+    if not salt:
+        salt = secrets.token_hex(16)
+    hashed = hashlib.sha256((salt + password).encode("utf-8")).hexdigest()
+    return salt, hashed
+
+def verify_password(password: str, salt: str, password_hash: str) -> bool:
+    if not salt or not password_hash or not password:
+        return False
+    calc = hashlib.sha256((salt + password).encode("utf-8")).hexdigest()
+    return secrets.compare_digest(calc, password_hash)
+
+def create_session(profile_id: int) -> str:
+    token = secrets.token_hex(32)
+    expires = datetime.now(timezone.utc) + timedelta(days=30)
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("INSERT INTO sessions (token, profile_id, expires_at) VALUES (?, ?, ?)",
+              (token, profile_id, expires.isoformat()))
+    conn.commit()
+    conn.close()
+    return token
+
+def get_session_profile(token: str):
+    if not token:
+        return None
+    conn = get_db()
+    c = conn.cursor()
+    now_str = datetime.now(timezone.utc).isoformat()
+    row = c.execute("""
+        SELECT p.id, p.pseudo, p.code_profil, p.role, p.avatar
+        FROM sessions s
+        JOIN profiles p ON s.profile_id = p.id
+        WHERE s.token = ? AND s.expires_at > ?
+    """, (token, now_str)).fetchone()
+    conn.close()
+    if row:
+        return dict(row)
+    return None
+
+def delete_session(token: str):
+    if not token:
+        return
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("DELETE FROM sessions WHERE token = ?", (token,))
+    conn.commit()
+    conn.close()
+
 def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -399,11 +450,25 @@ def init_db():
             code_profil TEXT UNIQUE,
             avatar TEXT DEFAULT 'user',
             role TEXT DEFAULT 'guest', -- 'admin', 'subscriber', 'guest'
+            password_hash TEXT,
+            salt TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     
-    # Migration automatique pour ajouter les colonnes role et code_profil si elles n'existent pas
+    # Table des sessions actives
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS sessions (
+            token TEXT PRIMARY KEY,
+            profile_id INTEGER NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            expires_at TIMESTAMP NOT NULL,
+            FOREIGN KEY (profile_id) REFERENCES profiles(id)
+        )
+    ''')
+    conn.commit()
+    
+    # Migration automatique pour ajouter les colonnes role, code_profil, password_hash, salt si elles n'existent pas
     c.execute("PRAGMA table_info(profiles)")
     existing_cols = [col["name"] for col in c.fetchall()]
     if "role" not in existing_cols:
@@ -413,12 +478,33 @@ def init_db():
         c.execute("ALTER TABLE profiles ADD COLUMN code_profil TEXT")
         c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_code_profil ON profiles(code_profil)")
         conn.commit()
+    if "password_hash" not in existing_cols:
+        c.execute("ALTER TABLE profiles ADD COLUMN password_hash TEXT")
+        conn.commit()
+    if "salt" not in existing_cols:
+        c.execute("ALTER TABLE profiles ADD COLUMN salt TEXT")
+        conn.commit()
 
     # Initialisation des rôles par défaut et codes profils initiaux
-    # Administrateur principal (pseudo Anji, code_profil ADM-1)
-    c.execute("UPDATE profiles SET pseudo = 'Anji', role = 'admin', code_profil = 'ADM-1' WHERE id = 1")
+    # Administrateur principal (pseudo ar30960, code_profil ADM-1)
+    c.execute("UPDATE profiles SET pseudo = 'ar30960', role = 'admin', code_profil = 'ADM-1' WHERE id = 1")
     c.execute("UPDATE profiles SET role = 'subscriber' WHERE id = 2 AND (role IS NULL OR role = 'guest')")
     c.execute("UPDATE profiles SET role = 'guest' WHERE id IN (3, 4) AND (role IS NULL)")
+    
+    # Mot de passe par défaut pour l'administrateur ar30960 (Admin2026!)
+    c.execute("SELECT id, password_hash, salt FROM profiles WHERE id = 1")
+    admin_row = c.fetchone()
+    if admin_row and not admin_row["password_hash"]:
+        s, h = hash_password("Admin2026!")
+        c.execute("UPDATE profiles SET salt = ?, password_hash = ? WHERE id = 1", (s, h))
+        conn.commit()
+
+    # Mots de passe initiaux pour les autres profils existants (Affinity2026!)
+    c.execute("SELECT id, password_hash FROM profiles WHERE id > 1 AND (password_hash IS NULL OR password_hash = '')")
+    for row in c.fetchall():
+        s, h = hash_password("Affinity2026!")
+        c.execute("UPDATE profiles SET salt = ?, password_hash = ? WHERE id = ?", (s, h, row["id"]))
+    conn.commit()
     
     # Génération des codes profils manquants (ADM-x pour admin, AFF-x pour les autres)
     c.execute("SELECT id, role, code_profil FROM profiles")
@@ -1003,6 +1089,16 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=STATIC_DIR, **kwargs)
 
+    def get_auth_token(self):
+        auth_header = self.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            return auth_header[7:].strip()
+        return None
+
+    def get_current_user(self):
+        token = self.get_auth_token()
+        return get_session_profile(token)
+
     def _send_json(self, data, status=200):
         body = json.dumps(data, ensure_ascii=False).encode('utf-8')
         self.send_response(status)
@@ -1010,7 +1106,7 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
         self.end_headers()
         self.wfile.write(body)
 
@@ -1018,7 +1114,7 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
         self.end_headers()
 
     def do_GET(self):
@@ -1026,6 +1122,13 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
         path = parsed.path
         
         if path.startswith("/api/"):
+            # Session actuelle de l'utilisateur connecté
+            if path == "/api/auth/me":
+                user = self.get_current_user()
+                if not user:
+                    return self._send_json({"error": "Non authentifié"}, 401)
+                return self._send_json({"user": user})
+
             conn = get_db()
             c = conn.cursor()
             
@@ -1600,8 +1703,131 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
         conn = get_db()
         c = conn.cursor()
         
+        # --- AUTHENTIFICATION & SÉCURITÉ DES SESSIONS ---
+        if path == "/api/auth/login":
+            login = str(data.get("login", "")).strip()
+            password = str(data.get("password", "")).strip()
+            if not login or not password:
+                conn.close()
+                return self._send_json({"error": "Identifiant et mot de passe requis."}, 400)
+            
+            c.execute("""
+                SELECT id, pseudo, code_profil, role, avatar, password_hash, salt
+                FROM profiles
+                WHERE LOWER(pseudo) = LOWER(?) OR LOWER(code_profil) = LOWER(?)
+            """, (login, login))
+            prof = c.fetchone()
+            if not prof:
+                conn.close()
+                return self._send_json({"error": "Identifiant ou mot de passe incorrect."}, 401)
+            
+            if not verify_password(password, prof["salt"], prof["password_hash"]):
+                conn.close()
+                return self._send_json({"error": "Identifiant ou mot de passe incorrect."}, 401)
+            
+            token = create_session(prof["id"])
+            prof_dict = {
+                "id": prof["id"],
+                "pseudo": prof["pseudo"],
+                "code_profil": prof["code_profil"],
+                "role": prof["role"],
+                "avatar": prof["avatar"]
+            }
+            conn.close()
+            return self._send_json({"success": True, "token": token, "profile": prof_dict})
+
+        elif path == "/api/auth/register":
+            pseudo = str(data.get("pseudo", "")).strip()
+            password = str(data.get("password", "")).strip()
+            prenom = str(data.get("prenom", "")).strip()
+            nom = str(data.get("nom", "")).strip()
+            sexe = int(data.get("sexe", 0)) if data.get("sexe") is not None else 0
+            date_naiss = str(data.get("date_naissance", "")).strip() if data.get("date_naissance") else ""
+            
+            if not pseudo:
+                conn.close()
+                return self._send_json({"error": "Le pseudo est obligatoire."}, 400)
+            if not password or len(password) < 4:
+                conn.close()
+                return self._send_json({"error": "Le mot de passe doit contenir au moins 4 caractères."}, 400)
+            
+            if date_naiss:
+                c_age, age_err = validate_birth_date_and_age(date_naiss)
+                if age_err:
+                    conn.close()
+                    return self._send_json({"error": age_err}, 400)
+                    
+            salt, p_hash = hash_password(password)
+            try:
+                c.execute("INSERT INTO profiles (pseudo, avatar, role, password_hash, salt) VALUES (?, 'user', 'guest', ?, ?)",
+                          (pseudo, p_hash, salt))
+                pid = c.lastrowid
+                code_prof = f"AFF-{pid}"
+                c.execute("UPDATE profiles SET code_profil = ? WHERE id = ?", (code_prof, pid))
+                c.execute("INSERT INTO identity_cards (profile_id, prenom, nom, sexe, date_naissance) VALUES (?, ?, ?, ?, ?)",
+                          (pid, prenom or None, nom or None, sexe, date_naiss or None))
+                c.execute("INSERT OR REPLACE INTO profile_question_access (profile_id, allowed_packs, allowed_classes, allowed_types) VALUES (?, 'ALL', '[\"1\"]', 'ALL')", (pid,))
+                conn.commit()
+                token = create_session(pid)
+                prof_dict = {
+                    "id": pid,
+                    "pseudo": pseudo,
+                    "code_profil": code_prof,
+                    "role": "guest",
+                    "avatar": "user"
+                }
+                conn.close()
+                return self._send_json({"success": True, "token": token, "profile": prof_dict}, 201)
+            except sqlite3.IntegrityError:
+                conn.close()
+                return self._send_json({"error": "Ce pseudo existe déjà. Veuillez en choisir un autre."}, 409)
+
+        elif path == "/api/auth/logout":
+            token = self.get_auth_token()
+            if token:
+                delete_session(token)
+            conn.close()
+            return self._send_json({"success": True})
+
+        elif path == "/api/auth/change-password":
+            user = self.get_current_user()
+            if not user:
+                conn.close()
+                return self._send_json({"error": "Authentification requise."}, 401)
+            old_pwd = str(data.get("old_password", ""))
+            new_pwd = str(data.get("new_password", "")).strip()
+            if len(new_pwd) < 4:
+                conn.close()
+                return self._send_json({"error": "Le nouveau mot de passe doit comporter au moins 4 caractères."}, 400)
+            c.execute("SELECT password_hash, salt FROM profiles WHERE id = ?", (user["id"],))
+            prow = c.fetchone()
+            if not prow or not verify_password(old_pwd, prow["salt"], prow["password_hash"]):
+                conn.close()
+                return self._send_json({"error": "Ancien mot de passe incorrect."}, 403)
+            s, h = hash_password(new_pwd)
+            c.execute("UPDATE profiles SET salt = ?, password_hash = ? WHERE id = ?", (s, h, user["id"]))
+            conn.commit()
+            conn.close()
+            return self._send_json({"success": True, "message": "Mot de passe mis à jour avec succès."})
+
+        elif path == "/api/admin/reset-password":
+            user = self.get_current_user()
+            if not user or user.get("role") != "admin":
+                conn.close()
+                return self._send_json({"error": "Action réservée à l'administrateur."}, 403)
+            target_id = data.get("profile_id")
+            new_pwd = str(data.get("new_password", "")).strip()
+            if not target_id or len(new_pwd) < 4:
+                conn.close()
+                return self._send_json({"error": "Profil cible et mot de passe (min 4 caractères) requis."}, 400)
+            s, h = hash_password(new_pwd)
+            c.execute("UPDATE profiles SET salt = ?, password_hash = ? WHERE id = ?", (s, h, target_id))
+            conn.commit()
+            conn.close()
+            return self._send_json({"success": True, "message": f"Mot de passe réinitialisé pour le profil #{target_id}."})
+
         # Création de profil
-        if path == "/api/profiles":
+        elif path == "/api/profiles":
             pseudo = data.get("pseudo", "").strip()
             if not pseudo:
                 conn.close()

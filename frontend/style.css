@@ -5117,3 +5117,49 @@ select.ckp-input option {
   color: #94a3b8;
 }
 
+/* Modal d'Authentification Sécurisée */
+.auth-modal-card {
+  background: linear-gradient(135deg, rgba(26, 31, 54, 0.98), rgba(15, 23, 42, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(121, 40, 202, 0.2);
+  border-radius: 20px;
+}
+
+.auth-tabs-toggle {
+  display: flex;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 4px;
+  border-radius: 12px;
+  margin-bottom: 8px;
+}
+
+.auth-toggle-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  color: #94a3b8;
+  transition: all 0.2s ease;
+}
+
+.auth-toggle-btn:hover {
+  color: #ffffff;
+}
+
+.auth-toggle-btn.active {
+  background: linear-gradient(135deg, #ff3366, #7928ca);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(255, 51, 102, 0.3);
+}
+
+.auth-feedback {
+  display: none;
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 0.85rem;
+}
+

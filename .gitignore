@@ -20,6 +20,8 @@ __pycache__/
 scratch/
 test_affinity_temp.db
 *.log
+~$*.docx
+~$*.doc
 
 # Sauvegardes volumineuses
 Affinity-Full_BACKUP_*.mdb
