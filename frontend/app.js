@@ -1639,6 +1639,12 @@ function applyRolePermissionsUi() {
     }
   }
 
+  // 1b. Bouton d'abonnement PayPal dans la sidebar
+  const btnSubSidebar = document.getElementById('btnSubscribeSidebar');
+  if (btnSubSidebar) {
+    btnSubSidebar.style.display = (effectiveRole === 'guest') ? 'flex' : 'none';
+  }
+
   // 2. Renommer l'onglet Profil dans la sidebar : "Mon Profil" pour Invité/Abonné, "Gestion des Profils" pour Admin
   const navProfilesLabel = document.getElementById('navProfilesLabel');
   if (navProfilesLabel) {
@@ -6248,4 +6254,191 @@ window.openProfileCompletenessModal = openProfileCompletenessModal;
 window.onHierarchyTypeChange = onHierarchyTypeChange;
 window.onEditQNQuestLieChange = onEditQNQuestLieChange;
 window.openAddAttachedQuestionModal = openAddAttachedQuestionModal;
+
+// ========================================================
+// MODULE D'ABONNEMENT ET PAIEMENT PAYPAL
+// ========================================================
+state.subscriptionPlans = [];
+state.selectedSubscriptionPlanId = 'pass_3m';
+
+async function openSubscriptionModal(preselectedPlanId = null) {
+  const modal = document.getElementById('modalSubscription');
+  if (!modal) return;
+  modal.style.display = 'flex';
+
+  if (preselectedPlanId) {
+    state.selectedSubscriptionPlanId = preselectedPlanId;
+  }
+
+  // Chargement des formules d'abonnement depuis l'API
+  try {
+    const res = await fetch(`${API_BASE}/api/subscription/plans`);
+    if (res.ok) {
+      const data = await res.json();
+      state.subscriptionPlans = data.plans || [];
+      state.paypalClientId = data.paypal_client_id;
+      state.paypalMode = data.paypal_mode;
+    }
+  } catch (err) {
+    console.warn("Erreur chargement plans abonnement:", err);
+  }
+
+  renderSubscriptionPlans();
+}
+window.openSubscriptionModal = openSubscriptionModal;
+
+function closeSubscriptionModal() {
+  const modal = document.getElementById('modalSubscription');
+  if (modal) modal.style.display = 'none';
+  const feedback = document.getElementById('subPaymentFeedback');
+  if (feedback) {
+    feedback.style.display = 'none';
+    feedback.textContent = '';
+  }
+}
+window.closeSubscriptionModal = closeSubscriptionModal;
+
+function renderSubscriptionPlans() {
+  const container = document.getElementById('subPlansContainer');
+  if (!container) return;
+
+  const plans = (state.subscriptionPlans && state.subscriptionPlans.length > 0) ? state.subscriptionPlans : [
+    { id: 'pass_1m', title: 'Pass 1 Mois Découverte', price: 19.99, duration_days: 30, badge: 'Essentiel', features: ['Accès complet aux 8 classes de questions', 'Calcul des affinités électives', 'Sans engagement'] },
+    { id: 'pass_3m', title: 'Pass 3 Mois Sérénité', price: 39.99, duration_days: 90, badge: 'Le plus populaire', features: ['Tous les avantages 1 Mois', 'Statut ⭐ Abonné Privilège', 'Économie de 33%'] },
+    { id: 'pass_6m', title: 'Pass 6 Mois Passion', price: 69.99, duration_days: 180, badge: 'Meilleure valeur', features: ['Accès complet illimité', 'Accès prioritaire aux nouveautés', 'Assistance prioritaire'] }
+  ];
+
+  container.innerHTML = plans.map(plan => {
+    const isSelected = (plan.id === state.selectedSubscriptionPlanId);
+    const isPopular = (plan.id === 'pass_3m' || plan.badge === 'Le plus populaire');
+    const badgeHtml = plan.badge ? `<div class="sub-plan-badge">${escapeHtml(plan.badge)}</div>` : '';
+    const featuresHtml = (plan.features || []).map(f => `<li><span style="color:#34d399; font-weight:bold;">✔</span> ${escapeHtml(f)}</li>`).join('');
+
+    return `
+      <div class="sub-plan-card ${isSelected ? 'selected' : ''} ${isPopular ? 'popular' : ''}" onclick="selectSubscriptionPlan('${plan.id}')">
+        ${badgeHtml}
+        <div class="sub-plan-header">
+          <div class="sub-plan-title">${escapeHtml(plan.title)}</div>
+          <div class="sub-plan-price-row">
+            <span class="sub-plan-price">${plan.price.toFixed(2)} €</span>
+            <span class="sub-plan-duration">/ ${plan.duration_days} jours</span>
+          </div>
+        </div>
+        <ul class="sub-plan-features">
+          ${featuresHtml}
+        </ul>
+      </div>
+    `;
+  }).join('');
+
+  updateSelectedPlanSummary();
+}
+
+function selectSubscriptionPlan(planId) {
+  state.selectedSubscriptionPlanId = planId;
+  renderSubscriptionPlans();
+}
+window.selectSubscriptionPlan = selectSubscriptionPlan;
+
+function updateSelectedPlanSummary() {
+  const plans = (state.subscriptionPlans && state.subscriptionPlans.length > 0) ? state.subscriptionPlans : [
+    { id: 'pass_1m', title: 'Pass 1 Mois Découverte', price: 19.99 },
+    { id: 'pass_3m', title: 'Pass 3 Mois Sérénité', price: 39.99 },
+    { id: 'pass_6m', title: 'Pass 6 Mois Passion', price: 69.99 }
+  ];
+  const selected = plans.find(p => p.id === state.selectedSubscriptionPlanId) || plans[1] || plans[0];
+  
+  const titleEl = document.getElementById('subSelectedPlanTitle');
+  const priceEl = document.getElementById('subSelectedPlanPrice');
+  if (titleEl) titleEl.textContent = selected.title;
+  if (priceEl) priceEl.textContent = `${selected.price.toFixed(2)} €`;
+}
+
+async function executePayPalPayment() {
+  const btn = document.getElementById('btnPayWithPayPal');
+  const feedback = document.getElementById('subPaymentFeedback');
+  const planId = state.selectedSubscriptionPlanId || 'pass_3m';
+
+  if (!state.currentUser) {
+    if (feedback) {
+      feedback.textContent = 'Veuillez vous connecter avant de souscrire un abonnement.';
+      feedback.style.display = 'block';
+      feedback.style.background = 'rgba(239, 68, 68, 0.15)';
+      feedback.style.color = '#ef4444';
+      feedback.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+    }
+    closeSubscriptionModal();
+    openAuthModal('login');
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<span>⏳</span> Traitement du paiement PayPal...`;
+  }
+  if (feedback) feedback.style.display = 'none';
+
+  try {
+    const res = await authFetch(`${API_BASE}/api/subscription/paypal/capture`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        plan_id: planId,
+        provider: 'paypal'
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      if (feedback) {
+        feedback.textContent = data.error || 'Erreur lors du traitement du paiement PayPal.';
+        feedback.style.display = 'block';
+        feedback.style.background = 'rgba(239, 68, 68, 0.15)';
+        feedback.style.color = '#ef4444';
+        feedback.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+      }
+    } else {
+      if (feedback) {
+        feedback.innerHTML = `🎉 <strong>Paiement PayPal validé avec succès !</strong><br><span style="font-size:13px;">${escapeHtml(data.message)} Votre statut est désormais <strong>⭐ Abonné</strong>.</span>`;
+        feedback.style.display = 'block';
+        feedback.style.background = 'rgba(16, 185, 129, 0.15)';
+        feedback.style.color = '#34d399';
+        feedback.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+      }
+
+      if (data.user) {
+        state.currentUser = data.user;
+      } else if (state.currentUser) {
+        state.currentUser.role = 'subscriber';
+      }
+
+      applyRolePermissionsUi();
+      renderSingleUserProfile();
+
+      showToast('🎉 Félicitations ! Votre abonnement PayPal est désormais actif.', 'success');
+
+      setTimeout(() => {
+        closeSubscriptionModal();
+      }, 2500);
+    }
+  } catch (err) {
+    if (feedback) {
+      feedback.textContent = 'Erreur réseau lors de la communication avec PayPal.';
+      feedback.style.display = 'block';
+      feedback.style.background = 'rgba(239, 68, 68, 0.15)';
+      feedback.style.color = '#ef4444';
+    }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `
+        <svg style="width: 20px; height: 20px;" viewBox="0 0 24 24" fill="#003087">
+          <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.808 1.57 1.169.976 1.737 2.38 1.643 4.058-.112 1.996-.948 3.553-2.41 4.502-1.393.905-3.275 1.34-5.594 1.34H9.664c-.464 0-.853.336-.927.795l-1.66 10.472zm1.884-11.902h3.585c1.77 0 3.197-.333 4.126-1.02.887-.655 1.39-1.688 1.455-2.988.077-1.523-.623-2.39-2.025-2.507-.633-.053-1.442-.08-2.4-.08H8.563l-1.37 9.095c.026-.002.046 0 .07 0l1.697-.5z"/>
+        </svg>
+        <span>Payer avec PayPal</span>
+      `;
+    }
+  }
+}
+window.executePayPalPayment = executePayPalPayment;
 
