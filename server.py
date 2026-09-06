@@ -513,11 +513,16 @@ def init_db():
     ''')
     conn.commit()
 
-    # Initialisation des rôles par défaut et codes profils initiaux
-    # Administrateur principal (pseudo ar30960, code_profil ADM-1)
-    c.execute("UPDATE profiles SET pseudo = 'ar30960', role = 'admin', code_profil = 'ADM-1' WHERE id = 1")
-    c.execute("UPDATE profiles SET role = 'subscriber' WHERE id = 2 AND (role IS NULL OR role = 'guest')")
-    c.execute("UPDATE profiles SET role = 'guest' WHERE id IN (3, 4) AND (role IS NULL)")
+    # Initialisation de l'administrateur unique par défaut (pseudo ar30960, code_profil ADM-1)
+    c.execute("SELECT id, password_hash, salt FROM profiles WHERE id = 1")
+    admin_row = c.fetchone()
+    if not admin_row:
+        s, h = hash_password("Admin2026!")
+        c.execute("INSERT INTO profiles (id, pseudo, avatar, role, code_profil, password_hash, salt) VALUES (1, 'ar30960', 'user', 'admin', 'ADM-1', ?, ?)", (h, s))
+        conn.commit()
+    else:
+        c.execute("UPDATE profiles SET pseudo = 'ar30960', role = 'admin', code_profil = 'ADM-1' WHERE id = 1")
+        conn.commit()
     
     # Mot de passe par défaut pour l'administrateur ar30960 (Admin2026!)
     c.execute("SELECT id, password_hash, salt FROM profiles WHERE id = 1")

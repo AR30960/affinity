@@ -1439,6 +1439,10 @@ function populateSimulatedProfileDropdowns(role, selectedProfileId) {
     }).join('') + `</optgroup>`;
   }
 
+  if (!optionsHtml) {
+    optionsHtml = `<option value="">(Aucun profil membre créé)</option>`;
+  }
+
   if (headerSelect) {
     headerSelect.innerHTML = optionsHtml;
     headerSelect.value = selectedProfileId;
