@@ -949,73 +949,73 @@
 
         <!-- CONTENEUR 1 : BANQUE ACTIVE (QUESTIONS VALIDÉES) -->
         <div id="bankViewActiveContainer">
-          <div class="section-toolbar" style="flex-wrap: wrap; gap: 12px; align-items: center;">
-            <div class="search-box" style="min-width: 240px; max-width: 320px;">
-              <span class="search-icon">🔍</span>
-              <input type="text" id="bankSearchInput" placeholder="Rechercher par texte...">
+          <!-- BARRE DE FILTRES SUR UNE SEULE LIGNE : Statut -> Jeux -> Classes -> Sujets -> Cible -->
+          <div class="bank-filters-single-row">
+            <!-- 1. Sélection par boîte d'options : Tous / Répondues / Non répondues -->
+            <div class="bank-filter-item">
+              <select id="bankFilterStatus" class="custom-select" onchange="renderQuestionsTable()" title="Filtrer par statut de réponse">
+                <option value="ALL">Toutes les questions</option>
+                <option value="ANSWERED">Répondues</option>
+                <option value="UNANSWERED">Non répondues</option>
+              </select>
             </div>
-            
-            <div class="bank-filters" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-              <select id="bankFilterThematique" class="custom-select" onchange="onBankThematiqueChange()" style="min-width: 170px;">
-                <option value="ALL">Toutes les thématiques</option>
+
+            <!-- 2. Les Jeux -->
+            <div class="bank-filter-item">
+              <select id="bankFilterPack" class="custom-select" onchange="onBankPackChange()" title="Filtrer par Jeu">
+                <option value="ALL">Tous les jeux</option>
               </select>
-              <select id="bankFilterSujet" class="custom-select" onchange="renderQuestionsTable()" style="min-width: 160px;">
-                <option value="ALL">Tous les sujets</option>
-              </select>
-              <select id="bankFilterClasse" class="custom-select" onchange="renderQuestionsTable()" style="min-width: 160px;">
+            </div>
+
+            <!-- 3. Les Classes -->
+            <div class="bank-filter-item">
+              <select id="bankFilterClasse" class="custom-select" onchange="renderQuestionsTable()" title="Filtrer par classe">
                 <option value="ALL">Toutes les classes</option>
                 <option value="0">0 - Non définies</option>
-                <option value="1">1 - Standards / Ordinaires</option>
+                <option value="1">1 - Standards</option>
                 <option value="2">2 - Personnelles</option>
                 <option value="3">3 - Intimes</option>
                 <option value="4">4 - Privées</option>
                 <option value="5">5 - A caractère sexuel</option>
                 <option value="8">8 - Identité</option>
-                <option value="9">9 - Interdits / Fantasmes</option>
+                <option value="9">9 - Amorales / Interdits</option>
               </select>
-              <select id="bankFilterCible" class="custom-select" onchange="renderQuestionsTable()" style="min-width: 150px;" title="Cible de genre (N_CIBLE)">
+            </div>
+
+            <!-- 4. Les Sujets -->
+            <div class="bank-filter-item">
+              <select id="bankFilterSujet" class="custom-select" onchange="renderQuestionsTable()" title="Filtrer par sujet">
+                <option value="ALL">Tous les sujets</option>
+              </select>
+            </div>
+
+            <!-- 5. La Cible -->
+            <div class="bank-filter-item">
+              <select id="bankFilterCible" class="custom-select" onchange="renderQuestionsTable()" title="Filtrer par cible">
                 <option value="ALL">Toutes les cibles</option>
                 <option value="0">0 - Mixte (Tous)</option>
                 <option value="1">1 - Hommes</option>
                 <option value="2">2 - Femmes</option>
               </select>
-              <select id="bankFilterHierarchie" class="custom-select" onchange="renderQuestionsTable()" style="min-width: 175px;" title="Hiérarchie des questions (principales / sous-questions)">
-                <option value="ALL">Tous les niveaux</option>
-                <option value="MAIN">Questions principales (sans parent)</option>
-                <option value="PARENT">Questions ayant des sous-questions</option>
-                <option value="SUB">Sous-questions uniquement</option>
-              </select>
-              <button id="btnResetBankFilters" class="btn btn-outline btn-sm" onclick="resetBankFilters()" title="Réinitialiser les filtres" style="padding: 8px 12px;">
-                Effacer filtres
-              </button>
             </div>
 
-            <div style="margin-left: auto; display: flex; align-items: center; gap: 12px;">
-              <span id="bankQuestionsCountBadge" class="badge-soft" style="font-size: 12px; padding: 6px 12px;">204 questions</span>
-              <button class="btn btn-primary admin-only" id="btnOpenAddQuestion" style="display: none;">
+            <!-- Réinitialisation rapide des filtres -->
+            <button id="btnResetBankFilters" class="btn btn-outline btn-sm" onclick="resetBankFilters()" title="Réinitialiser les filtres" style="padding: 7px 11px; font-size: 12px; white-space: nowrap;">
+              🔄 Effacer
+            </button>
+
+            <!-- Compteur & Bouton Ajouter Question -->
+            <div style="margin-left: auto; display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
+              <span id="bankQuestionsCountBadge" class="badge-soft" style="font-size: 12px; padding: 6px 12px; white-space: nowrap;">205 questions</span>
+              <button class="btn btn-primary btn-sm admin-only" id="btnOpenAddQuestion" style="white-space: nowrap; display: none;">
                 <span>+</span> Ajouter une Question
               </button>
             </div>
           </div>
 
-          <div class="table-responsive">
-            <table class="custom-table" id="questionsTable">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Thématique</th>
-                  <th>Sujet</th>
-                  <th>Classe</th>
-                  <th>Type</th>
-                  <th>Cible</th>
-                  <th>Intitulé de la Question</th>
-                  <th style="text-align:right;">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="questionsTableBody">
-                <!-- Injecté par JS -->
-              </tbody>
-            </table>
+          <!-- PRÉSENTATION EN CARTES (IDENTIQUE AU QUESTIONNAIRE) -->
+          <div class="questions-deck" id="bankQuestionsDeck">
+            <!-- Cartes injectées dynamiquement par JS -->
           </div>
         </div>
 
@@ -1768,24 +1768,24 @@
       <form id="formEditQuestion">
         <input type="hidden" id="editQId">
 
-        <!-- Hiérarchie de la question : Question d'origine vs Question de précision attachée -->
+        <!-- Structure de la question : Question standard vs Sous-question rattachée -->
         <div class="form-group" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 12px 14px; margin-bottom: 14px;">
           <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 8px;">
-            Rôle hiérarchique de la question *
+            Nature de la question *
           </label>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
             <label class="q-hierarchy-option" id="optHierarchyMain" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: 6px; cursor: pointer; background: rgba(255,255,255,0.02); transition: all 0.2s ease;">
               <input type="radio" name="editQHierarchyType" id="hierarchyTypeMain" value="MAIN" onchange="onHierarchyTypeChange()" checked>
               <div>
-                <strong style="display: block; font-size: 0.86rem;">📌 Question d'origine</strong>
-                <span style="font-size: 0.75rem; color: var(--text-dim);">Question principale autonome</span>
+                <strong style="display: block; font-size: 0.86rem;">📌 Question standard</strong>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">Question autonome</span>
               </div>
             </label>
             <label class="q-hierarchy-option" id="optHierarchySub" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: 6px; cursor: pointer; background: rgba(255,255,255,0.02); transition: all 0.2s ease;">
               <input type="radio" name="editQHierarchyType" id="hierarchyTypeSub" value="SUB" onchange="onHierarchyTypeChange()">
               <div>
-                <strong style="display: block; font-size: 0.86rem;">📎 Question attachée (Précision)</strong>
-                <span style="font-size: 0.75rem; color: var(--text-dim);">Précise une question d'origine (N_QUEST_LIE)</span>
+                <strong style="display: block; font-size: 0.86rem;">📎 Sous-question</strong>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">Précise une question existante</span>
               </div>
             </label>
           </div>
@@ -1793,13 +1793,13 @@
           <!-- Sélecteur de la question parente liée (affiché uniquement si sous-question) -->
           <div id="boxEditQNQuestLie" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border-subtle);">
             <label for="editQNQuestLie" style="font-size: 0.82rem; font-weight: 600; color: #38bdf8;">
-              Question d'origine à préciser (N_QUEST_LIE) *
+              Question à préciser (N_QUEST_LIE) *
             </label>
             <select id="editQNQuestLie" class="form-control" onchange="onEditQNQuestLieChange()" style="margin-top: 4px;">
-              <option value="0">-- Sélectionner la question d'origine --</option>
+              <option value="0">-- Sélectionner la question --</option>
             </select>
             <div id="inheritFeedback" style="display: none; margin-top: 6px; font-size: 0.78rem; color: #34d399;">
-              ✓ Thématique, sujet et classe automatiquement hérités de la question d'origine.
+              ✓ Jeu, thématique, sujet et classe automatiquement hérités de la question d'origine.
             </div>
           </div>
         </div>

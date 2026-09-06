@@ -5233,3 +5233,76 @@ select.ckp-input option {
   font-size: 0.85rem;
 }
 
+/* ==========================================================================
+   BANQUE DE QUESTIONS : Présentation en cartes et filtres sur une seule ligne
+   ========================================================================== */
+.bank-filters-single-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding: 12px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  margin-bottom: 24px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.bank-filters-single-row::-webkit-scrollbar {
+  height: 5px;
+}
+
+.bank-filters-single-row::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.bank-filter-item {
+  flex-shrink: 0;
+}
+
+.bank-filter-item select {
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-main);
+  transition: all 0.2s ease;
+}
+
+.bank-filter-item select:focus {
+  border-color: var(--accent-cyan);
+  outline: none;
+}
+
+.bank-attached-subs {
+  margin-top: -10px;
+  margin-bottom: 24px;
+  margin-left: 28px;
+  padding-left: 18px;
+  border-left: 2.5px solid rgba(56, 189, 248, 0.4);
+  transition: all 0.25s ease-in-out;
+}
+
+.bank-btn-add-sub {
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.4);
+  font-weight: 600;
+  font-size: 12px;
+  padding: 5px 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s ease;
+}
+
+.bank-btn-add-sub:hover {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: #38bdf8;
+  color: #ffffff;
+}
+
