@@ -131,57 +131,6 @@ def calculate_distance_km(city1, city2):
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return int(round(6371 * c))
 
-SUBSCRIPTION_PLANS = [
-    {
-        "id": "pass_1m",
-        "title": "Pass 1 Mois Découverte",
-        "badge": "Essentiel",
-        "price": 19.99,
-        "currency": "EUR",
-        "duration_days": 30,
-        "description": "Accès intégral à l'ensemble du catalogue de questions et calcul des affinités pendant 1 mois.",
-        "features": [
-            "Accès complet aux 8 classes de questions",
-            "Calcul instantané des scores d'affinité",
-            "Mise en relation et affichage des profils compatibles",
-            "Paiement sécurisé par PayPal ou Carte Bancaire"
-        ]
-    },
-    {
-        "id": "pass_3m",
-        "title": "Pass 3 Mois Sérénité",
-        "badge": "Le plus populaire",
-        "price": 39.99,
-        "currency": "EUR",
-        "duration_days": 90,
-        "description": "3 mois d'accès illimité avec économie de 33%. Idéal pour explorer vos affinités.",
-        "features": [
-            "Tous les avantages du Pass 1 Mois",
-            "Accès prioritaire aux nouveaux questionnaires",
-            "Statut ⭐ Abonné Privilège",
-            "Économie de 33% par rapport au pass mensuel"
-        ]
-    },
-    {
-        "id": "pass_6m",
-        "title": "Pass 6 Mois Passion",
-        "badge": "Meilleure valeur",
-        "price": 69.99,
-        "currency": "EUR",
-        "duration_days": 180,
-        "description": "6 mois d'accès complet pour explorer toutes les facettes de vos affinités en profondeur.",
-        "features": [
-            "Tous les avantages du Pass 3 Mois",
-            "Accès illimité à tous les futurs packs",
-            "Badge vérifié ⭐ Abonné Ambassadeur",
-            "Assistance prioritaire"
-        ]
-    }
-]
-
-PAYPAL_CLIENT_ID = os.environ.get("PAYPAL_CLIENT_ID", "sandbox-demo-client-id")
-PAYPAL_MODE = os.environ.get("PAYPAL_MODE", "sandbox") # 'sandbox' ou 'live'
-
 ALLOWED_COUNTRIES = ["France", "UE", "Hors UE"]
 
 CHOIX_RECHERCHE = [
@@ -506,7 +455,6 @@ def create_session(profile_id: int) -> str:
 def get_full_profile_data(c, profile_id):
     c.execute("""
         SELECT p.id, p.pseudo, p.code_profil, p.avatar, p.role, p.email, p.created_at,
-               p.subscription_expires_at, p.subscription_plan,
                i.prenom, i.nom, i.sexe, i.date_naissance, i.ville, i.statut, i.bio,
                i.situation_famille, i.recherche_de,
                i.pays_naissance, i.habite_pays, i.habite_region_dept, i.habite_commune,
@@ -627,12 +575,6 @@ def init_db():
     if "email" not in existing_cols:
         c.execute("ALTER TABLE profiles ADD COLUMN email TEXT")
         conn.commit()
-    if "subscription_expires_at" not in existing_cols:
-        c.execute("ALTER TABLE profiles ADD COLUMN subscription_expires_at TIMESTAMP")
-        conn.commit()
-    if "subscription_plan" not in existing_cols:
-        c.execute("ALTER TABLE profiles ADD COLUMN subscription_plan TEXT")
-        conn.commit()
 
     # Table des demandes de réinitialisation de mot de passe oublié
     c.execute('''
@@ -643,25 +585,6 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             expires_at TIMESTAMP NOT NULL,
             used INTEGER DEFAULT 0,
-            FOREIGN KEY (profile_id) REFERENCES profiles(id)
-        )
-    ''')
-    conn.commit()
-
-    # Table des paiements et abonnements
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS subscriptions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            profile_id INTEGER NOT NULL,
-            plan_id TEXT NOT NULL,
-            plan_title TEXT NOT NULL,
-            amount REAL NOT NULL,
-            currency TEXT DEFAULT 'EUR',
-            provider TEXT DEFAULT 'paypal',
-            order_id TEXT,
-            status TEXT DEFAULT 'completed',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            expires_at TIMESTAMP,
             FOREIGN KEY (profile_id) REFERENCES profiles(id)
         )
     ''')
@@ -1325,36 +1248,6 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                     "database_size_bytes": db_size,
                     "data_dir": DATA_DIR,
                     "seed_db_path": SEED_DB_PATH
-                })
-
-            # --- Plans d'abonnement et statut ---
-            if path == "/api/subscription/plans":
-                return self._send_json({
-                    "plans": SUBSCRIPTION_PLANS,
-                    "paypal_client_id": PAYPAL_CLIENT_ID,
-                    "paypal_mode": PAYPAL_MODE
-                })
-
-            if path == "/api/subscription/status":
-                user = self.get_current_user()
-                if not user:
-                    return self._send_json({"error": "Non authentifié"}, 401)
-                conn = get_db()
-                c = conn.cursor()
-                c.execute("SELECT role, subscription_expires_at, subscription_plan FROM profiles WHERE id = ?", (user["id"],))
-                p = c.fetchone()
-                c.execute("SELECT * FROM subscriptions WHERE profile_id = ? ORDER BY id DESC LIMIT 10", (user["id"],))
-                history = [dict(r) for r in c.fetchall()]
-                conn.close()
-                is_active = (p["role"] in ["subscriber", "admin"])
-                return self._send_json({
-                    "role": p["role"],
-                    "is_subscriber": (p["role"] == "subscriber"),
-                    "is_admin": (p["role"] == "admin"),
-                    "is_active": is_active,
-                    "subscription_expires_at": p["subscription_expires_at"],
-                    "subscription_plan": p["subscription_plan"],
-                    "history": history
                 })
 
             conn = get_db()
@@ -2117,66 +2010,6 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
             conn.commit()
             conn.close()
             return self._send_json({"success": True, "message": f"Mot de passe réinitialisé pour le profil #{target_id}."})
-
-        # Capture de paiement / abonnement PayPal
-        elif path == "/api/subscription/paypal/capture":
-            user = self.get_current_user()
-            if not user:
-                conn.close()
-                return self._send_json({"error": "Veuillez vous connecter pour vous abonner."}, 401)
-            
-            plan_id = str(data.get("plan_id", "")).strip()
-            order_id = str(data.get("order_id", "")).strip() or f"PP-{secrets.token_hex(6).upper()}"
-            
-            # Recherche du plan souscrit
-            matched_plan = next((p for p in SUBSCRIPTION_PLANS if p["id"] == plan_id), None)
-            if not matched_plan:
-                conn.close()
-                return self._send_json({"error": "Plan d'abonnement introuvable ou invalide."}, 400)
-            
-            # Calcul de la date d'expiration
-            c.execute("SELECT subscription_expires_at, role FROM profiles WHERE id = ?", (user["id"],))
-            p_curr = c.fetchone()
-            
-            now_dt = datetime.now(timezone.utc)
-            base_dt = now_dt
-            if p_curr and p_curr["subscription_expires_at"]:
-                try:
-                    exp_dt = datetime.fromisoformat(str(p_curr["subscription_expires_at"]).replace("Z", "+00:00"))
-                    if exp_dt > now_dt:
-                        base_dt = exp_dt
-                except Exception:
-                    pass
-            
-            new_expires_dt = base_dt + timedelta(days=matched_plan["duration_days"])
-            new_expires_iso = new_expires_dt.isoformat()
-            
-            # Mise à jour du profil : rôle 'subscriber', date et plan
-            new_role = "subscriber" if (not p_curr or p_curr["role"] != "admin") else "admin"
-            c.execute("""
-                UPDATE profiles
-                SET role = ?, subscription_expires_at = ?, subscription_plan = ?
-                WHERE id = ?
-            """, (new_role, new_expires_iso, matched_plan["id"], user["id"]))
-            
-            # Enregistrement dans l'historique des souscriptions
-            c.execute("""
-                INSERT INTO subscriptions (profile_id, plan_id, plan_title, amount, currency, provider, order_id, status, expires_at)
-                VALUES (?, ?, ?, ?, ?, 'paypal', ?, 'completed', ?)
-            """, (user["id"], matched_plan["id"], matched_plan["title"], matched_plan["price"], matched_plan["currency"], order_id, new_expires_iso))
-            
-            conn.commit()
-            updated_user = get_full_profile_data(c, user["id"])
-            conn.close()
-            
-            return self._send_json({
-                "success": True,
-                "message": f"Félicitations ! Votre souscription au {matched_plan['title']} est activée avec succès.",
-                "user": updated_user,
-                "plan": matched_plan,
-                "order_id": order_id,
-                "expires_at": new_expires_iso
-            })
 
         # Création de profil
         elif path == "/api/profiles":
