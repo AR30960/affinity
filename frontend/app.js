@@ -943,11 +943,34 @@ function initEventListeners() {
   setupBirthDateValidation();
   setupGeographicAndCompletenessListeners();
   setupAuthListeners();
+  // Navigation Mobile (Smartphone & Tablette)
+  const btnToggleMobile = document.getElementById('btnToggleMobileMenu');
+  const btnCloseMobile = document.getElementById('btnCloseMobileMenu');
+  const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+  const sidebar = document.getElementById('appSidebar') || document.querySelector('.sidebar');
+
+  function openMobileMenu() {
+    sidebar?.classList.add('open');
+    sidebarBackdrop?.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeMobileMenu() {
+    sidebar?.classList.remove('open');
+    sidebarBackdrop?.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+
+  btnToggleMobile?.addEventListener('click', openMobileMenu);
+  btnCloseMobile?.addEventListener('click', closeMobileMenu);
+  sidebarBackdrop?.addEventListener('click', closeMobileMenu);
+
   // Navigation par onglets
   document.querySelectorAll('.nav-item').forEach(btn => {
     btn.addEventListener('click', () => {
       const tabName = btn.getAttribute('data-tab');
       switchTab(tabName);
+      closeMobileMenu();
     });
   });
 
@@ -2279,6 +2302,8 @@ function setActiveProfile(id) {
   if (prof) {
     document.getElementById('activePseudo').textContent = prof.pseudo;
     document.getElementById('activeAvatar').textContent = prof.pseudo.charAt(0).toUpperCase();
+    const mobAvatar = document.getElementById('mobileActiveAvatar');
+    if (mobAvatar) mobAvatar.textContent = prof.pseudo.charAt(0).toUpperCase();
 
     // Statut de la fiche d'identité (Non requis pour un Administrateur)
     const statusPill = document.getElementById('activeStatusPill');

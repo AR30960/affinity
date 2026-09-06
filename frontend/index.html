@@ -11,8 +11,23 @@
 </head>
 <body>
   <div class="app-container">
+    <!-- Barre de navigation mobile (Smartphone & Tablette) -->
+    <header class="mobile-nav-bar" id="mobileNavBar">
+      <button type="button" id="btnToggleMobileMenu" class="btn-mobile-menu" aria-label="Ouvrir le menu de navigation">
+        <span class="burger-icon">☰</span>
+      </button>
+      <div class="mobile-brand">
+        <span class="mobile-brand-title">AFFINITY</span>
+      </div>
+      <div class="mobile-user-quick" onclick="switchTab('profiles')" title="Voir mon profil">
+        <span class="mobile-avatar" id="mobileActiveAvatar">?</span>
+      </div>
+    </header>
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
     <!-- Sidebar Navigation -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="appSidebar">
+      <button type="button" id="btnCloseMobileMenu" class="btn-close-mobile-menu" aria-label="Fermer le menu">✕</button>
       <div class="brand">
         <div class="brand-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
