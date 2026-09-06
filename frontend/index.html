@@ -674,14 +674,14 @@
         <div class="questionnaire-header-bar">
           <div class="q-profile-selector">
             <label for="qSelectProfile">Répondre pour le profil :</label>
-            <select id="qSelectProfile" class="custom-select"></select>
+            <select id="qSelectProfile" class="custom-select" onchange="onQProfileChange(this.value)"></select>
           </div>
           <div class="q-filters">
-            <select id="qFilterThematique" class="custom-select" title="Thématique">
+            <select id="qFilterThematique" class="custom-select" onchange="renderQuestionsDeck()" title="Thématique">
               <option value="ALL">Toutes les thématiques</option>
             </select>
-            <select id="qFilterPack" class="custom-select" title="Jeu / Pack"></select>
-            <select id="qFilterClasse" class="custom-select" title="Classe de question">
+            <select id="qFilterPack" class="custom-select" onchange="renderQuestionsDeck()" title="Jeu / Pack"></select>
+            <select id="qFilterClasse" class="custom-select" onchange="renderQuestionsDeck()" title="Classe de question">
               <option value="ALL">Toutes les classes</option>
               <option value="0">0 - Non définies</option>
               <option value="1">1 - Standards</option>
@@ -691,16 +691,19 @@
               <option value="5">5 - A caractère sexuel</option>
               <option value="9">9 - Interdits / Fantasmes</option>
             </select>
-            <select id="qFilterStatus" class="custom-select" title="Filtrer par statut de réponse">
+            <select id="qFilterStatus" class="custom-select" onchange="renderQuestionsDeck()" title="Filtrer par statut de réponse">
               <option value="ALL">Toutes les questions</option>
               <option value="UNANSWERED">Non répondues uniquement</option>
               <option value="ANSWERED">Répondues uniquement</option>
             </select>
-            <select id="qFilterHierarchie" class="custom-select" title="Filtrer par niveau (Principales / Sous-questions)">
+            <select id="qFilterHierarchie" class="custom-select" onchange="renderQuestionsDeck()" title="Filtrer par niveau (Principales / Sous-questions)">
               <option value="ALL">Tous les niveaux</option>
               <option value="MAIN">Questions principales uniquement</option>
               <option value="SUB">Sous-questions uniquement</option>
             </select>
+            <button id="btnResetQFilters" class="btn btn-outline btn-sm" onclick="resetQuestionnaireFilters()" title="Réinitialiser les filtres" style="padding: 7px 12px; font-size: 12px; white-space: nowrap;">
+              🔄 Effacer filtres
+            </button>
           </div>
           <div class="q-progress">
             <div class="q-progress-text">Progression : <span id="qProgressPct">0%</span></div>
@@ -945,13 +948,13 @@
             </div>
             
             <div class="bank-filters" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-              <select id="bankFilterThematique" class="custom-select" style="min-width: 170px;">
+              <select id="bankFilterThematique" class="custom-select" onchange="onBankThematiqueChange()" style="min-width: 170px;">
                 <option value="ALL">Toutes les thématiques</option>
               </select>
-              <select id="bankFilterSujet" class="custom-select" style="min-width: 160px;">
+              <select id="bankFilterSujet" class="custom-select" onchange="renderQuestionsTable()" style="min-width: 160px;">
                 <option value="ALL">Tous les sujets</option>
               </select>
-              <select id="bankFilterClasse" class="custom-select" style="min-width: 160px;">
+              <select id="bankFilterClasse" class="custom-select" onchange="renderQuestionsTable()" style="min-width: 160px;">
                 <option value="ALL">Toutes les classes</option>
                 <option value="0">0 - Non définies</option>
                 <option value="1">1 - Standards / Ordinaires</option>
@@ -962,19 +965,19 @@
                 <option value="8">8 - Identité</option>
                 <option value="9">9 - Interdits / Fantasmes</option>
               </select>
-              <select id="bankFilterCible" class="custom-select" style="min-width: 150px;" title="Cible de genre (N_CIBLE)">
+              <select id="bankFilterCible" class="custom-select" onchange="renderQuestionsTable()" style="min-width: 150px;" title="Cible de genre (N_CIBLE)">
                 <option value="ALL">Toutes les cibles</option>
                 <option value="0">0 - Mixte (Tous)</option>
                 <option value="1">1 - Hommes</option>
                 <option value="2">2 - Femmes</option>
               </select>
-              <select id="bankFilterHierarchie" class="custom-select" style="min-width: 175px;" title="Hiérarchie des questions (principales / sous-questions)">
+              <select id="bankFilterHierarchie" class="custom-select" onchange="renderQuestionsTable()" style="min-width: 175px;" title="Hiérarchie des questions (principales / sous-questions)">
                 <option value="ALL">Tous les niveaux</option>
                 <option value="MAIN">Questions principales (sans parent)</option>
                 <option value="PARENT">Questions ayant des sous-questions</option>
                 <option value="SUB">Sous-questions uniquement</option>
               </select>
-              <button id="btnResetBankFilters" class="btn btn-outline btn-sm" title="Réinitialiser les filtres" style="padding: 8px 12px;">
+              <button id="btnResetBankFilters" class="btn btn-outline btn-sm" onclick="resetBankFilters()" title="Réinitialiser les filtres" style="padding: 8px 12px;">
                 Effacer filtres
               </button>
             </div>

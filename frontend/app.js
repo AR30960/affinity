@@ -2083,9 +2083,16 @@ function setActiveProfile(id) {
 
   const qSelect = document.getElementById('qSelectProfile');
   if (qSelect) qSelect.value = id;
+  updateQuestionnaireFilters();
   loadActiveProfileAnswers();
   loadIdentityAnswers(id);
 }
+
+window.onQProfileChange = function(val) {
+  if (!val) return;
+  const pid = parseInt(val, 10);
+  setActiveProfile(pid);
+};
 
 function updateActiveProfileWidget() {
   if (state.activeProfileId) setActiveProfile(state.activeProfileId);
@@ -2113,13 +2120,17 @@ function updateProfileDropdowns() {
         qSelect.disabled = true;
       }
     } else {
-      qSelect.innerHTML = memberProfiles.length > 0 
-        ? memberOptionsHtml 
-        : '<option value="">Aucun membre disponible</option>';
+      const adminProf = state.profiles.find(p => p.role === 'admin');
+      const adminOptionHtml = adminProf 
+        ? `<option value="${adminProf.id}">👑 ${adminProf.pseudo} (Mode Superviseur)</option>` 
+        : '';
+      qSelect.innerHTML = adminOptionHtml + memberOptionsHtml;
       qSelect.disabled = false;
-      const activeIsMember = memberProfiles.some(p => p.id === state.activeProfileId);
-      if (activeIsMember) {
+      const activeExists = state.profiles.some(p => p.id === state.activeProfileId);
+      if (activeExists) {
         qSelect.value = state.activeProfileId;
+      } else if (adminProf) {
+        qSelect.value = adminProf.id;
       } else if (memberProfiles.length > 0) {
         qSelect.value = memberProfiles[0].id;
       }
@@ -3621,6 +3632,8 @@ async function loadQuestions() {
     state.questions = data.questions || [];
     populateBankFilters();
     renderQuestionsTable();
+    updateQuestionnaireFilters();
+    renderQuestionsDeck();
     const activeBadge = document.getElementById('badgeActiveQuestionsCount');
     if (activeBadge) activeBadge.textContent = state.questions.length;
     updateStatsDisplay();
@@ -3650,7 +3663,14 @@ async function loadActiveProfileAnswers() {
 function getActiveProfileEligibleQuestions() {
   if (!state.activeProfileId) return state.questions;
   const prof = state.profiles.find(p => p.id === state.activeProfileId);
-  if (!prof || !prof.question_access) return state.questions;
+  if (!prof) return state.questions;
+
+  // L'administrateur en mode superviseur a accès à l'ensemble des questions (hors classe 8 Identité)
+  if (prof.role === 'admin') {
+    return state.questions.filter(q => q.classe !== 8 && q.classe !== '8' && q.type !== 'P' && q.type !== 'T');
+  }
+
+  if (!prof.question_access) return state.questions;
 
   const qa = prof.question_access;
   const allPacks = qa.allowed_packs === 'ALL';
@@ -3722,8 +3742,10 @@ function updateQuestionnaireFilters() {
     const prevThema = filterThema.value;
     filterThema.innerHTML = `<option value="ALL">Toutes les thématiques (${availableThemas.length})</option>` +
       availableThemas.map(th => `<option value="${th}">${th}</option>`).join('');
-    if (availableThemas.includes(prevThema)) {
+    if (prevThema === 'ALL' || availableThemas.includes(prevThema)) {
       filterThema.value = prevThema;
+    } else {
+      filterThema.value = 'ALL';
     }
   }
 
@@ -3732,8 +3754,10 @@ function updateQuestionnaireFilters() {
     state.packs
       .filter(pk => availablePackIds.has(pk.id))
       .map(pk => `<option value="${pk.id}">${pk.nom}</option>`).join('');
-  if (availablePackIds.has(parseInt(prevPack, 10))) {
+  if (prevPack === 'ALL' || availablePackIds.has(parseInt(prevPack, 10))) {
     filterPack.value = prevPack;
+  } else {
+    filterPack.value = 'ALL';
   }
 
   const prevClasse = filterClasse.value;
@@ -3745,8 +3769,10 @@ function updateQuestionnaireFilters() {
     Array.from(availableClasses)
       .sort((a, b) => a - b)
       .map(cId => `<option value="${cId}">${classeLabels[cId] || 'Classe ' + cId}</option>`).join('');
-  if (availableClasses.has(parseInt(prevClasse, 10))) {
+  if (prevClasse === 'ALL' || availableClasses.has(parseInt(prevClasse, 10))) {
     filterClasse.value = prevClasse;
+  } else {
+    filterClasse.value = 'ALL';
   }
 
   // Filtre par statut de réponse (Toutes, Non répondues uniquement, Répondues uniquement)
@@ -3765,9 +3791,26 @@ function updateQuestionnaireFilters() {
     `;
     if (['ALL', 'UNANSWERED', 'ANSWERED'].includes(prevStatus)) {
       filterStatus.value = prevStatus;
+    } else {
+      filterStatus.value = 'ALL';
     }
   }
 }
+
+function resetQuestionnaireFilters() {
+  const fThema = document.getElementById('qFilterThematique');
+  if (fThema) fThema.value = 'ALL';
+  const fPack = document.getElementById('qFilterPack');
+  if (fPack) fPack.value = 'ALL';
+  const fClasse = document.getElementById('qFilterClasse');
+  if (fClasse) fClasse.value = 'ALL';
+  const fStatus = document.getElementById('qFilterStatus');
+  if (fStatus) fStatus.value = 'ALL';
+  const fHier = document.getElementById('qFilterHierarchie');
+  if (fHier) fHier.value = 'ALL';
+  renderQuestionsDeck();
+}
+window.resetQuestionnaireFilters = resetQuestionnaireFilters;
 
 // Rendu du deck de questions (Saisie rapide V-A-D-P & Goûts)
 function renderQuestionsDeck() {
@@ -3781,26 +3824,29 @@ function renderQuestionsDeck() {
   }
   document.getElementById('qNoProfileWarning').style.display = 'none';
 
-  // Règle Affinity : un administrateur ne répond pas au questionnaire
   const curProf = getActiveProfile();
+  let adminBannerHtml = '';
   if (curProf && curProf.role === 'admin') {
-    deck.innerHTML = `
-      <div class="empty-state" style="padding: 40px 20px; text-align: center;">
-        <span style="font-size: 42px; display: block; margin-bottom: 12px;">👑</span>
-        <h3 style="color: var(--accent-cyan); margin-bottom: 8px;">Compte Administrateur Titulaire</h3>
-        <p style="color: var(--text-dim); max-width: 520px; margin: 0 auto 16px auto; font-size: 13px; line-height: 1.5;">
-          Un administrateur supervise le système et ne remplit pas de questionnaire personnel.<br>
-          Pour consulter ou renseigner les réponses d'un membre, veuillez sélectionner un profil <strong>Abonné</strong> ou <strong>Invité</strong> dans le menu déroulant ci-dessus.
-        </p>
+    adminBannerHtml = `
+      <div style="background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3); border-radius: var(--radius-md); padding: 14px 18px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 24px;">👑</span>
+          <div>
+            <div style="font-size: 14px; color: var(--accent-cyan); font-weight: 700;">
+              Mode Superviseur Administrateur (Périmètre complet actif)
+            </div>
+            <div style="font-size: 12.5px; color: var(--text-dim); margin-top: 2px;">
+              Vous visualisez l'ensemble des questions. Vous pouvez filtrer et tester directement les réponses. Pour répondre pour le compte d'un membre précis, changez le profil dans le sélecteur ci-dessus.
+            </div>
+          </div>
+        </div>
       </div>`;
-    return;
   }
 
-  updateQuestionnaireFilters();
-
+  // Ne PAS appeler updateQuestionnaireFilters() ici pour ne pas écraser les sélecteurs pendant le filtrage utilisateur
   const eligible = getActiveProfileEligibleQuestions();
   if (eligible.length === 0) {
-    deck.innerHTML = `
+    deck.innerHTML = adminBannerHtml + `
       <div class="empty-state">
         <p>🔒 <strong>Périmètre restreint :</strong> Aucune question n'est autorisée pour ce profil selon la configuration définie par l'administrateur.</p>
       </div>`;
@@ -3814,9 +3860,9 @@ function renderQuestionsDeck() {
   const hierarchieFilter = document.getElementById('qFilterHierarchie')?.value || 'ALL';
 
   const filtered = eligible.filter(q => {
-    if (themaFilter !== 'ALL' && q.thematique !== themaFilter) return false;
-    if (packFilter !== 'ALL' && q.pack_id !== parseInt(packFilter, 10)) return false;
-    if (classeFilter !== 'ALL' && q.classe !== parseInt(classeFilter, 10)) return false;
+    if (themaFilter !== 'ALL' && String(q.thematique) !== String(themaFilter)) return false;
+    if (packFilter !== 'ALL' && String(q.pack_id) !== String(packFilter)) return false;
+    if (classeFilter !== 'ALL' && String(q.classe) !== String(classeFilter)) return false;
     if (statusFilter === 'UNANSWERED' && isQuestionAnswered(q)) return false;
     if (statusFilter === 'ANSWERED' && !isQuestionAnswered(q)) return false;
     if (hierarchieFilter === 'MAIN') {
@@ -3831,14 +3877,14 @@ function renderQuestionsDeck() {
 
   if (filtered.length === 0) {
     if (statusFilter === 'UNANSWERED') {
-      deck.innerHTML = `
+      deck.innerHTML = adminBannerHtml + `
         <div class="empty-state" style="padding: 36px 20px; text-align: center;">
           <span style="font-size: 38px; display: block; margin-bottom: 10px;">🎉</span>
           <h4 style="color: #34D399; margin-bottom: 6px;">Toutes les questions sont répondues !</h4>
           <p style="color: var(--text-dim); font-size: 13px;">Vous avez déjà répondu à l'ensemble des questions correspondant aux critères sélectionnés.</p>
         </div>`;
     } else {
-      deck.innerHTML = `<div class="empty-state"><p>Aucune question ne correspond aux filtres sélectionnés.</p></div>`;
+      deck.innerHTML = adminBannerHtml + `<div class="empty-state"><p>Aucune question ne correspond aux filtres sélectionnés.</p></div>`;
     }
     return;
   }
@@ -3876,7 +3922,7 @@ function renderQuestionsDeck() {
     { val: 9, label: 'Impossible' }
   ];
 
-  deck.innerHTML = filtered.map(q => {
+  deck.innerHTML = adminBannerHtml + filtered.map(q => {
     const isMulti = (q.type === 'M' || q.type === 'MULTI');
     let answersUi = '';
 
@@ -4647,9 +4693,15 @@ function populateBankFilters() {
   const themaSelect = document.getElementById('bankFilterThematique');
   if (!themaSelect) return;
 
+  const prevThema = themaSelect.value || 'ALL';
   const thematiques = Array.from(new Set(state.questions.map(q => q.thematique).filter(Boolean))).sort();
   themaSelect.innerHTML = `<option value="ALL">Toutes les thématiques (${thematiques.length})</option>` +
     thematiques.map(th => `<option value="${th}">${th}</option>`).join('');
+  if (prevThema === 'ALL' || thematiques.includes(prevThema)) {
+    themaSelect.value = prevThema;
+  } else {
+    themaSelect.value = 'ALL';
+  }
 
   updateBankSujetsDropdown();
 }
@@ -4659,15 +4711,28 @@ function updateBankSujetsDropdown() {
   const sujetSelect = document.getElementById('bankFilterSujet');
   if (!sujetSelect) return;
 
+  const prevSujet = sujetSelect.value || 'ALL';
   const currentThema = themaSelect ? themaSelect.value : 'ALL';
   const filteredQuestions = currentThema === 'ALL'
     ? state.questions
-    : state.questions.filter(q => q.thematique === currentThema);
+    : state.questions.filter(q => String(q.thematique) === String(currentThema));
 
   const sujets = Array.from(new Set(filteredQuestions.map(q => q.sujet).filter(Boolean))).sort();
   sujetSelect.innerHTML = `<option value="ALL">Tous les sujets (${sujets.length})</option>` +
     sujets.map(s => `<option value="${s}">${s}</option>`).join('');
+  if (prevSujet === 'ALL' || sujets.includes(prevSujet)) {
+    sujetSelect.value = prevSujet;
+  } else {
+    sujetSelect.value = 'ALL';
+  }
 }
+
+function onBankThematiqueChange() {
+  updateBankSujetsDropdown();
+  renderQuestionsTable();
+}
+window.onBankThematiqueChange = onBankThematiqueChange;
+window.renderQuestionsTable = renderQuestionsTable;
 
 // Table des Questions avec filtrage multi-critères (Thématique, Sujet, Classe, Cible N_CIBLE, Texte)
 function renderQuestionsTable() {
@@ -4682,10 +4747,10 @@ function renderQuestionsTable() {
   const filterHierarchie = document.getElementById('bankFilterHierarchie')?.value || 'ALL';
 
   const filtered = state.questions.filter(q => {
-    if (filterThema !== 'ALL' && q.thematique !== filterThema) return false;
-    if (filterSujet !== 'ALL' && q.sujet !== filterSujet) return false;
-    if (filterClasse !== 'ALL' && q.classe !== parseInt(filterClasse, 10)) return false;
-    if (filterCible !== 'ALL' && q.cible !== parseInt(filterCible, 10)) return false;
+    if (filterThema !== 'ALL' && String(q.thematique) !== String(filterThema)) return false;
+    if (filterSujet !== 'ALL' && String(q.sujet) !== String(filterSujet)) return false;
+    if (filterClasse !== 'ALL' && String(q.classe) !== String(filterClasse)) return false;
+    if (filterCible !== 'ALL' && String(q.cible) !== String(filterCible)) return false;
     if (filterHierarchie === 'MAIN') {
       if ((q.n_quest_lie && q.n_quest_lie !== 0 && q.n_quest_lie !== q.id) && q.classe !== 8) return false;
     } else if (filterHierarchie === 'PARENT') {
@@ -5478,3 +5543,6 @@ window.validatePendingQuestion = validatePendingQuestion;
 window.deletePendingQuestion = deletePendingQuestion;
 window.handleBatchValidation = handleBatchValidation;
 window.resetPendingFilters = resetPendingFilters;
+window.renderQuestionsDeck = renderQuestionsDeck;
+window.resetBankFilters = resetBankFilters;
+
