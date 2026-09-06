@@ -924,15 +924,15 @@
 
       <!-- TAB 5: BANQUE DE QUESTIONS -->
       <section id="tab-questions-bank" class="tab-pane">
-        <!-- Sélecteur de vue : Banque active vs Arbitrage Jeu 3 -->
+        <!-- Sélecteur de vue : Banque active vs Arbitrage -->
         <div class="bank-view-switcher" style="display: flex; gap: 12px; margin-bottom: 24px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 14px; align-items: center; flex-wrap: wrap;">
           <button id="btnViewBankActive" class="tab-btn active" onclick="switchBankView('active')" style="display: inline-flex; align-items: center; gap: 10px; padding: 10px 20px; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer; border: 1px solid rgba(56,189,248,0.3); transition: var(--transition-smooth); background: rgba(56,189,248,0.12); color: var(--text-main);">
             <span>📚 Banque Active (Validée)</span>
             <span id="badgeActiveQuestionsCount" class="badge-soft" style="font-size: 11px; padding: 2px 8px; background: rgba(56,189,248,0.25); color: #38bdf8; font-weight: 700;">204</span>
           </button>
           <button id="btnViewBankArbitrage" class="tab-btn admin-only" onclick="switchBankView('arbitrage')" style="display: inline-flex; align-items: center; gap: 10px; padding: 10px 20px; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer; border: 1px solid rgba(245,158,11,0.3); transition: var(--transition-smooth); background: rgba(245,158,11,0.08); color: #f59e0b;">
-            <span>⚖️ Espace d'Arbitrage Jeu 3</span>
-            <span id="badgePendingQuestionsCount" class="badge-soft" style="font-size: 11px; padding: 2px 8px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.4); font-weight: 700;">150 en attente</span>
+            <span>⚖️ Espace d'Arbitrage</span>
+            <span id="badgePendingQuestionsCount" class="badge-soft" style="font-size: 11px; padding: 2px 8px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.4); font-weight: 700;">60 en attente</span>
           </button>
         </div>
 
@@ -1008,33 +1008,25 @@
           </div>
         </div>
 
-        <!-- CONTENEUR 2 : ESPACE D'ARBITRAGE JEU 3 (PROPOSITIONS EN ATTENTE) -->
+        <!-- CONTENEUR 2 : ESPACE D'ARBITRAGE (PROPOSITIONS EN ATTENTE) -->
         <div id="bankViewArbitrageContainer" style="display: none;">
           <!-- En-tête informatif avec KPI -->
           <div style="background: linear-gradient(135deg, rgba(245,158,11,0.08) 0%, rgba(139,92,246,0.08) 100%); border: 1px solid rgba(245,158,11,0.25); border-radius: var(--radius-md); padding: 20px; margin-bottom: 24px;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; flex-wrap: wrap;">
               <div>
                 <h3 style="font-size: 18px; font-weight: 700; color: #fbbf24; margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
-                  <span>⚖️</span> Arbitrage & Validation des Propositions — Jeu 3 (Pack 3)
+                  <span>⚖️</span> Espace d'Arbitrage & Validation des Propositions
                 </h3>
                 <p style="font-size: 13.5px; color: var(--text-muted); max-width: 800px; line-height: 1.5; margin-bottom: 0;">
-                  Ces 150 questions générées pour le <strong>Jeu 3</strong> sont en statut <code>pending_review</code> (en attente). Elles restent <strong>strictement invisibles</strong> aux membres et à leurs questionnaires. En tant qu'administrateur, vous pouvez les inspecter, les modifier, les valider (individuellement ou par lot) ou les supprimer définitivement.
+                  Ces questions générées sont en attente d'arbitrage. Elles restent <strong>strictement invisibles</strong> aux membres tant qu'elles ne sont pas validées. En tant qu'administrateur, vous pouvez choisir dans quel <strong>Jeu / Pack</strong> (Jeu 1, Jeu 2 ou Jeu 3) les valider, les modifier ou les supprimer.
                 </p>
               </div>
 
               <!-- Badges KPI d'arbitrage -->
               <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                 <div style="background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3); border-radius: var(--radius-sm); padding: 10px 14px; text-align: center; min-width: 100px;">
-                  <div style="font-size: 20px; font-weight: 800; color: #fbbf24;" id="kpiPendingTotal">150</div>
+                  <div style="font-size: 20px; font-weight: 800; color: #fbbf24;" id="kpiPendingTotal">60</div>
                   <div style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Total en attente</div>
-                </div>
-                <div style="background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.3); border-radius: var(--radius-sm); padding: 10px 14px; text-align: center; min-width: 110px;">
-                  <div style="font-size: 20px; font-weight: 800; color: #c084fc;" id="kpiPendingC5">100</div>
-                  <div style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Classe 5 (Sexuel)</div>
-                </div>
-                <div style="background: rgba(244,63,94,0.15); border: 1px solid rgba(244,63,94,0.3); border-radius: var(--radius-sm); padding: 10px 14px; text-align: center; min-width: 120px;">
-                  <div style="font-size: 20px; font-weight: 800; color: #fb7185;" id="kpiPendingC9">50</div>
-                  <div style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Classe 9 (Fantasmes)</div>
                 </div>
               </div>
             </div>
@@ -1043,14 +1035,8 @@
             <div style="margin-top: 18px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
               <span style="font-size: 12.5px; font-weight: 600; color: var(--text-main);">⚡ Actions groupées :</span>
               <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <button id="btnBatchValidateC5" class="btn btn-sm" onclick="handleBatchValidation('classe_5')" style="background: rgba(139,92,246,0.25); color: #c084fc; border: 1px solid rgba(139,92,246,0.4); font-weight: 600;">
-                  ✅ Valider toute la Classe 5 (100)
-                </button>
-                <button id="btnBatchValidateC9" class="btn btn-sm" onclick="handleBatchValidation('classe_9')" style="background: rgba(244,63,94,0.25); color: #fb7185; border: 1px solid rgba(244,63,94,0.4); font-weight: 600;">
-                  ✅ Valider toute la Classe 9 (50)
-                </button>
                 <button id="btnBatchValidateAll" class="btn btn-sm btn-primary" onclick="handleBatchValidation('all')" style="font-weight: 700;">
-                  🌟 Tout valider (150 questions)
+                  🌟 Tout valider
                 </button>
               </div>
             </div>

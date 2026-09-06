@@ -1658,6 +1658,10 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                         ORDER BY q.classe ASC, q.id ASC
                     """)
                 pending_qs = [dict(row) for row in c.fetchall()]
+                
+                # Décompte par classe dynamique
+                c.execute("SELECT classe, COUNT(*) as cnt FROM questions WHERE status = 'pending_review' GROUP BY classe")
+                counts_by_class = {str(row["classe"]): row["cnt"] for row in c.fetchall()}
                 c.execute("SELECT COUNT(*) as cnt FROM questions WHERE status = 'pending_review' AND classe = 5")
                 c5_cnt = c.fetchone()["cnt"]
                 c.execute("SELECT COUNT(*) as cnt FROM questions WHERE status = 'pending_review' AND classe = 9")
@@ -1667,6 +1671,7 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                     "questions": pending_qs,
                     "pending_questions": pending_qs,
                     "total": len(pending_qs),
+                    "counts_by_class": counts_by_class,
                     "count_classe_5": c5_cnt,
                     "count_classe_9": c9_cnt
                 })
@@ -2279,11 +2284,15 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
             conn.close()
             return self._send_json({"success": True, "id": qid, "message": "Question créée avec succès."}, 201)
 
-        # Validation d'une question en attente
+        # Validation d'une question en attente (avec choix optionnel du jeu / pack)
         elif path.startswith("/api/admin/questions/") and path.endswith("/validate"):
             parts = path.split("/")
             qid = int(parts[4])
-            c.execute("UPDATE questions SET status = 'validated' WHERE id = ?", (qid,))
+            pack_id = data.get("pack_id")
+            if pack_id is not None:
+                c.execute("UPDATE questions SET status = 'validated', pack_id = ? WHERE id = ?", (int(pack_id), qid))
+            else:
+                c.execute("UPDATE questions SET status = 'validated' WHERE id = ?", (qid,))
             if c.rowcount == 0:
                 conn.close()
                 return self._send_json({"error": "Question introuvable."}, 404)
@@ -2291,23 +2300,37 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
             conn.close()
             return self._send_json({"success": True, "id": qid, "message": f"Question #{qid} validée et activée avec succès !"})
 
-        # Validation par lot de questions en attente
+        # Validation par lot de questions en attente (avec choix optionnel du jeu / pack)
         elif path == "/api/admin/questions/validate-batch":
             action = data.get("action", "")
             ids_list = data.get("ids", [])
+            pack_id = data.get("pack_id")
             
-            if action == "all":
-                c.execute("UPDATE questions SET status = 'validated' WHERE status = 'pending_review'")
-            elif action == "classe_5":
-                c.execute("UPDATE questions SET status = 'validated' WHERE status = 'pending_review' AND classe = 5")
-            elif action == "classe_9":
-                c.execute("UPDATE questions SET status = 'validated' WHERE status = 'pending_review' AND classe = 9")
-            elif ids_list:
-                placeholders = ",".join("?" for _ in ids_list)
-                c.execute(f"UPDATE questions SET status = 'validated' WHERE id IN ({placeholders})", tuple(ids_list))
+            if pack_id is not None:
+                pack_val = int(pack_id)
+                if action == "all":
+                    c.execute("UPDATE questions SET status = 'validated', pack_id = ? WHERE status = 'pending_review'", (pack_val,))
+                elif action.startswith("classe_"):
+                    cl = int(action.split("_")[1])
+                    c.execute("UPDATE questions SET status = 'validated', pack_id = ? WHERE status = 'pending_review' AND classe = ?", (pack_val, cl))
+                elif ids_list:
+                    placeholders = ",".join("?" for _ in ids_list)
+                    c.execute(f"UPDATE questions SET status = 'validated', pack_id = ? WHERE id IN ({placeholders})", (pack_val,) + tuple(ids_list))
+                else:
+                    conn.close()
+                    return self._send_json({"error": "Action ou liste d'identifiants requise."}, 400)
             else:
-                conn.close()
-                return self._send_json({"error": "Action ou liste d'identifiants requise."}, 400)
+                if action == "all":
+                    c.execute("UPDATE questions SET status = 'validated' WHERE status = 'pending_review'")
+                elif action.startswith("classe_"):
+                    cl = int(action.split("_")[1])
+                    c.execute("UPDATE questions SET status = 'validated' WHERE status = 'pending_review' AND classe = ?", (cl,))
+                elif ids_list:
+                    placeholders = ",".join("?" for _ in ids_list)
+                    c.execute(f"UPDATE questions SET status = 'validated' WHERE id IN ({placeholders})", tuple(ids_list))
+                else:
+                    conn.close()
+                    return self._send_json({"error": "Action ou liste d'identifiants requise."}, 400)
             
             cnt = c.rowcount
             conn.commit()

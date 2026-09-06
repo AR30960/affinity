@@ -5052,17 +5052,34 @@ async function loadPendingQuestions() {
       }
     }
 
-    const kpiTotal = document.getElementById('kpiPendingTotal');
-    const kpiC5 = document.getElementById('kpiPendingC5');
-    const kpiC9 = document.getElementById('kpiPendingC9');
-    if (kpiTotal) kpiTotal.textContent = data.total;
-    if (kpiC5) kpiC5.textContent = data.count_classe_5;
-    if (kpiC9) kpiC9.textContent = data.count_classe_9;
+    const kpiContainer = document.getElementById('kpiArbitrageContainer');
+    if (kpiContainer) {
+      const counts = data.counts_by_class || {};
+      const classeNames = {
+        '1': 'Cl. 1 (Standards)',
+        '2': 'Cl. 2 (Personnelles)',
+        '3': 'Cl. 3 (Intimes)',
+        '4': 'Cl. 4 (Privées)',
+        '5': 'Cl. 5 (Sexuel)',
+        '9': 'Cl. 9 (Fantasmes)'
+      };
+      let kpiHtml = `
+        <div style="background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3); border-radius: var(--radius-sm); padding: 10px 14px; text-align: center; min-width: 90px;">
+          <div style="font-size: 20px; font-weight: 800; color: #fbbf24;" id="kpiPendingTotal">${data.total}</div>
+          <div style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Total en attente</div>
+        </div>
+      `;
+      for (const [cl, cnt] of Object.entries(counts)) {
+        kpiHtml += `
+          <div style="background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.3); border-radius: var(--radius-sm); padding: 10px 14px; text-align: center; min-width: 90px;">
+            <div style="font-size: 20px; font-weight: 800; color: #c084fc;">${cnt}</div>
+            <div style="font-size: 11px; color: var(--text-muted); font-weight: 600;">${classeNames[cl] || 'Classe ' + cl}</div>
+          </div>
+        `;
+      }
+      kpiContainer.innerHTML = kpiHtml;
+    }
 
-    const btnBatchC5 = document.getElementById('btnBatchValidateC5');
-    if (btnBatchC5) btnBatchC5.textContent = `✅ Valider toute la Classe 5 (${data.count_classe_5})`;
-    const btnBatchC9 = document.getElementById('btnBatchValidateC9');
-    if (btnBatchC9) btnBatchC9.textContent = `✅ Valider toute la Classe 9 (${data.count_classe_9})`;
     const btnBatchAll = document.getElementById('btnBatchValidateAll');
     if (btnBatchAll) btnBatchAll.textContent = `🌟 Tout valider (${data.total} questions)`;
 
@@ -5101,7 +5118,7 @@ function renderPendingQuestionsTable() {
 
   if (filtered.length === 0) {
     const emptyMsg = state.pendingQuestions.length === 0
-      ? '🎉 <strong>Toutes les propositions du Jeu 3 ont été arbitrées !</strong><br><span style="font-size:12.5px; opacity:0.8;">Aucune question en attente de révision. Elles sont désormais actives dans la banque officielle.</span>'
+      ? '🎉 <strong>Toutes les propositions ont été arbitrées !</strong><br><span style="font-size:12.5px; opacity:0.8;">Aucune question en attente de révision. Elles sont désormais actives dans la banque officielle.</span>'
       : '🔍 Aucune proposition ne correspond aux filtres sélectionnés.';
     tbody.innerHTML = `
       <tr>
@@ -5115,7 +5132,15 @@ function renderPendingQuestionsTable() {
   tbody.innerHTML = filtered.map(q => {
     // Badge de classe
     let classeBadgeHtml = '';
-    if (q.classe === 5) {
+    if (q.classe === 1) {
+      classeBadgeHtml = `<span class="badge-tag" style="background: rgba(56,189,248,0.22); color: #38bdf8; border: 1px solid rgba(56,189,248,0.4); font-weight:600;">1 - Standards</span>`;
+    } else if (q.classe === 2) {
+      classeBadgeHtml = `<span class="badge-tag" style="background: rgba(16,185,129,0.22); color: #34d399; border: 1px solid rgba(16,185,129,0.4); font-weight:600;">2 - Personnelles</span>`;
+    } else if (q.classe === 3) {
+      classeBadgeHtml = `<span class="badge-tag" style="background: rgba(245,158,11,0.22); color: #fbbf24; border: 1px solid rgba(245,158,11,0.4); font-weight:600;">3 - Intimes</span>`;
+    } else if (q.classe === 4) {
+      classeBadgeHtml = `<span class="badge-tag" style="background: rgba(236,72,153,0.22); color: #f472b6; border: 1px solid rgba(236,72,153,0.4); font-weight:600;">4 - Privées</span>`;
+    } else if (q.classe === 5) {
       classeBadgeHtml = `<span class="badge-tag" style="background: rgba(139,92,246,0.22); color: #c084fc; border: 1px solid rgba(139,92,246,0.4); font-weight:600;">5 - Sexuel</span>`;
     } else if (q.classe === 9) {
       classeBadgeHtml = `<span class="badge-tag" style="background: rgba(244,63,94,0.22); color: #fb7185; border: 1px solid rgba(244,63,94,0.4); font-weight:600;">9 - Fantasmes</span>`;
@@ -5154,13 +5179,18 @@ function renderPendingQuestionsTable() {
         </td>
         <td style="text-align:right; white-space:nowrap;">
           <div style="display: inline-flex; gap: 6px; align-items: center;">
-            <button class="btn btn-sm" onclick="validatePendingQuestion(${q.id})" style="background: #10b981; color: #fff; border: none; padding: 5px 11px; font-weight: 600; cursor: pointer; border-radius: 6px;" title="Valider et intégrer immédiatement à la banque active">
+            <select id="select-pack-${q.id}" class="custom-select" style="padding: 4px 6px; font-size: 11px; font-weight: 600; min-width: 76px; background: rgba(255,255,255,0.06);" title="Choisir le Jeu auquel affecter la question">
+              <option value="3" ${q.pack_id === 3 ? 'selected' : ''}>Jeu 3</option>
+              <option value="1" ${q.pack_id === 1 ? 'selected' : ''}>Jeu 1</option>
+              <option value="2" ${q.pack_id === 2 ? 'selected' : ''}>Jeu 2</option>
+            </select>
+            <button class="btn btn-sm" onclick="validatePendingQuestion(${q.id})" style="background: #10b981; color: #fff; border: none; padding: 5px 10px; font-weight: 600; cursor: pointer; border-radius: 6px;" title="Valider dans le jeu sélectionné">
               ✅ Valider
             </button>
-            <button class="btn btn-sm btn-outline" onclick="openEditQuestionModal(${q.id})" style="padding: 5px 9px; border-radius: 6px;" title="Modifier le libellé, le sujet ou la cible avant validation">
+            <button class="btn btn-sm btn-outline" onclick="openEditQuestionModal(${q.id})" style="padding: 5px 8px; border-radius: 6px;" title="Modifier le libellé, le sujet ou la cible avant validation">
               ✏️
             </button>
-            <button class="btn btn-sm" onclick="deletePendingQuestion(${q.id})" style="background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.35); padding: 5px 9px; cursor: pointer; border-radius: 6px;" title="Supprimer définitivement cette proposition">
+            <button class="btn btn-sm" onclick="deletePendingQuestion(${q.id})" style="background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.35); padding: 5px 8px; cursor: pointer; border-radius: 6px;" title="Supprimer définitivement cette proposition">
               🗑️
             </button>
           </div>
@@ -5171,13 +5201,17 @@ function renderPendingQuestionsTable() {
 }
 
 async function validatePendingQuestion(qid) {
+  const packSelect = document.getElementById(`select-pack-${qid}`);
+  const packId = packSelect ? parseInt(packSelect.value, 10) : 3;
   try {
     const res = await fetch(`${API_BASE}/api/admin/questions/${qid}/validate`, {
-      method: 'POST'
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pack_id: packId })
     });
     if (!res.ok) throw new Error('Erreur lors de la validation de la question');
     const data = await res.json();
-    showToast(`✅ Question #${qid} validée et intégrée à la banque active !`);
+    showToast(`✅ Question #${qid} validée et affectée au Jeu ${packId} !`);
     await loadPendingQuestions();
     await loadQuestions();
   } catch (err) {
@@ -5201,22 +5235,17 @@ async function deletePendingQuestion(qid) {
 }
 
 async function handleBatchValidation(action) {
-  let confirmMsg = "";
-  if (action === 'classe_5') {
-    confirmMsg = "Confirmez-vous la validation en masse des 100 questions de Classe 5 (A caractère sexuel) pour le Jeu 3 ?";
-  } else if (action === 'classe_9') {
-    confirmMsg = "Confirmez-vous la validation en masse des 50 questions de Classe 9 (Interdits / Fantasmes) pour le Jeu 3 ?";
-  } else {
-    confirmMsg = "Confirmez-vous la validation de l'intégralité des 150 questions en attente pour le Jeu 3 ?";
-  }
+  const batchPackSelect = document.getElementById('selectBatchTargetPack');
+  const targetPack = batchPackSelect ? parseInt(batchPackSelect.value, 10) : 3;
 
+  let confirmMsg = `Confirmez-vous la validation de l'ensemble des ${state.pendingQuestions.length} questions en attente dans le Jeu ${targetPack} ?`;
   if (!confirm(confirmMsg)) return;
 
   try {
     const res = await fetch(`${API_BASE}/api/admin/questions/validate-batch`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action })
+      body: JSON.stringify({ action: 'all', pack_id: targetPack })
     });
     if (!res.ok) throw new Error('Erreur lors de la validation par lot');
     const data = await res.json();
