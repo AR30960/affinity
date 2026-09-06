@@ -1287,6 +1287,8 @@ function switchTab(tabName) {
   } else if (tabName === 'questions-bank') {
     populateBankFilters();
     renderQuestionsTable();
+    loadQuestions();
+    loadPendingQuestions();
   } else if (tabName === 'devices-preview') {
     updateDevicesPreview();
   } else if (tabName === 'admin') {
