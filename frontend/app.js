@@ -1919,22 +1919,7 @@ function setupAuthListeners() {
   const btnLogout = document.getElementById('btnLogout');
 
   if (btnToggleLogin) {
-    btnToggleLogin.addEventListener('click', () => {
-      const formLogin = document.getElementById('formLogin');
-      const isLoginVisible = formLogin && formLogin.style.display !== 'none';
-      if (isLoginVisible) {
-        // Déjà sur la vue de connexion : soumettre le formulaire
-        if (typeof formLogin.requestSubmit === 'function') {
-          formLogin.requestSubmit();
-        } else {
-          const hiddenSubmit = document.getElementById('btnHiddenSubmitLogin');
-          if (hiddenSubmit) hiddenSubmit.click();
-          else formLogin.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-        }
-      } else {
-        switchAuthView('login');
-      }
-    });
+    btnToggleLogin.addEventListener('click', () => switchAuthView('login'));
   }
   if (btnToggleRegister) {
     btnToggleRegister.addEventListener('click', () => switchAuthView('register'));
@@ -1956,13 +1941,9 @@ function setupAuthListeners() {
         return;
       }
 
-      if (btnToggle) {
-        btnToggle.disabled = true;
-        btnToggle.textContent = 'Connexion en cours...';
-      }
       if (btnSubmit) {
         btnSubmit.disabled = true;
-        btnSubmit.textContent = 'Connexion en cours...';
+        btnSubmit.innerHTML = '<span>⏳</span> Connexion en cours...';
       }
       feedback.style.display = 'none';
 
@@ -2001,11 +1982,10 @@ function setupAuthListeners() {
       } catch (err) {
         feedback.textContent = 'Erreur réseau, veuillez réessayer.';
         feedback.style.display = 'block';
+        feedback.style.background = 'rgba(239, 68, 68, 0.15)';
+        feedback.style.color = '#ef4444';
+        feedback.style.border = '1px solid rgba(239, 68, 68, 0.3)';
       } finally {
-        if (btnToggle) {
-          btnToggle.disabled = false;
-          btnToggle.textContent = 'Se connecter';
-        }
         if (btnSubmit) {
           btnSubmit.disabled = false;
           btnSubmit.innerHTML = '<span>🔐</span> Se connecter';
