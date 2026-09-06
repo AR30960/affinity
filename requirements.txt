@@ -1,0 +1,3 @@
+# Affinity - Dépendances d'exécution
+# Le serveur applicatif (server.py) repose sur la bibliothèque standard Python (http.server, socketserver, sqlite3, json).
+# Aucune bibliothèque tierce n'est requise pour le fonctionnement du serveur Web.

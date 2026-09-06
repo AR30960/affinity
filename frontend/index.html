@@ -1,0 +1,2230 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AFFINITY - Moteur d'Affinités Électives</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="url(#brandGrad)"/>
+            <defs>
+              <linearGradient id="brandGrad" x1="2" y1="3" x2="22" y2="21.35" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#FF3366" />
+                <stop offset="1" stop-color="#7928CA" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-title">AFFINITY</span>
+          <span class="brand-tag">Bureau Windows &bull; v1.0</span>
+        </div>
+      </div>
+
+      <!-- Active Profile Widget -->
+      <div class="active-profile-card">
+        <div class="ap-header">
+          <span class="ap-label">Profil actif pour saisie</span>
+          <button id="btnSwitchProfileQuick" class="btn-text-icon" title="Changer de profil">&#8646;</button>
+        </div>
+        <div class="ap-body" id="activeProfileWidget">
+          <div class="ap-avatar" id="activeAvatar">?</div>
+          <div class="ap-info">
+            <div class="ap-name-row">
+              <span class="ap-name" id="activePseudo">Aucun profil</span>
+              <span class="role-badge" id="activeRoleBadge">👤 Invité</span>
+            </div>
+            <div class="ap-status" id="activeStatusPill">
+              <span class="status-dot warning"></span> Fiche non créée
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <nav class="nav-menu">
+        <button class="nav-item active" data-tab="dashboard">
+          <span class="nav-icon">📊</span>
+          <span class="nav-label">Tableau de bord</span>
+        </button>
+        <button class="nav-item" data-tab="profiles">
+          <span class="nav-icon">👤</span>
+          <span class="nav-label" id="navProfilesLabel">Profils & Fiches</span>
+        </button>
+        <button class="nav-item" data-tab="questionnaire">
+          <span class="nav-icon">✍️</span>
+          <span class="nav-label">Questionnaires</span>
+        </button>
+        <button class="nav-item highlight" data-tab="affinity">
+          <span class="nav-icon">🔮</span>
+          <span class="nav-label">Calculateur d'Affinité</span>
+        </button>
+        <button class="nav-item" id="navQuestionsBankItem" data-tab="questions-bank" style="display: none;">
+          <span class="nav-icon">📚</span>
+          <span class="nav-label">Banque de Questions</span>
+        </button>
+        <button class="nav-item" data-tab="roles-guide">
+          <span class="nav-icon">📖</span>
+          <span class="nav-label">Guide des Rôles</span>
+        </button>
+        <button class="nav-item" data-tab="devices-preview">
+          <span class="nav-icon">⌚</span>
+          <span class="nav-label">Mobile & Montre</span>
+          <span class="badge-new">Multi</span>
+        </button>
+        <button class="nav-item admin-nav-btn" id="navAdminItem" data-tab="admin" style="display: none;">
+          <span class="nav-icon">🛡️</span>
+          <span class="nav-label">Administration</span>
+          <span class="badge-role-admin">Admin</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="app-quote">
+          &laquo; Sympathie née d'une ressemblance profonde entre les caractères &raquo;
+        </div>
+        <div class="status-badge-live">
+          <span class="pulse-dot"></span> Système local connecté
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Bandeau flottant de mode simulation de rôle pour l'administrateur -->
+      <div id="roleSimulationBanner" class="role-simulation-banner" style="display: none;">
+        <div class="sim-banner-content">
+          <span class="sim-banner-icon">👁️</span>
+          <div class="sim-banner-text">
+            <strong>Mode Test Actif :</strong> Vue <span id="simulatedRoleLabel" class="sim-role-name">Abonné</span>
+            <span style="opacity:0.6; margin:0 4px;">&bull;</span>
+            <label for="bannerSimulatedProfileSelect" style="font-size:11.5px; opacity:0.9;">Profil incarné :</label>
+            <select id="bannerSimulatedProfileSelect" class="role-select sim-select" onchange="changeSimulatedProfile(this.value)">
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-sm btn-sim-exit" onclick="exitRoleSimulation()">
+          <span>✕</span> Revenir en Administrateur
+        </button>
+      </div>
+
+      <!-- Top Navigation Header -->
+      <header class="top-header">
+        <div class="page-meta">
+          <h1 id="pageTitle">Tableau de bord</h1>
+          <p id="pageSubtitle">Aperçu global, dynamique des profils et affinités calculées</p>
+        </div>
+        <div class="header-actions">
+          <div class="simulation-switch-box" id="simulationSwitchBox" style="display: none;">
+            <label for="selectSimulatedRole" class="sim-label">Tester vue :</label>
+            <select id="selectSimulatedRole" class="role-select sim-select" onchange="setSimulatedRole(this.value)">
+              <option value="none">👑 Vue Admin (Normale)</option>
+              <option value="subscriber">⭐ Vue Abonné (Test)</option>
+              <option value="guest">👤 Vue Invité (Test)</option>
+            </select>
+
+            <div id="headerSimProfileBox" style="display: none; align-items: center; gap: 6px;">
+              <label for="selectSimulatedProfile" class="sim-label">Profil :</label>
+              <select id="selectSimulatedProfile" class="role-select sim-select" onchange="changeSimulatedProfile(this.value)">
+              </select>
+            </div>
+          </div>
+          <button id="btnNewProfileModal" class="btn btn-secondary" style="display: none;">
+            <span>+</span> Nouveau Profil
+          </button>
+          <button id="btnQuickMatch" class="btn btn-primary">
+            <span>🔮</span> Lancer un Match
+          </button>
+        </div>
+      </header>
+
+      <!-- TAB 1: DASHBOARD -->
+      <section id="tab-dashboard" class="tab-pane active">
+        <!-- Hero Banner -->
+        <div class="hero-banner">
+          <div class="hero-text">
+            <h2>Bienvenue dans l'univers <span>Affinity</span></h2>
+            <p>Concevez des fiches d'identité complètes, remplissez les axes <strong>Vécu (V), Actuel (A), Découverte (D) et Partage (P)</strong>, et révélez la proximité élective entre profils.</p>
+            <div class="hero-buttons">
+              <button class="btn btn-primary" onclick="switchTab('questionnaire')">Commencer à répondre</button>
+              <button class="btn btn-outline" onclick="switchTab('affinity')">Simuler un calcul d'affinité</button>
+            </div>
+          </div>
+          <div class="hero-stats-badge">
+            <div class="badge-number" id="heroMatchRate">--%</div>
+            <div class="badge-label">Dernière affinité calculée</div>
+          </div>
+        </div>
+
+        <!-- Metrics Grid -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon purple">👥</div>
+            <div class="stat-content">
+              <div class="stat-value" id="statProfilesCount">0</div>
+              <div class="stat-title">Profils Enregistrés</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon pink">❓</div>
+            <div class="stat-content">
+              <div class="stat-value" id="statQuestionsCount">0</div>
+              <div class="stat-title">Questions Référencées</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon blue">📝</div>
+            <div class="stat-content">
+              <div class="stat-value" id="statAnswersCount">0</div>
+              <div class="stat-title">Réponses Fournies</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon amber">🎯</div>
+            <div class="stat-content">
+              <div class="stat-value" id="statCardsCount">0</div>
+              <div class="stat-title">Fiches Identité Prêtes</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Launch Panels -->
+        <div class="dashboard-columns">
+          <div class="panel-card">
+            <div class="panel-header">
+              <h3>Profils récents</h3>
+              <button class="btn-text" onclick="switchTab('profiles')">Voir tous &rarr;</button>
+            </div>
+            <div class="profiles-compact-list" id="dashboardProfilesList">
+              <div class="loading-spinner">Chargement des profils...</div>
+            </div>
+          </div>
+
+          <div class="panel-card">
+            <div class="panel-header">
+              <h3>Dernière synergie mesurée</h3>
+              <span class="badge-soft">Algorithme d'Affinité</span>
+            </div>
+            <div class="recent-match-preview" id="dashboardRecentMatch">
+              <div class="empty-state-mini">
+                <div class="empty-icon">🔮</div>
+                <p>Aucun calcul d'affinité exécuté récemment.</p>
+                <button class="btn btn-sm btn-primary" onclick="switchTab('affinity')">Comparer 2 profils maintenant</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: PROFILES & IDENTITY CARDS -->
+      <section id="tab-profiles" class="tab-pane">
+        <!-- Vue 1: Administrateur (Gestion globale des profils) -->
+        <div id="profilesAdminView">
+          <div class="section-toolbar">
+            <div class="search-box">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="profileSearchInput" placeholder="Rechercher par pseudo, ville, prénom...">
+            </div>
+            <button class="btn btn-primary" id="btnOpenAddProfile">
+              <span>+</span> Créer un Profil
+            </button>
+          </div>
+
+          <div class="profiles-grid" id="profilesGrid">
+            <!-- Injecté dynamiquement par JS -->
+          </div>
+        </div>
+
+        <!-- Vue 2: Invités et Abonnés (Fiche Compacte Tenant sur un Écran) -->
+        <div id="singleProfileUserView" class="profile-cockpit-wrapper" style="display:none;">
+          
+          <!-- Barre de fermeture / retour pour l'Administrateur qui consulte la fiche -->
+          <div id="ckpAdminExitBar" class="ckp-admin-exit-bar" style="display:none;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:16px;">👑</span>
+              <span class="ckp-admin-exit-text">Mode consultation de la fiche en tant qu'<strong>Administrateur</strong></span>
+            </div>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="exitToProfilesList()" style="font-weight:600;">
+              <span>✕</span> Fermer la fiche & Revenir aux profils
+            </button>
+          </div>
+
+          <div class="profile-cockpit-grid">
+            
+            <!-- COLONNE GAUCHE : Fiche d'Identité ÉDITABLE DIRECTEMENT -->
+            <div class="cockpit-card cockpit-left-card">
+              <form id="formDirectCockpit" class="ckp-direct-form">
+                <input type="hidden" id="ckpProfileId">
+                
+                <!-- En-tête utilisateur avec Avatar et disposition ordonnée stricte en 4 lignes -->
+                <div class="ckp-user-header">
+                  <div class="ckp-avatar-wrap">
+                    <div class="uph-avatar" id="myProfileAvatar">U</div>
+                    <span class="role-badge" id="myProfileRoleBadge">Rôle</span>
+                  </div>
+                  <div class="ckp-header-ordered-col">
+                    <!-- Ligne 1 : NOM : Nom et Prénom sur la même ligne -->
+                    <div class="ckp-ordered-line ckp-line-nom">
+                      <span class="ckp-ordered-label">NOM :</span>
+                      <strong class="ckp-fullname-val" id="myProfileFullName">Non renseigné</strong>
+                    </div>
+
+                    <!-- Ligne 2 : Identifiant profil avec son bouton copié -->
+                    <div class="ckp-ordered-line ckp-line-id">
+                      <span class="ckp-ordered-label">Identifiant profil :</span>
+                      <strong class="uph-id-tag ckp-id-singleline" id="myProfileAffId">AFF-0000</strong>
+                      <button type="button" class="btn-xs btn-outline ckp-copy-btn" onclick="copyMyAffId()" title="Copier mon identifiant">
+                        <span>📋</span>
+                      </button>
+                    </div>
+
+                    <!-- Ligne 3 : Disquette, bouton "+ sur vous" [%] et bouton "+ sur l'autre" [%] sans chevauchement -->
+                    <div class="ckp-ordered-line ckp-line-actions">
+                      <button type="submit" id="btnSaveDirectCockpitTop" class="ckp-btn-icon-save" title="Enregistrer la fiche d'identité (icône disquette)" aria-label="Enregistrer la fiche">
+                        <span>💾</span>
+                      </button>
+                      <button type="button" id="btnOpenIdentityQuestionsTop" class="ckp-btn-top-identity" onclick="openIdentityDeck('self')" title="Répondre à vos caractéristiques personnelles (+ sur moi)">
+                        <span>+ sur moi</span>
+                        <span id="ckpIdentityCompletionTop" class="ckp-pct-badge">0%</span>
+                      </button>
+                      <button type="button" id="btnOpenPartnerQuestionsTop" class="ckp-btn-top-identity partner-btn" onclick="openIdentityDeck('partner')" title="Définir vos critères et tolérances chez l'autre (+ sur l'autre)">
+                        <span>+ sur l'autre</span>
+                        <span id="ckpPartnerCompletionTop" class="ckp-pct-badge">0%</span>
+                      </button>
+                    </div>
+
+                    <!-- Ligne 4 : Pseudo public * avec son champ de saisie -->
+                    <div class="ckp-ordered-line ckp-line-pseudo">
+                      <label for="ckpInputPseudo" class="ckp-ordered-label">Pseudo public <span class="req-star">*</span> :</label>
+                      <input type="text" id="ckpInputPseudo" class="ckp-inline-input" placeholder="Votre pseudo" required>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Bannière d'état de complétude de la fiche avec infobulle -->
+                <div id="ckpCompletenessStatus" class="ckp-completeness-status incomplete">
+                  <span class="ckp-status-icon" id="ckpStatusIcon">⚠️</span>
+                  <div class="ckp-status-content">
+                    <div class="ckp-status-title-row">
+                      <strong class="ckp-status-title" id="ckpStatusTitle">Fiche incomplète</strong>
+                      <div class="ckp-tooltip-container" id="ckpTooltipContainer">
+                        <span class="ckp-tooltip-trigger" tabindex="0" aria-label="Informations de complétude">ℹ️</span>
+                        <div class="ckp-tooltip-bubble" id="ckpTooltipBubble" role="tooltip">
+                          Pour être complète, vous devez renseigner tous les champs obligatoires (*) et répondre à 100% des questions dans « + sur vous » et « + sur l'autre ».
+                        </div>
+                      </div>
+                    </div>
+                    <span class="ckp-status-desc" id="ckpMissingFieldsDesc">Champs obligatoires (*) manquants : Nom, Sexe, Date de naissance, J'habite ici, À la recherche de, Présentation</span>
+                  </div>
+                </div>
+
+                <!-- Formulaire compact avec scrollbar fine si nécessaire -->
+                <div class="ckp-scrollable-info">
+                  
+                  <!-- État Civil & Situation -->
+                  <div class="ckp-section-title">
+                    <span>👤 État Civil & Situation</span>
+                  </div>
+                  <div class="ckp-form-grid">
+                    <div class="ckp-form-field">
+                      <label for="ckpInputPrenom">Prénom <span class="req-star">*</span></label>
+                      <input type="text" id="ckpInputPrenom" class="ckp-input" placeholder="Ex: Alexandre" required>
+                    </div>
+                    <div class="ckp-form-field">
+                      <label for="ckpInputNom">Nom <span class="req-star">*</span></label>
+                      <input type="text" id="ckpInputNom" class="ckp-input" placeholder="Ex: Roger" required>
+                    </div>
+                    <div class="ckp-form-field">
+                      <label for="ckpSelectSexe">Sexe <span class="req-star">*</span></label>
+                      <select id="ckpSelectSexe" class="ckp-input">
+                        <option value="0">0 - Non précisé</option>
+                        <option value="1">1 - Homme</option>
+                        <option value="2">2 - Femme</option>
+                      </select>
+                    </div>
+                    <div class="ckp-form-field">
+                      <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <label for="ckpInputBirth">Date de naissance <span class="req-star">*</span></label>
+                        <span id="ckpAgeBadge" class="badge-age" style="display:none;">🎂 -- ans</span>
+                      </div>
+                      <input type="date" id="ckpInputBirth" class="ckp-input" required>
+                      <div id="ckpAgeFeedback" class="field-feedback error" style="display:none; font-size:11px; color:#ef4444; margin-top:3px;"></div>
+                    </div>
+                    <div class="ckp-form-field">
+                      <label for="ckpInputPaysNaissance">Pays de naissance</label>
+                      <select id="ckpInputPaysNaissance" class="ckp-input">
+                        <option value="">-- Sélectionner --</option>
+                        <option value="France">France</option>
+                        <option value="UE">UE</option>
+                        <option value="Hors UE">Hors UE</option>
+                      </select>
+                    </div>
+                    <div class="ckp-form-field">
+                      <label for="ckpSelectSituationFamille">Situation de famille</label>
+                      <select id="ckpSelectSituationFamille" class="ckp-input">
+                        <option value="">-- Sélectionner --</option>
+                        <option value="Célibataire">Célibataire</option>
+                        <option value="En couple">En couple</option>
+                        <option value="Marié(e)">Marié(e)</option>
+                        <option value="Pacsé(e)">Pacsé(e)</option>
+                        <option value="Séparé(e)">Séparé(e)</option>
+                        <option value="Divorcé(e)">Divorcé(e)</option>
+                        <option value="Veuf / Veuve">Veuf / Veuve</option>
+                        <option value="Compliqué">Compliqué</option>
+                        <option value="Autre">Autre</option>
+                      </select>
+                    </div>
+                    <div class="ckp-form-field" style="grid-column: span 2;">
+                      <label for="ckpSelectRecherche">À la recherche de <span class="req-star">*</span></label>
+                      <select id="ckpSelectRecherche" class="ckp-input" required>
+                        <option value="">-- Sélectionner votre attente * --</option>
+                        <option value="Échanges et Amitié">Échanges et Amitié</option>
+                        <option value="Recherche d’un(e) partenaire">Recherche d’un(e) partenaire</option>
+                        <option value="Plus si affinité">Plus si affinité</option>
+                        <option value="Je ne sais pas vraiment">Je ne sais pas vraiment</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <!-- J'habite ici -->
+                  <div class="ckp-section-title">
+                    <span>📍 J'habite ici <span class="req-star">*</span></span>
+                  </div>
+                  <div class="ckp-form-grid ckp-address-grid">
+                    <div class="ckp-form-field">
+                      <label for="ckpHabitePays">Pays <span class="req-star">*</span></label>
+                      <select id="ckpHabitePays" class="ckp-input">
+                        <option value="France" selected>France</option>
+                        <option value="UE">UE</option>
+                        <option value="Hors UE">Hors UE</option>
+                      </select>
+                    </div>
+                    <div class="ckp-form-field">
+                      <label for="ckpHabiteRegion">Région ou département <span class="req-star">*</span></label>
+                      <select id="ckpHabiteRegionSelect" class="ckp-input">
+                        <option value="">-- Sélectionner le département --</option>
+                        <option value="01 - Ain">01 - Ain</option>
+                        <option value="02 - Aisne">02 - Aisne</option>
+                        <option value="03 - Allier">03 - Allier</option>
+                        <option value="04 - Alpes-de-Haute-Provence">04 - Alpes-de-Haute-Provence</option>
+                        <option value="05 - Hautes-Alpes">05 - Hautes-Alpes</option>
+                        <option value="06 - Alpes-Maritimes">06 - Alpes-Maritimes</option>
+                        <option value="07 - Ardèche">07 - Ardèche</option>
+                        <option value="08 - Ardennes">08 - Ardennes</option>
+                        <option value="09 - Ariège">09 - Ariège</option>
+                        <option value="10 - Aube">10 - Aube</option>
+                        <option value="11 - Aude">11 - Aude</option>
+                        <option value="12 - Aveyron">12 - Aveyron</option>
+                        <option value="13 - Bouches-du-Rhône">13 - Bouches-du-Rhône</option>
+                        <option value="14 - Calvados">14 - Calvados</option>
+                        <option value="15 - Cantal">15 - Cantal</option>
+                        <option value="16 - Charente">16 - Charente</option>
+                        <option value="17 - Charente-Maritime">17 - Charente-Maritime</option>
+                        <option value="18 - Cher">18 - Cher</option>
+                        <option value="19 - Corrèze">19 - Corrèze</option>
+                        <option value="2A - Corse-du-Sud">2A - Corse-du-Sud</option>
+                        <option value="2B - Haute-Corse">2B - Haute-Corse</option>
+                        <option value="21 - Côte-d'Or">21 - Côte-d'Or</option>
+                        <option value="22 - Côtes-d'Armor">22 - Côtes-d'Armor</option>
+                        <option value="23 - Creuse">23 - Creuse</option>
+                        <option value="24 - Dordogne">24 - Dordogne</option>
+                        <option value="25 - Doubs">25 - Doubs</option>
+                        <option value="26 - Drôme">26 - Drôme</option>
+                        <option value="27 - Eure">27 - Eure</option>
+                        <option value="28 - Eure-et-Loir">28 - Eure-et-Loir</option>
+                        <option value="29 - Finistère">29 - Finistère</option>
+                        <option value="30 - Gard">30 - Gard</option>
+                        <option value="31 - Haute-Garonne">31 - Haute-Garonne</option>
+                        <option value="32 - Gers">32 - Gers</option>
+                        <option value="33 - Gironde">33 - Gironde</option>
+                        <option value="34 - Hérault">34 - Hérault</option>
+                        <option value="35 - Ille-et-Vilaine">35 - Ille-et-Vilaine</option>
+                        <option value="36 - Indre">36 - Indre</option>
+                        <option value="37 - Indre-et-Loire">37 - Indre-et-Loire</option>
+                        <option value="38 - Isère">38 - Isère</option>
+                        <option value="39 - Jura">39 - Jura</option>
+                        <option value="40 - Landes">40 - Landes</option>
+                        <option value="41 - Loir-et-Cher">41 - Loir-et-Cher</option>
+                        <option value="42 - Loire">42 - Loire</option>
+                        <option value="43 - Haute-Loire">43 - Haute-Loire</option>
+                        <option value="44 - Loire-Atlantique">44 - Loire-Atlantique</option>
+                        <option value="45 - Loiret">45 - Loiret</option>
+                        <option value="46 - Lot">46 - Lot</option>
+                        <option value="47 - Lot-et-Garonne">47 - Lot-et-Garonne</option>
+                        <option value="48 - Lozère">48 - Lozère</option>
+                        <option value="49 - Maine-et-Loire">49 - Maine-et-Loire</option>
+                        <option value="50 - Manche">50 - Manche</option>
+                        <option value="51 - Marne">51 - Marne</option>
+                        <option value="52 - Haute-Marne">52 - Haute-Marne</option>
+                        <option value="53 - Mayenne">53 - Mayenne</option>
+                        <option value="54 - Meurthe-et-Moselle">54 - Meurthe-et-Moselle</option>
+                        <option value="55 - Meuse">55 - Meuse</option>
+                        <option value="56 - Morbihan">56 - Morbihan</option>
+                        <option value="57 - Moselle">57 - Moselle</option>
+                        <option value="58 - Nièvre">58 - Nièvre</option>
+                        <option value="59 - Nord">59 - Nord</option>
+                        <option value="60 - Oise">60 - Oise</option>
+                        <option value="61 - Orne">61 - Orne</option>
+                        <option value="62 - Pas-de-Calais">62 - Pas-de-Calais</option>
+                        <option value="63 - Puy-de-Dôme">63 - Puy-de-Dôme</option>
+                        <option value="64 - Pyrénées-Atlantiques">64 - Pyrénées-Atlantiques</option>
+                        <option value="65 - Hautes-Pyrénées">65 - Hautes-Pyrénées</option>
+                        <option value="66 - Pyrénées-Orientales">66 - Pyrénées-Orientales</option>
+                        <option value="67 - Bas-Rhin">67 - Bas-Rhin</option>
+                        <option value="68 - Haut-Rhin">68 - Haut-Rhin</option>
+                        <option value="69 - Rhône">69 - Rhône</option>
+                        <option value="70 - Haute-Saône">70 - Haute-Saône</option>
+                        <option value="71 - Saône-et-Loire">71 - Saône-et-Loire</option>
+                        <option value="72 - Sarthe">72 - Sarthe</option>
+                        <option value="73 - Savoie">73 - Savoie</option>
+                        <option value="74 - Haute-Savoie">74 - Haute-Savoie</option>
+                        <option value="75 - Paris">75 - Paris</option>
+                        <option value="76 - Seine-Maritime">76 - Seine-Maritime</option>
+                        <option value="77 - Seine-et-Marne">77 - Seine-et-Marne</option>
+                        <option value="78 - Yvelines">78 - Yvelines</option>
+                        <option value="79 - Deux-Sèvres">79 - Deux-Sèvres</option>
+                        <option value="80 - Somme">80 - Somme</option>
+                        <option value="81 - Tarn">81 - Tarn</option>
+                        <option value="82 - Tarn-et-Garonne">82 - Tarn-et-Garonne</option>
+                        <option value="83 - Var">83 - Var</option>
+                        <option value="84 - Vaucluse">84 - Vaucluse</option>
+                        <option value="85 - Vendée">85 - Vendée</option>
+                        <option value="86 - Vienne">86 - Vienne</option>
+                        <option value="87 - Haute-Vienne">87 - Haute-Vienne</option>
+                        <option value="88 - Vosges">88 - Vosges</option>
+                        <option value="89 - Yonne">89 - Yonne</option>
+                        <option value="90 - Territoire de Belfort">90 - Territoire de Belfort</option>
+                        <option value="91 - Essonne">91 - Essonne</option>
+                        <option value="92 - Hauts-de-Seine">92 - Hauts-de-Seine</option>
+                        <option value="93 - Seine-Saint-Denis">93 - Seine-Saint-Denis</option>
+                        <option value="94 - Val-de-Marne">94 - Val-de-Marne</option>
+                        <option value="95 - Val-d'Oise">95 - Val-d'Oise</option>
+                        <option value="971 - Guadeloupe">971 - Guadeloupe</option>
+                        <option value="972 - Martinique">972 - Martinique</option>
+                        <option value="973 - Guyane">973 - Guyane</option>
+                        <option value="974 - La Réunion">974 - La Réunion</option>
+                        <option value="976 - Mayotte">976 - Mayotte</option>
+                      </select>
+                      <input type="text" id="ckpHabiteRegionText" class="ckp-input" placeholder="Ex: Bruxelles, Genève..." style="display:none;">
+                      <input type="hidden" id="ckpHabiteRegion" value="">
+                    </div>
+                    <div class="ckp-form-field">
+                      <label for="ckpHabiteCommune">Commune <span class="req-star">*</span></label>
+                      <input type="text" id="ckpHabiteCommune" class="ckp-input" placeholder="Ex: Paris ou 75001" required>
+                      <div id="ckpCommuneFeedback" class="ckp-commune-feedback" style="display:none;"></div>
+                    </div>
+                  </div>
+
+                  <!-- Présentation -->
+                  <div class="ckp-section-title">
+                    <span>📝 Présentation</span>
+                  </div>
+                  <div class="ckp-form-field">
+                    <label for="ckpInputBio">Présentation générale <span class="req-star">*</span></label>
+                    <textarea id="ckpInputBio" class="ckp-input ckp-textarea" rows="3" placeholder="Quelques mots sur vous, vos passions, vos habitudes..." required></textarea>
+                  </div>
+                  <div class="ckp-form-grid" style="margin-top: 4px;">
+                    <div class="ckp-form-field">
+                      <label for="ckpInputAimeChezMoi">✨ Ce que j'aime chez moi</label>
+                      <textarea id="ckpInputAimeChezMoi" class="ckp-input ckp-textarea" rows="2" placeholder="Ex: Mon écoute, ma sincérité, mon sourire..."></textarea>
+                    </div>
+                    <div class="ckp-form-field">
+                      <label for="ckpInputAimePasChezMoi">⚡ Ce que je n'aime pas</label>
+                      <textarea id="ckpInputAimePasChezMoi" class="ckp-input ckp-textarea" rows="2" placeholder="Ex: Mon impatience, la monotonie..."></textarea>
+                    </div>
+                  </div>
+
+                </div>
+
+                <!-- Footer discret du cockpit : Sauvegarde assurée par l'icône disquette en haut -->
+                <div class="ckp-footer-actions" style="display:flex; justify-content:space-between; align-items:center; padding: 6px 16px;">
+                  <span id="ckpSaveFeedback" class="ckp-save-feedback"></span>
+                  <div class="ckp-save-hint">Sauvegarde : cliquez sur l'icône 💾 en haut à droite</div>
+                </div>
+              </form>
+            </div>
+
+            <!-- COLONNE DROITE : Système d'onglets compacts & Graphiques avec Coches -->
+            <div class="cockpit-card cockpit-right-card">
+              <!-- Barre d'onglets internes -->
+              <div class="ckp-tabs-bar">
+                <button class="ckp-tab-btn active" id="btnCkpTabCatalog" onclick="switchCockpitSubTab('catalog')">
+                  <span>📚</span> Droits d'Accès <span class="badge-count" id="badgeCountCatalog">--</span>
+                </button>
+                <button class="ckp-tab-btn" id="btnCkpTabAdminRequests" onclick="switchCockpitSubTab('admin-requests')">
+                  <span>✉️</span> Demandes Admin <span class="badge-count" id="badgeCountAdminRequests">0</span>
+                </button>
+                <button class="ckp-tab-btn" id="btnCkpTabMatches" onclick="switchCockpitSubTab('matches')" style="display:none;">
+                  <span>💌</span> Mes Matchs <span class="badge-count" id="badgeCountMyMatches">0</span>
+                </button>
+              </div>
+
+              <!-- CONTENU 1 : Catalogue Thématiques / Sujets / Classes avec indicateurs d'accès graphiques -->
+              <div id="paneCkpCatalog" class="ckp-subpane active">
+                
+                <!-- Synthèse Graphique en Cartes KPI en haut -->
+                <div class="ckp-kpi-summary">
+                  <div class="ckp-kpi-card">
+                    <div class="ckp-kpi-icon">📊</div>
+                    <div class="ckp-kpi-data">
+                      <div class="ckp-kpi-val" id="ckpKpiAccessRate">0%</div>
+                      <div class="ckp-kpi-lbl">Couverture Globale</div>
+                    </div>
+                  </div>
+                  <div class="ckp-kpi-card">
+                    <div class="ckp-kpi-icon">🏷️</div>
+                    <div class="ckp-kpi-data">
+                      <div class="ckp-kpi-val" id="ckpKpiClassesCount">0 / 6</div>
+                      <div class="ckp-kpi-lbl">Classes Autorisées</div>
+                    </div>
+                  </div>
+                  <div class="ckp-kpi-card">
+                    <div class="ckp-kpi-icon">✍️</div>
+                    <div class="ckp-kpi-data">
+                      <div class="ckp-kpi-val" id="ckpKpiAnswersCount">0 / 0</div>
+                      <div class="ckp-kpi-lbl">Questions Répondues</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Section 0 : Les Jeux de questions (Packs) avec coches graphiques -->
+                <div class="ckp-graph-section-header">
+                  <div class="ckp-sec-titles">
+                    <h5>Jeux de Questions (Packs)</h5>
+                    <span class="text-dim-sm">Coche verte = débloqué (cliquez pour demander le retrait) | Cadenas = bloqué (cliquez pour demander l'accès)</span>
+                  </div>
+                  <button class="btn btn-xs btn-outline" onclick="loadProfileCatalogAccess()" title="Actualiser les droits">
+                    <span>🔄</span>
+                  </button>
+                </div>
+
+                <!-- Grille graphique des jeux de questions avec coches -->
+                <div class="ckp-packs-graph-grid" id="ckpPacksChips">
+                  <!-- Injecté dynamiquement par JS -->
+                </div>
+
+                <!-- Section 1 : Les Classes avec coches graphiques -->
+                <div class="ckp-graph-section-header" style="margin-top:14px;">
+                  <div class="ckp-sec-titles">
+                    <h5>Niveaux & Classes de Questions</h5>
+                    <span class="text-dim-sm">Cliquez sur une classe pour afficher ses thématiques et questions répondues (consultation)</span>
+                  </div>
+                </div>
+
+                <!-- Grille graphique des classes avec coches -->
+                <div class="ckp-classes-graph-grid" id="ckpClassesChips">
+                  <!-- Injecté dynamiquement par JS -->
+                </div>
+              </div>
+
+              <!-- CONTENU 2 : Mes Demandes envoyées à l'Administrateur -->
+              <div id="paneCkpAdminRequests" class="ckp-subpane" style="display:none;">
+                <div class="ckp-pane-header">
+                  <div>
+                    <h4>Historique des Demandes à l'Administrateur</h4>
+                    <p class="text-dim-sm">Suivez le traitement en temps réel de vos demandes d'ouverture de classes ou thématiques.</p>
+                  </div>
+                  <button class="btn btn-xs btn-outline" onclick="loadProfileAdminRequests()">
+                    <span>🔄</span> Actualiser
+                  </button>
+                </div>
+
+                <div class="ckp-requests-list" id="ckpAdminRequestsList">
+                  <div class="empty-requests-msg">Aucune demande envoyée à l'administrateur.</div>
+                </div>
+              </div>
+
+              <!-- CONTENU 3 : Mes Demandes de Match (Abonnés Uniquement) -->
+              <div id="paneCkpMatches" class="ckp-subpane" style="display:none;">
+                <div class="ckp-pane-header">
+                  <div>
+                    <h4>Mes Demandes de Match & Statuts</h4>
+                    <p class="text-dim-sm">Demandes bilatérales avec les autres abonnés et score d'affinité obtenu.</p>
+                  </div>
+                  <button class="btn btn-xs btn-secondary" onclick="switchTab('affinity')">
+                    <span>💌</span> Nouvelle Demande
+                  </button>
+                </div>
+
+                <div class="ckp-matches-list" id="ckpMyMatchesList">
+                  <!-- Rempli par JavaScript -->
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: QUESTIONNAIRE (SAISIE RAPIDE V-A-D-P & G) -->
+      <section id="tab-questionnaire" class="tab-pane">
+        <div class="questionnaire-header-bar">
+          <div class="q-profile-selector">
+            <label for="qSelectProfile">Répondre pour le profil :</label>
+            <select id="qSelectProfile" class="custom-select"></select>
+          </div>
+          <div class="q-filters">
+            <select id="qFilterThematique" class="custom-select" title="Thématique">
+              <option value="ALL">Toutes les thématiques</option>
+            </select>
+            <select id="qFilterPack" class="custom-select" title="Jeu / Pack"></select>
+            <select id="qFilterClasse" class="custom-select" title="Classe de question">
+              <option value="ALL">Toutes les classes</option>
+              <option value="0">0 - Non définies</option>
+              <option value="1">1 - Standards</option>
+              <option value="2">2 - Personnelles</option>
+              <option value="3">3 - Intimes</option>
+              <option value="4">4 - Privées</option>
+              <option value="5">5 - A caractère sexuel</option>
+              <option value="9">9 - Interdits / Fantasmes</option>
+            </select>
+            <select id="qFilterStatus" class="custom-select" title="Filtrer par statut de réponse">
+              <option value="ALL">Toutes les questions</option>
+              <option value="UNANSWERED">Non répondues uniquement</option>
+              <option value="ANSWERED">Répondues uniquement</option>
+            </select>
+            <select id="qFilterHierarchie" class="custom-select" title="Filtrer par niveau (Principales / Sous-questions)">
+              <option value="ALL">Tous les niveaux</option>
+              <option value="MAIN">Questions principales uniquement</option>
+              <option value="SUB">Sous-questions uniquement</option>
+            </select>
+          </div>
+          <div class="q-progress">
+            <div class="q-progress-text">Progression : <span id="qProgressPct">0%</span></div>
+            <div class="q-progress-bar"><div id="qProgressFill" style="width: 0%;"></div></div>
+          </div>
+        </div>
+
+        <!-- Notification de profil manquant -->
+        <div id="qNoProfileWarning" class="alert-box alert-warning" style="display:none;">
+          <span>⚠️ Veuillez créer ou sélectionner un profil ci-dessus avant de répondre aux questionnaires.</span>
+        </div>
+
+        <!-- Questions List Container -->
+        <div class="questions-deck" id="questionsDeck">
+          <!-- Injecté dynamiquement par JS -->
+        </div>
+      </section>
+
+      <!-- TAB 4: CALCULATEUR & RADAR D'AFFINITÉ -->
+      <section id="tab-affinity" class="tab-pane">
+        <!-- Écran de restriction / verrouillage pour profil Invité -->
+        <div id="affinityGuestLock" class="guest-lock-panel" style="display: none;">
+          <div class="lock-shield-icon">🔒</div>
+          <div class="lock-badge-tag">Rôle Invité &bull; Accès Restreint</div>
+          <h2>Le Calculateur d'Affinité est réservé aux Abonnés</h2>
+          <p class="lock-intro">
+            En tant qu'<strong>Invité</strong>, vous pouvez configurer votre profil, renseigner votre fiche d'identité et répondre aux 172 questions de compatibilité.<br>
+            Pour croiser vos réponses et débloquer les <strong>projections d'affinités électives, le radar multidimensionnel et les points de fusion</strong>, votre compte doit être promu au rôle <strong>Abonné</strong> par un administrateur.
+          </p>
+
+          <div class="lock-perks-grid">
+            <div class="lock-perk-item">
+              <span class="perk-icon">🔮</span>
+              <div>
+                <strong>Calcul d'affinité croisée V-A-D-P</strong>
+                <p>Évaluation de la synergie Découverte &times; Partage et habitudes de vie.</p>
+              </div>
+            </div>
+            <div class="lock-perk-item">
+              <span class="perk-icon">📊</span>
+              <div>
+                <strong>Radar multidimensionnel interactif</strong>
+                <p>Projection visuelle sur les 6 thématiques (Activités, Comportement, Sexualité...).</p>
+              </div>
+            </div>
+            <div class="lock-perk-item">
+              <span class="perk-icon">🔥</span>
+              <div>
+                <strong>Points de fusion & Zones de vigilance</strong>
+                <p>Révélation des atomes crochus profonds (&ge;85%) et divergences (&le;35%).</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="lock-action-banner">
+            <p>💡 <em>Astuce de démonstration : Vous pouvez basculer sur le profil <strong>Camille (Abonnée)</strong> ou <strong>Alexandre (Admin)</strong> pour tester immédiatement le calculateur, ou demander à l'administrateur d'activer votre abonnement.</em></p>
+            <div class="lock-buttons-row">
+              <button class="btn btn-secondary" onclick="switchTab('profiles')"><span>👤</span> Voir les profils disponibles</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Contenu Actif du Calculateur (Abonnés & Admins) -->
+        <div id="affinityCalculatorContent">
+          <!-- Panneau de sélection pour la Demande de Match -->
+          <div class="affinity-selector-panel">
+            <div class="selector-column">
+              <label for="affProfile1">Profil demandeur (Vous) :</label>
+              <select id="affProfile1" class="custom-select select-lg"></select>
+              <div class="id-status-indicator" id="idStatus1"></div>
+            </div>
+
+            <div class="versus-divider">
+              <div class="versus-circle">🤝</div>
+              <button id="btnComputeAffinity" class="btn btn-primary btn-glow">
+                <span>💌</span> Demande de Match
+              </button>
+            </div>
+
+            <div class="selector-column">
+              <label for="affProfile2">Profil ciblé (Autre membre) :</label>
+              <select id="affProfile2" class="custom-select select-lg"></select>
+              <div class="id-status-indicator" id="idStatus2"></div>
+            </div>
+          </div>
+
+          <!-- Carte de Présentation & Distance du Profil Ciblé -->
+          <div id="targetProfilePreviewCard" class="target-preview-card" style="display:none;">
+            <div class="tpc-header">
+              <div style="display:flex; align-items:center; gap:12px;">
+                <div class="ap-avatar" id="tpcAvatar" style="width:38px; height:38px; font-size:14px;">C</div>
+                <div>
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <strong id="tpcPseudo" style="font-size:16px;">Camille</strong>
+                    <span class="uph-id-tag" id="tpcAffId">AFF-0002</span>
+                    <span class="role-badge" id="tpcRoleBadge">⭐ Abonné</span>
+                  </div>
+                  <div class="tpc-sub" id="tpcSubInfo">Camille Laurent &bull; Célibataire</div>
+                </div>
+              </div>
+              <div class="tpc-distance-badge" id="tpcDistanceBadge">
+                <span>📍</span> Distance : <strong id="tpcDistanceVal">~391 km</strong>
+              </div>
+            </div>
+            <div class="tpc-bio" id="tpcBio">
+              <span class="uph-label">Présentation :</span>
+              <p id="tpcBioText" style="margin:2px 0 0 0; font-size:12.5px; color:var(--text-main); font-style:italic;">Présentation du profil...</p>
+            </div>
+          </div>
+
+          <!-- Module Bilatéral : Mes Demandes de Match -->
+          <div class="match-requests-wrapper">
+            <div class="mrw-tabs">
+              <button class="mrw-tab-btn active" id="btnTabReceivedMatches" onclick="switchMatchSubTab('received')">
+                <span>📥</span> Demandes Reçues <span class="badge-count" id="badgeCountReceived">0</span>
+              </button>
+              <button class="mrw-tab-btn" id="btnTabSentMatches" onclick="switchMatchSubTab('sent')">
+                <span>📤</span> Demandes Envoyées <span class="badge-count" id="badgeCountSent">0</span>
+              </button>
+            </div>
+
+            <!-- Sous-vue 1: Demandes reçues -->
+            <div id="paneReceivedMatches" class="mrw-pane active">
+              <div id="listReceivedMatches" class="mrw-list">
+                <!-- Rempli par JavaScript -->
+              </div>
+            </div>
+
+            <!-- Sous-vue 2: Demandes envoyées -->
+            <div id="paneSentMatches" class="mrw-pane" style="display:none;">
+              <div id="listSentMatches" class="mrw-list">
+                <!-- Rempli par JavaScript -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Block Alert si fiche non renseignée -->
+          <div id="affinityRuleAlert" class="affinity-alert-box" style="display:none;">
+            <div class="alert-icon">⚠️</div>
+            <div class="alert-content">
+              <h4>Fiche d'identité obligatoire pour activer le calcul</h4>
+              <p id="affinityRuleAlertText">Conformément au document de spécification Affinity, les calculs d'affinité ne sont autorisés que si la fiche d'identité des deux profils est renseignée.</p>
+              <button class="btn btn-sm btn-outline" id="btnFixCards">Compléter les fiches d'identité maintenant &rarr;</button>
+            </div>
+          </div>
+
+          <!-- Result Container -->
+          <div id="affinityResultsContainer" class="affinity-results-card" style="display:none;">
+            <div class="result-hero-row">
+              <div class="gauge-column">
+                <div class="gauge-wrapper">
+                  <svg viewBox="0 0 200 200" class="gauge-svg">
+                    <circle class="gauge-bg" cx="100" cy="100" r="85"></circle>
+                    <circle id="gaugeScoreCircle" class="gauge-bar" cx="100" cy="100" r="85"></circle>
+                  </svg>
+                  <div class="gauge-center-text">
+                    <span id="gaugeValue" class="gauge-score">0%</span>
+                    <span class="gauge-subtitle">Affinité Globale</span>
+                  </div>
+                </div>
+                <div class="match-summary-text" id="matchVerdict">Calcul en cours...</div>
+              </div>
+
+              <!-- Radar Chart Interactive SVG -->
+              <div class="radar-column">
+                <div class="radar-header">
+                  <h4>Concordance par Thématiques</h4>
+                  <span class="radar-legend">Projection multidimensionnelle</span>
+                </div>
+                <div class="radar-canvas-container" id="radarContainer">
+                  <!-- SVG Radar injecté par JS -->
+                </div>
+              </div>
+            </div>
+
+            <!-- Breakdown per Axis (G, V, A, Synergie Découverte-Partage) -->
+            <div class="axes-breakdown-row">
+              <div class="axis-stat-box">
+                <div class="as-title">Goûts Partagés (G)</div>
+                <div class="as-val" id="scoreG">--%</div>
+                <div class="as-bar"><div id="barG" style="width:0%"></div></div>
+              </div>
+              <div class="axis-stat-box">
+                <div class="as-title">Vécu Passé (V)</div>
+                <div class="as-val" id="scoreV">--%</div>
+                <div class="as-bar"><div id="barV" style="width:0%"></div></div>
+              </div>
+              <div class="axis-stat-box">
+                <div class="as-title">Habitudes Actuelles (A)</div>
+                <div class="as-val" id="scoreA">--%</div>
+                <div class="as-bar"><div id="barA" style="width:0%"></div></div>
+              </div>
+              <div class="axis-stat-box highlight-box">
+                <div class="as-title">Synergie Découverte &harr; Partage (D &times; P)</div>
+                <div class="as-val" id="scoreDP">--%</div>
+                <div class="as-bar"><div id="barDP" style="width:0%"></div></div>
+              </div>
+            </div>
+
+            <!-- Fusion & Vigilance Points -->
+            <div class="points-comparison-grid">
+              <div class="points-card fusion">
+                <div class="points-header">
+                  <span class="points-icon">🔥</span>
+                  <h4>Points de Fusion (Harmonie &ge; 85%)</h4>
+                </div>
+                <div id="fusionList" class="points-list"></div>
+              </div>
+
+              <div class="points-card vigilance">
+                <div class="points-header">
+                  <span class="points-icon">⚡</span>
+                  <h4>Zones de Vigilance (Divergences &le; 35%)</h4>
+                </div>
+                <div id="vigilanceList" class="points-list"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 5: BANQUE DE QUESTIONS -->
+      <section id="tab-questions-bank" class="tab-pane">
+        <!-- Sélecteur de vue : Banque active vs Arbitrage Jeu 3 -->
+        <div class="bank-view-switcher" style="display: flex; gap: 12px; margin-bottom: 24px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 14px; align-items: center; flex-wrap: wrap;">
+          <button id="btnViewBankActive" class="tab-btn active" onclick="switchBankView('active')" style="display: inline-flex; align-items: center; gap: 10px; padding: 10px 20px; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer; border: 1px solid rgba(56,189,248,0.3); transition: var(--transition-smooth); background: rgba(56,189,248,0.12); color: var(--text-main);">
+            <span>📚 Banque Active (Validée)</span>
+            <span id="badgeActiveQuestionsCount" class="badge-soft" style="font-size: 11px; padding: 2px 8px; background: rgba(56,189,248,0.25); color: #38bdf8; font-weight: 700;">204</span>
+          </button>
+          <button id="btnViewBankArbitrage" class="tab-btn admin-only" onclick="switchBankView('arbitrage')" style="display: inline-flex; align-items: center; gap: 10px; padding: 10px 20px; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer; border: 1px solid rgba(245,158,11,0.3); transition: var(--transition-smooth); background: rgba(245,158,11,0.08); color: #f59e0b;">
+            <span>⚖️ Espace d'Arbitrage Jeu 3</span>
+            <span id="badgePendingQuestionsCount" class="badge-soft" style="font-size: 11px; padding: 2px 8px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.4); font-weight: 700;">150 en attente</span>
+          </button>
+        </div>
+
+        <!-- CONTENEUR 1 : BANQUE ACTIVE (QUESTIONS VALIDÉES) -->
+        <div id="bankViewActiveContainer">
+          <div class="section-toolbar" style="flex-wrap: wrap; gap: 12px; align-items: center;">
+            <div class="search-box" style="min-width: 240px; max-width: 320px;">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="bankSearchInput" placeholder="Rechercher par texte...">
+            </div>
+            
+            <div class="bank-filters" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+              <select id="bankFilterThematique" class="custom-select" style="min-width: 170px;">
+                <option value="ALL">Toutes les thématiques</option>
+              </select>
+              <select id="bankFilterSujet" class="custom-select" style="min-width: 160px;">
+                <option value="ALL">Tous les sujets</option>
+              </select>
+              <select id="bankFilterClasse" class="custom-select" style="min-width: 160px;">
+                <option value="ALL">Toutes les classes</option>
+                <option value="0">0 - Non définies</option>
+                <option value="1">1 - Standards / Ordinaires</option>
+                <option value="2">2 - Personnelles</option>
+                <option value="3">3 - Intimes</option>
+                <option value="4">4 - Privées</option>
+                <option value="5">5 - A caractère sexuel</option>
+                <option value="8">8 - Identité</option>
+                <option value="9">9 - Interdits / Fantasmes</option>
+              </select>
+              <select id="bankFilterCible" class="custom-select" style="min-width: 150px;" title="Cible de genre (N_CIBLE)">
+                <option value="ALL">Toutes les cibles</option>
+                <option value="0">0 - Mixte (Tous)</option>
+                <option value="1">1 - Hommes</option>
+                <option value="2">2 - Femmes</option>
+              </select>
+              <select id="bankFilterHierarchie" class="custom-select" style="min-width: 175px;" title="Hiérarchie des questions (principales / sous-questions)">
+                <option value="ALL">Tous les niveaux</option>
+                <option value="MAIN">Questions principales (sans parent)</option>
+                <option value="PARENT">Questions ayant des sous-questions</option>
+                <option value="SUB">Sous-questions uniquement</option>
+              </select>
+              <button id="btnResetBankFilters" class="btn btn-outline btn-sm" title="Réinitialiser les filtres" style="padding: 8px 12px;">
+                Effacer filtres
+              </button>
+            </div>
+
+            <div style="margin-left: auto; display: flex; align-items: center; gap: 12px;">
+              <span id="bankQuestionsCountBadge" class="badge-soft" style="font-size: 12px; padding: 6px 12px;">204 questions</span>
+              <button class="btn btn-primary admin-only" id="btnOpenAddQuestion" style="display: none;">
+                <span>+</span> Ajouter une Question
+              </button>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="custom-table" id="questionsTable">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Thématique</th>
+                  <th>Sujet</th>
+                  <th>Classe</th>
+                  <th>Type</th>
+                  <th>Cible</th>
+                  <th>Intitulé de la Question</th>
+                  <th style="text-align:right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="questionsTableBody">
+                <!-- Injecté par JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- CONTENEUR 2 : ESPACE D'ARBITRAGE JEU 3 (PROPOSITIONS EN ATTENTE) -->
+        <div id="bankViewArbitrageContainer" style="display: none;">
+          <!-- En-tête informatif avec KPI -->
+          <div style="background: linear-gradient(135deg, rgba(245,158,11,0.08) 0%, rgba(139,92,246,0.08) 100%); border: 1px solid rgba(245,158,11,0.25); border-radius: var(--radius-md); padding: 20px; margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; flex-wrap: wrap;">
+              <div>
+                <h3 style="font-size: 18px; font-weight: 700; color: #fbbf24; margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
+                  <span>⚖️</span> Arbitrage & Validation des Propositions — Jeu 3 (Pack 3)
+                </h3>
+                <p style="font-size: 13.5px; color: var(--text-muted); max-width: 800px; line-height: 1.5; margin-bottom: 0;">
+                  Ces 150 questions générées pour le <strong>Jeu 3</strong> sont en statut <code>pending_review</code> (en attente). Elles restent <strong>strictement invisibles</strong> aux membres et à leurs questionnaires. En tant qu'administrateur, vous pouvez les inspecter, les modifier, les valider (individuellement ou par lot) ou les supprimer définitivement.
+                </p>
+              </div>
+
+              <!-- Badges KPI d'arbitrage -->
+              <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <div style="background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3); border-radius: var(--radius-sm); padding: 10px 14px; text-align: center; min-width: 100px;">
+                  <div style="font-size: 20px; font-weight: 800; color: #fbbf24;" id="kpiPendingTotal">150</div>
+                  <div style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Total en attente</div>
+                </div>
+                <div style="background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.3); border-radius: var(--radius-sm); padding: 10px 14px; text-align: center; min-width: 110px;">
+                  <div style="font-size: 20px; font-weight: 800; color: #c084fc;" id="kpiPendingC5">100</div>
+                  <div style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Classe 5 (Sexuel)</div>
+                </div>
+                <div style="background: rgba(244,63,94,0.15); border: 1px solid rgba(244,63,94,0.3); border-radius: var(--radius-sm); padding: 10px 14px; text-align: center; min-width: 120px;">
+                  <div style="font-size: 20px; font-weight: 800; color: #fb7185;" id="kpiPendingC9">50</div>
+                  <div style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Classe 9 (Fantasmes)</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Barre d'actions groupées -->
+            <div style="margin-top: 18px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+              <span style="font-size: 12.5px; font-weight: 600; color: var(--text-main);">⚡ Actions groupées :</span>
+              <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button id="btnBatchValidateC5" class="btn btn-sm" onclick="handleBatchValidation('classe_5')" style="background: rgba(139,92,246,0.25); color: #c084fc; border: 1px solid rgba(139,92,246,0.4); font-weight: 600;">
+                  ✅ Valider toute la Classe 5 (100)
+                </button>
+                <button id="btnBatchValidateC9" class="btn btn-sm" onclick="handleBatchValidation('classe_9')" style="background: rgba(244,63,94,0.25); color: #fb7185; border: 1px solid rgba(244,63,94,0.4); font-weight: 600;">
+                  ✅ Valider toute la Classe 9 (50)
+                </button>
+                <button id="btnBatchValidateAll" class="btn btn-sm btn-primary" onclick="handleBatchValidation('all')" style="font-weight: 700;">
+                  🌟 Tout valider (150 questions)
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Barre de filtrage des questions en attente -->
+          <div class="section-toolbar" style="flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px;">
+            <div class="search-box" style="min-width: 240px; max-width: 320px;">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="pendingSearchInput" placeholder="Rechercher dans les propositions...">
+            </div>
+            
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+              <select id="pendingFilterClasse" class="custom-select" style="min-width: 170px;">
+                <option value="ALL">Toutes les classes</option>
+                <option value="5">Classe 5 - A caractère sexuel</option>
+                <option value="9">Classe 9 - Interdits / Fantasmes</option>
+              </select>
+              <select id="pendingFilterType" class="custom-select" style="min-width: 150px;">
+                <option value="ALL">Tous les types</option>
+                <option value="M">Multi-Axes (M)</option>
+                <option value="G">Goût Unique (G)</option>
+              </select>
+              <select id="pendingFilterCible" class="custom-select" style="min-width: 150px;">
+                <option value="ALL">Toutes les cibles</option>
+                <option value="0">0 - Mixte (Tous)</option>
+                <option value="1">1 - Hommes</option>
+                <option value="2">2 - Femmes</option>
+              </select>
+              <button id="btnResetPendingFilters" class="btn btn-outline btn-sm" onclick="resetPendingFilters()" style="padding: 8px 12px;">
+                Effacer filtres
+              </button>
+            </div>
+
+            <div style="margin-left: auto;">
+              <span id="pendingFilteredCountBadge" class="badge-soft" style="font-size: 12px; padding: 6px 12px; background: rgba(245,158,11,0.15); color: #fbbf24;">150 propositions</span>
+            </div>
+          </div>
+
+          <!-- Table des propositions en attente -->
+          <div class="table-responsive">
+            <table class="custom-table" id="pendingQuestionsTable">
+              <thead>
+                <tr>
+                  <th style="width: 70px;">ID</th>
+                  <th style="width: 140px;">Classe</th>
+                  <th style="width: 110px;">Type</th>
+                  <th style="width: 100px;">Cible</th>
+                  <th style="width: 170px;">Sujet</th>
+                  <th>Intitulé de la Proposition</th>
+                  <th style="width: 110px;">Statut</th>
+                  <th style="text-align:right; width: 220px;">Arbitrage / Actions</th>
+                </tr>
+              </thead>
+              <tbody id="pendingQuestionsTableBody">
+                <!-- Injecté par JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 6: MULTI-PLATEFORME (SMARTPHONE & SMARTWATCH) -->
+      <section id="tab-devices-preview" class="tab-pane">
+        <div class="preview-intro">
+          <h2>Vision Multi-Plateforme : Windows &bull; Smartphone &bull; Montre Connectée</h2>
+          <p>Le socle technique d'<strong>Affinity</strong> centralise l'API et la base SQLite. Voici la simulation en direct de l'extension mobile pour la saisie tactile et de l'extension montre connectée pour les alertes de proximité élective.</p>
+        </div>
+
+        <div class="devices-showcase">
+          <!-- Smartphone Mockup -->
+          <div class="device-phone">
+            <div class="phone-speaker"></div>
+            <div class="phone-screen">
+              <div class="phone-app-header">
+                <span>AFFINITY Mobile</span>
+                <span class="phone-badge">Connecté</span>
+              </div>
+              <div class="phone-content" id="phoneMockupContent">
+                <div class="phone-profile-pill">
+                  <span id="phoneActiveName">Alexandre</span>
+                  <span class="mini-tag">Fiche active</span>
+                </div>
+                <div class="phone-card">
+                  <div class="phone-card-title">Questionnaire en cours</div>
+                  <div class="phone-q-text" id="phoneQuestionText">La pratique régulière d'un sport ou d'une activité physique intensive.</div>
+                  <div class="phone-buttons-preview">
+                    <div class="phone-axis-row">
+                      <span>(V) Vécu :</span> <span class="badge-phone">Très souvent</span>
+                    </div>
+                    <div class="phone-axis-row">
+                      <span>(A) Actuel :</span> <span class="badge-phone">Accro</span>
+                    </div>
+                    <div class="phone-axis-row">
+                      <span>(D) Futur :</span> <span class="badge-phone">Envie</span>
+                    </div>
+                    <div class="phone-axis-row">
+                      <span>(P) Partage :</span> <span class="badge-phone">Obligatoire</span>
+                    </div>
+                  </div>
+                </div>
+                <button class="phone-btn" onclick="triggerPhoneSync()">Synchroniser avec Windows</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Smartwatch Mockup -->
+          <div class="device-watch">
+            <div class="watch-strap top"></div>
+            <div class="watch-case">
+              <div class="watch-screen">
+                <div class="watch-time" id="watchClock">12:42</div>
+                <div class="watch-icon">💖</div>
+                <div class="watch-title">AFFINITY GLANCE</div>
+                <div class="watch-score-circle">
+                  <span id="watchScore">89%</span>
+                </div>
+                <div class="watch-sub" id="watchMatchDesc">Match Alex & Camille</div>
+                <div class="watch-badge">Fusion Sport & Fêtes</div>
+              </div>
+            </div>
+            <div class="watch-strap bottom"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 7: ADMINISTRATION DE L'APPLICATION -->
+      <section id="tab-admin" class="tab-pane">
+        <div class="admin-hero-card">
+          <div class="admin-hero-main">
+            <div class="admin-hero-badge">
+              <span class="pulse-dot"></span> Console de Contrôle Système
+            </div>
+            <h2>Gestion des Rôles & Autorisations</h2>
+            <p>Supervisez les comptes d'utilisateurs et attribuez les rôles : <strong>Administrateur</strong> (contrôle total), <strong>Abonné</strong> (accès complet au calculateur d'affinité) et <strong>Invité</strong> (saisie et profil).</p>
+          </div>
+          <div class="admin-stats-summary">
+            <div class="admin-stat-chip chip-admin">
+              <span class="chip-num" id="adminCountAdmins">0</span>
+              <span class="chip-label">👑 Admins</span>
+            </div>
+            <div class="admin-stat-chip chip-sub">
+              <span class="chip-num" id="adminCountSubscribers">0</span>
+              <span class="chip-label">⭐ Abonnés</span>
+            </div>
+            <div class="admin-stat-chip chip-guest">
+              <span class="chip-num" id="adminCountGuests">0</span>
+              <span class="chip-label">👤 Invités</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tableau des Utilisateurs & Rôles -->
+        <div class="admin-content-card">
+          <div class="admin-table-toolbar">
+            <div>
+              <h3>Membres Enregistrés</h3>
+              <p class="text-dim-sm">Sélectionnez le rôle à appliquer ou cliquez sur <em>« Promouvoir »</em> pour attribuer instantanément l'abonnement.</p>
+            </div>
+            <button class="btn btn-sm btn-outline" onclick="loadProfiles()">
+              <span>🔄</span> Actualiser
+            </button>
+          </div>
+
+          <div class="table-responsive">
+            <table class="custom-table" id="adminUsersTable">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Utilisateur</th>
+                  <th>Identité</th>
+                  <th>Ville</th>
+                  <th>Réponses</th>
+                  <th>Rôle Actuel</th>
+                  <th>Périmètre Questions</th>
+                  <th>Modifier le Rôle</th>
+                  <th style="text-align:right;">Action Immédiate</th>
+                </tr>
+              </thead>
+              <tbody id="adminUsersTableBody">
+                <!-- Rempli par JavaScript -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Panneau de Gestion des Demandes d'Accès reçues -->
+        <div class="admin-content-card" style="margin-top: 24px;">
+          <div class="admin-table-toolbar">
+            <div>
+              <h3>Demandes d'Accès aux Périmètres reçues</h3>
+              <p class="text-dim-sm">Validez ou refusez les demandes d'accès à de nouvelles classes ou thématiques envoyées par les membres.</p>
+            </div>
+            <button class="btn btn-sm btn-outline" onclick="loadAdminAccessRequests()">
+              <span>🔄</span> Actualiser les demandes
+            </button>
+          </div>
+
+          <div class="table-responsive">
+            <table class="custom-table" id="adminAccessRequestsTable">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Membre</th>
+                  <th>Rôle</th>
+                  <th>Action</th>
+                  <th>Cible demandée</th>
+                  <th>Type</th>
+                  <th>Statut</th>
+                  <th style="text-align:right;">Décision Admin</th>
+                </tr>
+              </thead>
+              <tbody id="adminAccessRequestsTableBody">
+                <!-- Rempli par JavaScript -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Matrice des Droits par Rôle -->
+        <div class="roles-guide-section">
+          <div class="guide-title-row">
+            <h3>Matrice des Droits & Privilèges</h3>
+            <p class="text-dim-sm">Architecture de sécurité et d'accès aux services de l'application</p>
+          </div>
+          <div class="roles-cards-grid">
+            <div class="role-desc-card card-role-admin">
+              <div class="role-desc-header">
+                <span class="role-badge admin">👑 Administrateur</span>
+                <span class="role-scope-tag">Accès Total</span>
+              </div>
+              <p class="role-desc-text">Rôle suprême réservé aux gestionnaires de l'application.</p>
+              <ul class="role-perks-list">
+                <li><span class="icon-yes">✔</span> Gestion complète des utilisateurs et modification des rôles</li>
+                <li><span class="icon-yes">✔</span> Accès illimité au Calculateur & Radar d'Affinité</li>
+                <li><span class="icon-yes">✔</span> <strong>Banque de questions exclusive</strong> : ajout, édition et suppression</li>
+                <li><span class="icon-yes">✔</span> <strong>Gestion par profil</strong> des jeux, classes et types de questions</li>
+                <li><span class="icon-yes">✔</span> Création, édition et suppression de tous les profils</li>
+              </ul>
+            </div>
+
+            <div class="role-desc-card card-role-sub">
+              <div class="role-desc-header">
+                <span class="role-badge subscriber">⭐ Abonné</span>
+                <span class="role-scope-tag">Accès Privilégié</span>
+              </div>
+              <p class="role-desc-text">Rôle attribué par l'administrateur à un invité vérifié.</p>
+              <ul class="role-perks-list">
+                <li><span class="icon-yes">✔</span> <strong>Accès complet au Calculateur d'Affinité V-A-D-P</strong></li>
+                <li><span class="icon-yes">✔</span> Radar psychologique et détection des points de fusion</li>
+                <li><span class="icon-yes">✔</span> Création et personnalisation de sa fiche d'identité</li>
+                <li><span class="icon-yes">✔</span> Réponse aux questionnaires autorisés par l'administrateur</li>
+                <li><span class="icon-no">✖</span> <strong>Pas d'accès à la banque de questions</strong></li>
+                <li><span class="icon-no">✖</span> Pas d'accès à la console d'administration</li>
+              </ul>
+              <button class="btn btn-sm btn-outline" onclick="setSimulatedRole('subscriber'); switchTab('profiles');" style="margin-top: 14px; width: 100%; border-color: rgba(16,185,129,0.4); color: #34D399;">
+                <span>🧪</span> Tester la vue Abonné
+              </button>
+            </div>
+
+            <div class="role-desc-card card-role-guest">
+              <div class="role-desc-header">
+                <span class="role-badge guest">👤 Invité</span>
+                <span class="role-scope-tag">Accès Découverte</span>
+              </div>
+              <p class="role-desc-text">Rôle attribué par défaut à tout nouvel utilisateur créé.</p>
+              <ul class="role-perks-list">
+                <li><span class="icon-yes">✔</span> Création et personnalisation de son propre profil</li>
+                <li><span class="icon-yes">✔</span> Renseignement de sa fiche d'identité obligatoire</li>
+                <li><span class="icon-yes">✔</span> Saisie des réponses aux questionnaires autorisés</li>
+                <li><span class="icon-no">✖</span> <strong>Calculateur d'Affinité verrouillé</strong></li>
+                <li><span class="icon-no">✖</span> <strong>Pas d'accès à la banque de questions</strong></li>
+                <li><span class="icon-no">✖</span> Pas d'accès à la console d'administration</li>
+              </ul>
+              <button class="btn btn-sm btn-outline" onclick="setSimulatedRole('guest'); switchTab('profiles');" style="margin-top: 14px; width: 100%; border-color: rgba(148,163,184,0.4); color: #CBD5E1;">
+                <span>🧪</span> Tester la vue Invité
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 8: DOCUMENTATION EXPLICATIVE PAR RÔLE & MATCH (ACCESSIBLE TOUS) -->
+      <section id="tab-roles-guide" class="tab-pane">
+        <div class="doc-hero-card">
+          <div class="admin-hero-badge">
+            <span>📖</span> Guide d'Utilisation Officiel Affinity
+          </div>
+          <h2>Architecture des Rôles, Périmètres & Protocole de Match</h2>
+          <p>Retrouvez ici toutes les règles de fonctionnement de l'application selon votre statut : droits d'accès, utilisation de votre identifiant public, complétion des périmètres de questions et accord bilatéral pour les calculs d'affinité.</p>
+        </div>
+
+        <!-- 1. Présentation des 3 Rôles -->
+        <div class="doc-section-card">
+          <div class="doc-card-header">
+            <h3>1. Les Rôles & Privilèges d'Accès</h3>
+            <p class="text-dim-sm">Un cloisonnement rigoureux pour respecter la confidentialité et la progression de chaque membre.</p>
+          </div>
+          <div class="roles-cards-grid">
+            <div class="role-desc-card card-role-guest">
+              <div class="role-desc-header">
+                <span class="role-badge guest">👤 Rôle Invité</span>
+                <span class="role-scope-tag">Découverte</span>
+              </div>
+              <p class="role-desc-text">Rôle par défaut attribué à tout nouveau membre.</p>
+              <ul class="role-perks-list">
+                <li><span class="icon-yes">✔</span> Accès exclusif à son propre profil personnel</li>
+                <li><span class="icon-yes">✔</span> Renseignement de sa fiche d'identité obligatoire</li>
+                <li><span class="icon-yes">✔</span> Réponse aux questionnaires autorisés dans son périmètre</li>
+                <li><span class="icon-yes">✔</span> Suivi de sa progression par jeu et classe</li>
+                <li><span class="icon-no">✖</span> Pas d'accès aux profils des autres membres</li>
+                <li><span class="icon-no">✖</span> Calculateur et Demandes de Match verrouillés</li>
+                <li><span class="icon-no">✖</span> Pas d'accès à la banque de questions</li>
+              </ul>
+            </div>
+
+            <div class="role-desc-card card-role-sub">
+              <div class="role-desc-header">
+                <span class="role-badge subscriber">⭐ Rôle Abonné</span>
+                <span class="role-scope-tag">Privilégié & Matchs</span>
+              </div>
+              <p class="role-desc-text">Rôle accordé aux membres validés pour croiser leurs affinités.</p>
+              <ul class="role-perks-list">
+                <li><span class="icon-yes">✔</span> Toutes les fonctionnalités du rôle Invité</li>
+                <li><span class="icon-yes">✔</span> <strong>Envoi et réception de Demandes de Match</strong></li>
+                <li><span class="icon-yes">✔</span> Consultation de la présentation et de la <strong>distance kilométrique</strong> des autres abonnés</li>
+                <li><span class="icon-yes">✔</span> <strong>Accord bilatéral</strong> sur les périmètres de questions partagés</li>
+                <li><span class="icon-yes">✔</span> <strong>Calculateur d'Affinité & Radar</strong> débloqués</li>
+                <li><span class="icon-no">✖</span> Pas d'accès à la banque de questions (Réservé Admin)</li>
+              </ul>
+            </div>
+
+            <div class="role-desc-card card-role-admin">
+              <div class="role-desc-header">
+                <span class="role-badge admin">👑 Rôle Administrateur</span>
+                <span class="role-scope-tag">Supervision Totale</span>
+              </div>
+              <p class="role-desc-text">Rôle suprême de gestionnaire de la plateforme.</p>
+              <ul class="role-perks-list">
+                <li><span class="icon-yes">✔</span> Supervision de l'ensemble des membres et attribution des rôles</li>
+                <li><span class="icon-yes">✔</span> <strong>Gestion par profil</strong> des jeux et classes autorisés</li>
+                <li><span class="icon-yes">✔</span> <strong>Banque de questions exclusive</strong> : création, édition et suppression</li>
+                <li><span class="icon-yes">✔</span> Lancement de calculs de match entre deux membres abonnés</li>
+                <li><span class="icon-no">✖</span> <strong>Pas de fiche d'identité requise</strong> (rôle neutre de supervision)</li>
+                <li><span class="icon-no">✖</span> <strong>Ne répond pas aux questionnaires personnels</strong></li>
+                <li><span class="icon-no">✖</span> <strong>Non éligible aux matchs</strong> (aucun match avec le profil admin)</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Système d'Identifiant Public & Pseudo -->
+        <div class="doc-section-card">
+          <div class="doc-card-header">
+            <h3>2. Identifiant Public (`AFF-XXXX`) & Pseudo</h3>
+            <p class="text-dim-sm">Principes de mise en relation décrits par le modèle Affinity de M. ROGER André.</p>
+          </div>
+          <div class="doc-steps-grid">
+            <div class="doc-step-box">
+              <div class="dsb-num">A</div>
+              <h4>Votre Identifiant Unique</h4>
+              <p>Chaque membre se voit attribuer un numéro d'identifiant public unique (ex: <code>AFF-0002</code>). Cet identifiant permet de vous identifier de manière anonyme et sécurisée.</p>
+            </div>
+            <div class="doc-step-box">
+              <div class="dsb-num">B</div>
+              <h4>Votre Pseudo</h4>
+              <p>Votre pseudo est votre nom d'usage public. Il s'affiche sur votre profil et auprès des membres qui vous envoient une demande de match.</p>
+            </div>
+            <div class="doc-step-box">
+              <div class="dsb-num">C</div>
+              <h4>Fiche d'Identité</h4>
+              <p>Votre fiche détaillée (prénom, nom, sexe, date de naissance, ville, statut) est obligatoire pour autoriser le calcul d'affinité, garantissant la fiabilité des résultats.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Périmètres de Questions & Suivi -->
+        <div class="doc-section-card">
+          <div class="doc-card-header">
+            <h3>3. Périmètres de Questions & Taux de Réponse</h3>
+            <p class="text-dim-sm">Comment fonctionnent les jeux et les classes assignés à votre profil.</p>
+          </div>
+          <div class="doc-text-content">
+            <p>L'administrateur peut affecter à chaque profil un sous-ensemble de questions adaptées :</p>
+            <ul>
+              <li><strong>Jeux de questions (Packs)</strong> : Domaines d'application (Général, Rencontre, Soirées...).</li>
+              <li><strong>Classes de sensibilité</strong> : Standards (vie quotidienne), Personnelles (aspirations), Intimes (sentiments profonds), Privées (confidences), A caractère sexuel, Amorales / Interdits.</li>
+            </ul>
+            <p>Sur votre page <strong>Profil</strong>, vous disposez d'un tableau de bord affichant pour chaque jeu et classe autorisés le <strong>nombre de questions</strong> et votre <strong>pourcentage de complétion</strong>.</p>
+          </div>
+        </div>
+
+        <!-- 4. Protocole de Demande de Match & Accord Mutuel -->
+        <div class="doc-section-card">
+          <div class="doc-card-header">
+            <h3>4. Protocole de Demande de Match & Consentement Bilatéral</h3>
+            <p class="text-dim-sm">Le calcul d'affinité ne s'exécute que lorsque les deux abonnés se sont mutuellement accordés sur les questions prises en compte.</p>
+          </div>
+          <div class="doc-steps-grid">
+            <div class="doc-step-box">
+              <div class="dsb-num">1</div>
+              <h4>Demande de Match</h4>
+              <p>Un abonné choisit un autre membre abonné dans le Calculateur. Il consulte sa <strong>présentation</strong> (prénom, statut, bio) et la <strong>distance kilométrique</strong> entre leurs résidences, puis valide l'envoi de la demande.</p>
+            </div>
+            <div class="doc-step-box">
+              <div class="dsb-num">2</div>
+              <h4>Réception & Consentement</h4>
+              <p>Le destinataire reçoit la demande dans son onglet <em>Demandes Reçues</em>. Il examine le profil du demandeur et <strong>coche les classes de questions qu'il accepte de croiser</strong> avant d'accepter ou décliner.</p>
+            </div>
+            <div class="doc-step-box">
+              <div class="dsb-num">3</div>
+              <h4>Révélation des Résultats</h4>
+              <p>Dès que la demande est acceptée, les deux membres voient les périmètres validés et accèdent au <strong>score global</strong>, au <strong>radar thématique</strong> et aux <strong>points de fusion</strong> calculés sur ces seules classes.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- MODAL 1: CRÉER PROFIL -->
+  <div class="modal-backdrop" id="modalCreateProfile" style="display:none;">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h3>Créer un nouveau profil</h3>
+        <button class="modal-close" onclick="closeModals()">&times;</button>
+      </div>
+      <form id="formCreateProfile">
+        <div class="form-group">
+          <label for="inputPseudo">Pseudo du profil (Identifiant public) *</label>
+          <input type="text" id="inputPseudo" class="form-control" placeholder="Ex: Alex, Céline, Maxime..." required>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" onclick="closeModals()">Annuler</button>
+          <button type="submit" class="btn btn-primary">Enregistrer le profil</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 2: FICHE D'IDENTITÉ DÉTAILLÉE -->
+  <div class="modal-backdrop" id="modalIdentityCard" style="display:none;">
+    <div class="modal-window modal-lg">
+      <div class="modal-header">
+        <div>
+          <h3 id="modalIdTitle">Fiche d'identité</h3>
+          <p class="modal-desc">Fiche d'identité du profil Affinity.</p>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button type="button" class="btn btn-sm btn-outline" onclick="closeModals()" style="font-size:12px; padding:5px 12px; font-weight:600;">
+            ✕ Fermer
+          </button>
+          <button class="modal-close" onclick="closeModals()" title="Fermer la fiche">&times;</button>
+        </div>
+      </div>
+      <form id="formIdentityCard">
+        <input type="hidden" id="idProfileId">
+        
+        <!-- Pseudo & Identifiant -->
+        <div class="form-row">
+          <div class="form-group col">
+            <label for="idPseudo">Pseudo (Nom public d'affichage) *</label>
+            <input type="text" id="idPseudo" class="form-control" placeholder="Ex: Alexandre" required>
+          </div>
+          <div class="form-group col">
+            <label>Identifiant Unique de Match (Calculé)</label>
+            <input type="text" id="idAffDisplay" class="form-control" readonly style="opacity:0.8; font-weight:700; color:var(--accent-cyan);">
+          </div>
+        </div>
+
+        <!-- État Civil -->
+        <div class="form-row">
+          <div class="form-group col">
+            <label for="idPrenom">Prénom <span class="req-star">*</span></label>
+            <input type="text" id="idPrenom" class="form-control" placeholder="Ex: Alexandre" required>
+          </div>
+          <div class="form-group col">
+            <label for="idNom">Nom <span class="req-star">*</span></label>
+            <input type="text" id="idNom" class="form-control" placeholder="Ex: Roger" required>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group col">
+            <label for="idSexe">Sexe <span class="req-star">*</span></label>
+            <select id="idSexe" class="form-control">
+              <option value="0">0 - Non défini / Tous</option>
+              <option value="1">1 - Homme</option>
+              <option value="2">2 - Femme</option>
+            </select>
+          </div>
+          <div class="form-group col">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <label for="idDateNaiss">Date de naissance <span class="req-star">*</span></label>
+              <span id="modalAgeBadge" class="badge-age" style="display:none;">🎂 -- ans</span>
+            </div>
+            <input type="date" id="idDateNaiss" class="form-control" required>
+            <div id="modalAgeFeedback" class="field-feedback error" style="display:none; font-size:11px; color:#ef4444; margin-top:3px;"></div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group col">
+            <label for="idPaysNaissance">Pays de naissance</label>
+            <select id="idPaysNaissance" class="form-control">
+              <option value="">-- Sélectionner --</option>
+              <option value="France">France</option>
+              <option value="UE">UE</option>
+              <option value="Hors UE">Hors UE</option>
+            </select>
+          </div>
+          <div class="form-group col">
+            <label for="idStatut">Statut relationnel</label>
+            <input type="text" id="idStatut" class="form-control" placeholder="Ex: Célibataire, En recherche...">
+          </div>
+        </div>
+
+        <!-- Section J'habite ici -->
+        <div class="form-section-divider">
+          <span>📍 J'habite ici <span class="req-star">*</span></span>
+        </div>
+        <div class="form-row">
+          <div class="form-group col">
+            <label for="idHabitePays">Pays <span class="req-star">*</span></label>
+            <select id="idHabitePays" class="form-control">
+              <option value="France" selected>France</option>
+              <option value="UE">UE</option>
+              <option value="Hors UE">Hors UE</option>
+            </select>
+          </div>
+          <div class="form-group col">
+            <label for="idHabiteRegion">Région ou département <span class="req-star">*</span></label>
+            <input type="text" id="idHabiteRegion" class="form-control" placeholder="Ex: 75 - Paris">
+          </div>
+          <div class="form-group col">
+            <label for="idHabiteCommune">Commune <span class="req-star">*</span></label>
+            <input type="text" id="idHabiteCommune" class="form-control" placeholder="Ex: Paris">
+          </div>
+        </div>
+
+        <!-- Section Morphologie & Caractéristiques Physiques -->
+        <div class="form-section-divider">
+          <span>📐 Morphologie</span>
+        </div>
+        <div class="form-row">
+          <div class="form-group col">
+            <label for="idTaille">Taille (en cm)</label>
+            <input type="number" id="idTaille" class="form-control" placeholder="Ex: 175" min="100" max="230">
+          </div>
+          <div class="form-group col">
+            <label for="idPoids">Poids (en kg)</label>
+            <input type="number" id="idPoids" class="form-control" placeholder="Ex: 68" min="30" max="250">
+          </div>
+          <div class="form-group col">
+            <label for="idPointure">Pointure</label>
+            <input type="number" step="0.5" id="idPointure" class="form-control" placeholder="Ex: 42" min="30" max="52">
+          </div>
+        </div>
+
+        <div class="form-section-divider">
+          <span>📏 Mensurations (cm)</span>
+        </div>
+        <div class="form-row">
+          <div class="form-group col">
+            <label for="idPoitrine">Tour de poitrine (cm)</label>
+            <input type="number" id="idPoitrine" class="form-control" placeholder="Ex: 90" min="40" max="200">
+          </div>
+          <div class="form-group col">
+            <label for="idTailleTour">Tour de taille (cm)</label>
+            <input type="number" id="idTailleTour" class="form-control" placeholder="Ex: 65" min="30" max="200">
+          </div>
+          <div class="form-group col">
+            <label for="idHanches">Tour de hanches (cm)</label>
+            <input type="number" id="idHanches" class="form-control" placeholder="Ex: 92" min="40" max="220">
+          </div>
+        </div>
+
+        <!-- Section Origines, Style & Allure -->
+        <div class="form-section-divider">
+          <span>✨ Allure, Style & Origines</span>
+        </div>
+        <div class="form-row">
+          <div class="form-group col">
+            <label for="idOrigines">Origines</label>
+            <select id="idOrigines" class="form-control">
+              <option value="">-- Sélectionner --</option>
+              <option value="Caucasien(ne) / Européen(ne)">Caucasien(ne) / Européen(ne)</option>
+              <option value="Méditerranéen(ne)">Méditerranéen(ne)</option>
+              <option value="Maghrébin(ne) / Nord-Africain(ne)">Maghrébin(ne) / Nord-Africain(ne)</option>
+              <option value="Africain(ne) / Subsaharien(ne)">Africain(ne) / Subsaharien(ne)</option>
+              <option value="Asiatique (Est-Asiatique)">Asiatique (Est-Asiatique)</option>
+              <option value="Sud-Asiatique / Indien(ne)">Sud-Asiatique / Indien(ne)</option>
+              <option value="Proche & Moyen-Orient">Proche & Moyen-Orient</option>
+              <option value="Latino-Américain(ne) / Hispanique">Latino-Américain(ne) / Hispanique</option>
+              <option value="Métis(se) / Multiculturel(le)">Métis(se) / Multiculturel(le)</option>
+              <option value="Autre / Non spécifié">Autre / Non spécifié</option>
+            </select>
+          </div>
+          <div class="form-group col">
+            <label for="idCouleurCheveux">Couleur de cheveux</label>
+            <select id="idCouleurCheveux" class="form-control">
+              <option value="">-- Sélectionner --</option>
+              <option value="Bruns">Bruns</option>
+              <option value="Noirs">Noirs</option>
+              <option value="Châtains">Châtains</option>
+              <option value="Blonds">Blonds</option>
+              <option value="Roux">Roux</option>
+              <option value="Gris / Poivre et sel">Gris / Poivre et sel</option>
+              <option value="Blancs">Blancs</option>
+              <option value="Chauve / Rasé">Chauve / Rasé</option>
+              <option value="Colorés / Fantaisie">Colorés / Fantaisie</option>
+              <option value="Autre">Autre</option>
+            </select>
+          </div>
+          <div class="form-group col">
+            <label for="idStyle">Style</label>
+            <select id="idStyle" class="form-control">
+              <option value="">-- Sélectionner --</option>
+              <option value="Décontracté / Casual">Décontracté / Casual</option>
+              <option value="Élégant / Soigné">Élégant / Soigné</option>
+              <option value="Chic / Habillé">Chic / Habillé</option>
+              <option value="Sportswear / Athlétique">Sportswear / Athlétique</option>
+              <option value="Urbain / Streetwear">Urbain / Streetwear</option>
+              <option value="Bohème / Romantique">Bohème / Romantique</option>
+              <option value="Classique / Intemporel">Classique / Intemporel</option>
+              <option value="Rock / Alternatif">Rock / Alternatif</option>
+              <option value="Minimaliste">Minimaliste</option>
+              <option value="Autre / Éclectique">Autre / Éclectique</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-section-divider" style="margin-top:14px;">
+          <span>📝 Présentation</span>
+        </div>
+        <div class="form-group">
+          <label for="idBio">Présentation générale <span class="req-star">*</span></label>
+          <textarea id="idBio" class="form-control" rows="2" placeholder="Quelques mots sur votre mode de vie, vos passions..." required></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group col">
+            <label for="idAimeChezMoi">✨ Ce que j'aime chez moi</label>
+            <textarea id="idAimeChezMoi" class="form-control" rows="2" placeholder="Ex: Mon écoute, ma curiosité, ma loyauté..."></textarea>
+          </div>
+          <div class="form-group col">
+            <label for="idAimePasChezMoi">⚡ Ce que je n'aime pas chez moi</label>
+            <textarea id="idAimePasChezMoi" class="form-control" rows="2" placeholder="Ex: Mon impatience, mon perfectionnisme, la routine..."></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+          <button type="button" class="btn btn-outline" onclick="closeModals()">Fermer</button>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <button type="button" class="btn btn-secondary" onclick="openIdentityQuestions()" title="Répondre aux questions de profil sur la personne (Classe 0 - Identité)">
+              <span>✍️</span> Questions Identité (<span id="modalIdentityCompletion">0%</span>)
+            </button>
+            <button type="submit" class="btn btn-primary">Enregistrer la fiche d'identité</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- MODAL 4: CRÉER / MODIFIER QUESTION -->
+  <div class="modal-backdrop" id="modalEditQuestion" style="display:none;">
+    <div class="modal-window modal-lg">
+      <div class="modal-header">
+        <div>
+          <h3><span id="editQModalTitle">Modifier la question</span> <span id="editQIdBadge" class="badge-tag">#0</span></h3>
+          <p class="modal-desc" id="editQModalDesc">Modifiez l'intitulé, la thématique, le sujet, la classe, le type, la cible et les réponses possibles de cette question.</p>
+        </div>
+        <button class="modal-close" onclick="closeModals()">&times;</button>
+      </div>
+      <form id="formEditQuestion">
+        <input type="hidden" id="editQId">
+        <div class="form-row">
+          <div class="form-group col">
+            <label for="editQThematiqueSelect">Thématique *</label>
+            <select id="editQThematiqueSelect" class="form-control" onchange="onEditQThematiqueSelectChange()">
+              <!-- Injecté dynamiquement par JS -->
+            </select>
+            <input type="text" id="editQThematiqueCustom" class="form-control" placeholder="Saisir une nouvelle thématique..." style="display:none; margin-top:6px;">
+            <input type="hidden" id="editQThematique">
+          </div>
+          <div class="form-group col">
+            <label for="editQSujetSelect">Sujet *</label>
+            <select id="editQSujetSelect" class="form-control" onchange="onEditQSujetSelectChange()">
+              <!-- Injecté dynamiquement selon la thématique choisie -->
+            </select>
+            <input type="text" id="editQSujetCustom" class="form-control" placeholder="Saisir un nouveau sujet..." style="display:none; margin-top:6px;">
+            <input type="hidden" id="editQSujet">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group col">
+            <label for="editQType">Type de question *</label>
+            <select id="editQType" class="form-control" onchange="toggleConfigReponsesSection()">
+              <option value="M">M - Multi-Axes (Vécu, Actuel, Découverte, Partage)</option>
+              <option value="G">G - Goûts unique (1 à 5, 9: Pas du tout)</option>
+              <option value="P">P - Précis (Identité : + sur moi)</option>
+              <option value="T">T - Tolérance (Identité : + sur l'autre)</option>
+            </select>
+          </div>
+          <div class="form-group col">
+            <label for="editQClasse">Classe *</label>
+            <select id="editQClasse" class="form-control" onchange="toggleConfigReponsesSection()">
+              <option value="0">0 - Non définies</option>
+              <option value="1">1 - Standards / Ordinaires</option>
+              <option value="2">2 - Personnelles</option>
+              <option value="3">3 - Intimes</option>
+              <option value="4">4 - Privées</option>
+              <option value="5">5 - Hors normes / A caractère sexuel</option>
+              <option value="8">8 - Identité</option>
+              <option value="9">9 - Amorales / Interdits / Fantasmes</option>
+            </select>
+          </div>
+          <div class="form-group col">
+            <label for="editQCible">Cible *</label>
+            <select id="editQCible" class="form-control">
+              <option value="0">0 - Mixte (Tous)</option>
+              <option value="1">1 - Homme</option>
+              <option value="2">2 - Femme</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="editQTexte">Intitulé complet de la question *</label>
+          <textarea id="editQTexte" class="form-control" rows="3" required placeholder="Saisissez l'intitulé complet de la question..."></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="editQNQuestLie">Question parente liée (N_QUEST_LIE)</label>
+          <select id="editQNQuestLie" class="form-control">
+            <option value="0">0 - Aucune (Question principale indépendante)</option>
+          </select>
+          <small style="color:var(--text-dim); font-size:11.5px; display:block; margin-top:4px;">
+            Permet de définir cette question comme sous-question d'une question principale (ex: "Boire du vin rouge" rattachée à "Boire du vin").
+          </small>
+        </div>
+
+        <!-- SECTION CONFIGURATION ADAPTATIVE DES RÉPONSES SELON LE TYPE DE QUESTION -->
+        <div id="sectionConfigReponses" style="background:rgba(255,255,255,0.03); border:1px solid rgba(56,189,248,0.3); border-radius:10px; padding:14px; margin-bottom:16px;">
+          <!-- 1. Bloc informatif Type M (Multi-Axes) -->
+          <div id="infoTypeMulti" style="display:none;">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+              <span style="font-size:18px;">🧭</span>
+              <strong style="color:var(--accent-cyan); font-size:13px;">Gestion des Réponses : Type M &bull; Multi-Axes</strong>
+            </div>
+            <p style="font-size:12.5px; color:#94a3b8; margin:0; line-height:1.4;">
+              Cette question utilise automatiquement la grille d'évaluation à <strong>4 curseurs indépendants (Vécu, Actuel, Découverte, Partage)</strong> gradués de 0 (Nul / Jamais) à 3 (Intensément / Totalement).
+            </p>
+          </div>
+
+          <!-- 2. Bloc informatif Type G (Goûts) -->
+          <div id="infoTypeGouts" style="display:none;">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+              <span style="font-size:18px;">⭐</span>
+              <strong style="color:var(--accent-cyan); font-size:13px;">Gestion des Réponses : Type G &bull; Goûts Unique</strong>
+            </div>
+            <p style="font-size:12.5px; color:#94a3b8; margin:0; line-height:1.4;">
+              Cette question utilise automatiquement l'échelle standard d'appréciation des goûts : <strong>1 (Pas du tout) à 5 (Passionnément)</strong>, avec le code <strong>9 (Rejet / Jamais)</strong>.
+            </p>
+          </div>
+
+          <!-- 3. Bloc interactif Type P (Précis) et Type T (Tolérance) -->
+          <div id="boxConfigIdentityAnswers" style="display:none;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span id="configIdentityIcon" style="font-size:16px;">👤</span>
+                <strong id="configIdentityTitle" style="color:var(--accent-cyan); font-size:13px;">Gestion des Réponses Précises : Type P (+ sur moi)</strong>
+              </div>
+              <div style="display:flex; gap:14px; font-size:12px; background:rgba(0,0,0,0.2); padding:4px 10px; border-radius:6px;">
+                <label style="cursor:pointer; display:flex; align-items:center; gap:5px;">
+                  <input type="radio" name="reponseMode" value="numeric" id="modeReponseNumeric" onchange="switchReponseMode('numeric')">
+                  <span id="labelModeNumeric">Valeur numérique</span>
+                </label>
+                <label style="cursor:pointer; display:flex; align-items:center; gap:5px;">
+                  <input type="radio" name="reponseMode" value="select" id="modeReponseSelect" checked onchange="switchReponseMode('select')">
+                  <span id="labelModeSelect">Liste de choix</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Configuration Mode Numérique -->
+            <div id="configModeNumeric" style="display:none;">
+              <div class="form-row">
+                <div class="form-group col">
+                  <label for="cfgNumericUnit">Unité de mesure (ex: cm, kg, ans)</label>
+                  <input type="text" id="cfgNumericUnit" class="form-control" placeholder="ex: cm">
+                </div>
+                <div class="form-group col">
+                  <label for="cfgNumericMin" id="lblCfgNumericMin">Valeur Min</label>
+                  <input type="number" id="cfgNumericMin" class="form-control" placeholder="ex: 100">
+                </div>
+                <div class="form-group col">
+                  <label for="cfgNumericMax" id="lblCfgNumericMax">Valeur Max</label>
+                  <input type="number" id="cfgNumericMax" class="form-control" placeholder="ex: 230">
+                </div>
+                <div class="form-group col">
+                  <label for="cfgNumericStep">Pas d'incrément</label>
+                  <input type="number" id="cfgNumericStep" class="form-control" value="1" step="0.1">
+                </div>
+              </div>
+            </div>
+
+            <!-- Configuration Mode Liste de Choix -->
+            <div id="configModeSelect">
+              <label for="cfgSelectOptions" id="lblCfgSelectOptions" style="font-size:12px; margin-bottom:4px; display:block; color:var(--text-dim);">
+                Options possibles pour la réponse (saisir une option par ligne) :
+              </label>
+              <textarea id="cfgSelectOptions" class="form-control" rows="4" placeholder="Option 1&#10;Option 2&#10;Option 3&#10;Option 4..."></textarea>
+              <div id="hintModeSelectT" style="display:none; font-size:11.5px; color:#a855f7; margin-top:4px;">
+                💡 Pour le Type T, l'utilisateur pourra cocher plusieurs options et disposera automatiquement d'une case « Indifférent ».
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer" style="justify-content: space-between;">
+          <button type="button" class="btn btn-outline" style="color:var(--accent-pink); border-color:rgba(255,51,102,0.3);" id="btnDeleteQuestion">
+            <span>🗑️</span> Supprimer la question
+          </button>
+          <div style="display:flex; gap:10px;">
+            <button type="button" class="btn btn-outline" onclick="closeModals()">Annuler</button>
+            <button type="submit" class="btn btn-primary" id="btnSubmitQuestionForm">Enregistrer les modifications</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 5: GESTION DU PÉRIMÈTRE QUESTIONNAIRES PAR PROFIL (ADMIN) -->
+  <div class="modal-backdrop" id="modalProfileQuestionAccess" style="display:none;">
+    <div class="modal-window modal-lg">
+      <div class="modal-header">
+        <div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="role-badge admin" style="font-size:11px;">👑 Administration</span>
+            <span id="pqaModalProfileBadge" class="badge-tag">Profil</span>
+          </div>
+          <h3 style="margin-top:6px;">Périmètre Questionnaires : <span id="pqaModalPseudo" style="color:var(--accent-cyan);">-</span></h3>
+          <p class="modal-desc">Définissez précisément les jeux (packs), les classes et les types de questions autorisés pour ce profil.</p>
+        </div>
+        <button class="modal-close" onclick="closeModals()">&times;</button>
+      </div>
+
+      <form id="formProfileQuestionAccess">
+        <input type="hidden" id="pqaProfileId">
+
+        <!-- 1. JEUX DE QUESTIONS (PACKS) -->
+        <div class="pqa-config-box">
+          <div class="pqa-config-header">
+            <div>
+              <div class="pqa-title-row">
+                <span class="pqa-step-num">1</span>
+                <h4>Jeux de questions autorisés (Packs)</h4>
+              </div>
+              <p class="pqa-sub">Sélectionnez les jeux que ce profil est habilité à remplir.</p>
+            </div>
+            <div class="pqa-quick-actions">
+              <button type="button" class="btn-xs btn-outline" onclick="pqaSelectAllPacks(true)">Tous</button>
+              <button type="button" class="btn-xs btn-outline" onclick="pqaSelectAllPacks(false)">Aucun</button>
+            </div>
+          </div>
+          <div id="pqaPacksContainer" class="pqa-items-grid">
+            <!-- Rempli dynamiquement par JS -->
+          </div>
+        </div>
+
+        <!-- 2. CLASSES DE QUESTIONS -->
+        <div class="pqa-config-box">
+          <div class="pqa-config-header">
+            <div>
+              <div class="pqa-title-row">
+                <span class="pqa-step-num">2</span>
+                <h4>Classes de questions autorisées</h4>
+              </div>
+              <p class="pqa-sub">Filtrez les niveaux de sensibilité (ex: restreindre aux classes Standards pour les profils restreints).</p>
+            </div>
+            <div class="pqa-quick-actions">
+              <button type="button" class="btn-xs btn-outline" onclick="pqaSelectAllClasses(true)">Toutes</button>
+              <button type="button" class="btn-xs btn-outline" onclick="pqaSelectStandardsOnly()">Standards uniquement</button>
+            </div>
+          </div>
+          <div id="pqaClassesContainer" class="pqa-classes-grid">
+            <label class="pqa-check-item">
+              <input type="checkbox" name="pqaClasse" value="1" checked onchange="updatePqaPreview()">
+              <span class="pqa-check-label">
+                <span class="badge-tag classe" style="background:rgba(16,185,129,0.15); color:#34d399; border-color:rgba(16,185,129,0.3);">1 - Standards</span>
+                <span class="pqa-desc-mini">Activité, culture, habitudes de vie</span>
+              </span>
+            </label>
+            <label class="pqa-check-item">
+              <input type="checkbox" name="pqaClasse" value="2" checked onchange="updatePqaPreview()">
+              <span class="pqa-check-label">
+                <span class="badge-tag classe" style="background:rgba(59,130,246,0.15); color:#60a5fa; border-color:rgba(59,130,246,0.3);">2 - Personnelles</span>
+                <span class="pqa-desc-mini">Ressenti individuel et aspirations</span>
+              </span>
+            </label>
+            <label class="pqa-check-item">
+              <input type="checkbox" name="pqaClasse" value="3" checked onchange="updatePqaPreview()">
+              <span class="pqa-check-label">
+                <span class="badge-tag classe" style="background:rgba(236,72,153,0.15); color:#f472b6; border-color:rgba(236,72,153,0.3);">3 - Intimes</span>
+                <span class="pqa-desc-mini">Complicité, sentiments profonds</span>
+              </span>
+            </label>
+            <label class="pqa-check-item">
+              <input type="checkbox" name="pqaClasse" value="4" checked onchange="updatePqaPreview()">
+              <span class="pqa-check-label">
+                <span class="badge-tag classe" style="background:rgba(168,85,247,0.15); color:#c084fc; border-color:rgba(168,85,247,0.3);">4 - Privées</span>
+                <span class="pqa-desc-mini">Confidences et jardin secret</span>
+              </span>
+            </label>
+            <label class="pqa-check-item">
+              <input type="checkbox" name="pqaClasse" value="5" checked onchange="updatePqaPreview()">
+              <span class="pqa-check-label">
+                <span class="badge-tag classe" style="background:rgba(239,68,68,0.15); color:#f87171; border-color:rgba(239,68,68,0.3);">5 - A caractère sexuel</span>
+                <span class="pqa-desc-mini">Sensualité, vie intime de couple</span>
+              </span>
+            </label>
+            <label class="pqa-check-item">
+              <input type="checkbox" name="pqaClasse" value="9" checked onchange="updatePqaPreview()">
+              <span class="pqa-check-label">
+                <span class="badge-tag classe" style="background:rgba(245,158,11,0.15); color:#fbbf24; border-color:rgba(245,158,11,0.3);">9 - Interdits / Fantasmes</span>
+                <span class="pqa-desc-mini">Limites, tabous et fantasmes</span>
+              </span>
+            </label>
+            <label class="pqa-check-item">
+              <input type="checkbox" name="pqaClasse" value="0" checked onchange="updatePqaPreview()">
+              <span class="pqa-check-label">
+                <span class="badge-tag classe" style="background:rgba(148,163,184,0.15); color:#cbd5e1; border-color:rgba(148,163,184,0.3);">0 - Non définies</span>
+                <span class="pqa-desc-mini">Questions générales sans classification</span>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Synthèse dynamique du volume de questions éligibles -->
+        <div class="pqa-summary-banner">
+          <div class="pqa-sum-left">
+            <span class="pqa-sum-icon">📊</span>
+            <div>
+              <span class="pqa-sum-title">Questions accessibles au profil avec ces réglages :</span>
+              <div class="pqa-sum-details" id="pqaSummaryText">Calcul en cours...</div>
+            </div>
+          </div>
+          <div class="pqa-sum-counter">
+            <span class="pqa-counter-num" id="pqaCounterNumber">0</span>
+            <span class="pqa-counter-label">questions actives</span>
+          </div>
+        </div>
+
+        <div class="modal-footer" style="justify-content: space-between;">
+          <button type="button" class="btn btn-outline" onclick="pqaResetDefaultAccess()">
+            <span>🔄</span> Rétablir Accès Total
+          </button>
+          <div style="display:flex; gap:10px;">
+            <button type="button" class="btn btn-outline" onclick="closeModals()">Annuler</button>
+            <button type="submit" class="btn btn-primary">
+              <span>💾</span> Enregistrer le Périmètre
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL IDENTITÉ DECK: + SUR VOUS & + SUR L'AUTRE (CLASSE 8 - IDENTITÉ) -->
+  <div class="modal-backdrop" id="modalIdentityDeck" style="display:none;">
+    <div class="modal-window modal-xl identity-deck-window">
+      <div class="modal-header identity-deck-header">
+        <div class="deck-header-info">
+          <div class="deck-title-row">
+            <span class="deck-icon">💎</span>
+            <h3 id="identityDeckTitle">Profil & Caractéristiques (+ sur moi / + sur l'autre)</h3>
+          </div>
+          <div class="deck-tabs-nav">
+            <button type="button" class="deck-tab-btn active" id="btnTabIdentitySelf" onclick="switchIdentityDeckTab('self')">
+              <span>👤 + sur moi</span>
+              <span class="deck-tab-badge" id="deckBadgeSelf">0%</span>
+            </button>
+            <button type="button" class="deck-tab-btn" id="btnTabIdentityPartner" onclick="switchIdentityDeckTab('partner')">
+              <span>👥 + sur l'autre</span>
+              <span class="deck-tab-badge" id="deckBadgePartner">0%</span>
+            </button>
+          </div>
+        </div>
+        <button type="button" class="modal-close" onclick="closeModals()">&times;</button>
+      </div>
+
+      <!-- Bandeau explicatif contextuel selon l'onglet actif -->
+      <div class="deck-intro-banner" id="deckIntroBanner">
+        <!-- Rempli dynamiquement en JS -->
+      </div>
+
+      <!-- Liste scrollable des questions de classe 8 (Identité) -->
+      <div class="deck-questions-container" id="identityDeckQuestionsContainer">
+        <!-- Cartes de questions injectées par JS -->
+      </div>
+
+      <div class="modal-footer identity-deck-footer">
+        <div class="deck-footer-status">
+          <span id="deckFooterSummary">0 / 16 questions renseignées</span>
+        </div>
+        <button type="button" class="btn btn-primary" onclick="closeModals()">
+          <span>✓</span> Enregistrer & Fermer
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 5B: DÉTAIL INFORMATIF D'UN NIVEAU & CLASSE DE QUESTIONS (SANS ACTION) -->
+  <div class="modal-backdrop" id="modalClasseDetail" style="display:none;">
+    <div class="modal-window modal-lg">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <span style="font-size:26px;">🏷️</span>
+          <div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <h3 id="mclClasseTitle" style="margin:0;">Niveau & Classe de questions</h3>
+              <span id="mclClasseStatusBadge" class="badge-tag">Accès</span>
+            </div>
+            <p class="modal-desc" style="margin:3px 0 0 0;">Visualisation synthétique des thématiques et des questions répondues pour cette classe (consultation pure sans action).</p>
+          </div>
+        </div>
+        <button class="modal-close" onclick="closeModals()">&times;</button>
+      </div>
+
+      <!-- Métriques globales de la classe -->
+      <div class="mcl-summary-banner">
+        <div class="mcl-stat-box">
+          <span class="mcl-stat-val" id="mclTotalQuestions">0</span>
+          <span class="mcl-stat-lbl">Questions au total</span>
+        </div>
+        <div class="mcl-stat-box">
+          <span class="mcl-stat-val" id="mclAnsweredQuestions">0</span>
+          <span class="mcl-stat-lbl">Questions répondues</span>
+        </div>
+        <div class="mcl-stat-box">
+          <span class="mcl-stat-val" id="mclCompletionPct">0%</span>
+          <span class="mcl-stat-lbl">Taux de réponse</span>
+        </div>
+      </div>
+
+      <!-- Liste des thématiques contenues dans cette classe -->
+      <div class="mcl-themes-section">
+        <div class="mth-sec-header">
+          <h4>Thématiques présentes dans cette classe</h4>
+          <span class="text-dim-sm">Nombre de questions contenues et niveau de complétion</span>
+        </div>
+        <div class="mcl-themes-list" id="mclThemesList">
+          <!-- Rempli dynamiquement par JS -->
+        </div>
+      </div>
+
+      <div class="modal-footer" style="justify-content: flex-end;">
+        <button type="button" class="btn btn-secondary" onclick="closeModals()">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 6: DÉTAIL D'UNE THÉMATIQUE & DÉBRANCHEMENT VERS QUESTIONNAIRE -->
+  <div class="modal-backdrop" id="modalThematiqueDetail" style="display:none;">
+    <div class="modal-window modal-lg">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <span style="font-size:26px;">📁</span>
+          <div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <h3 id="mthThematiqueTitle" style="margin:0;">Thématique</h3>
+              <span id="mthCoverageBadge" class="badge-tag">0/0 sujets</span>
+            </div>
+            <p class="modal-desc" style="margin:3px 0 0 0;">Consultez les sujets, sollicitez l'ouverture ou le retrait, et renseignez directement vos réponses.</p>
+          </div>
+        </div>
+        <button class="modal-close" onclick="closeModals()">&times;</button>
+      </div>
+
+      <!-- Bannière Débranchement vers Questionnaire -->
+      <div class="mth-cta-banner">
+        <div class="mth-cta-left">
+          <strong>✍️ Prêt(e) à répondre à cette thématique ?</strong>
+          <span>Basculez directement sur le questionnaire filtré sur cette thématique pour renseigner vos réponses V-A-D-P & Goûts.</span>
+        </div>
+        <button type="button" class="btn btn-primary btn-glow" id="mthBtnGoAnswer">
+          <span>✍️</span> Renseigner les réponses ➔
+        </button>
+      </div>
+
+      <!-- Section des sujets de la thématique -->
+      <div class="mth-subjects-section">
+        <div class="mth-sec-header">
+          <h4>Sujets & Périmètres de cette thématique</h4>
+          <span class="text-dim-sm">Coche verte = débloqué (cliquez pour demander le retrait) | Cadenas = bloqué (cliquez pour demander l'accès)</span>
+        </div>
+        <div class="mth-subjects-grid" id="mthSubjectsGrid">
+          <!-- Rempli dynamiquement par JS -->
+        </div>
+      </div>
+
+      <div class="modal-footer" style="justify-content: space-between;">
+        <button type="button" class="btn btn-outline" onclick="closeModals()">Fermer</button>
+        <button type="button" class="btn btn-secondary" id="mthBtnGoAnswerFooter">
+          <span>✍️</span> Renseigner cette thématique ➔
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Toast -->
+  <div id="toastNotification" class="toast-card"></div>
+
+  <!-- Datalist globale pour les pays reconnus -->
+  <datalist id="listCountries">
+    <option value="France">
+    <option value="Belgique">
+    <option value="Suisse">
+    <option value="Luxembourg">
+    <option value="Monaco">
+    <option value="Canada">
+    <option value="Espagne">
+    <option value="Italie">
+    <option value="Allemagne">
+    <option value="Royaume-Uni">
+    <option value="Portugal">
+    <option value="Pays-Bas">
+    <option value="Irlande">
+    <option value="Grèce">
+    <option value="Suède">
+    <option value="Norvège">
+    <option value="Danemark">
+    <option value="Finlande">
+    <option value="Autriche">
+    <option value="Pologne">
+    <option value="Roumanie">
+    <option value="République Tchèque">
+    <option value="Hongrie">
+    <option value="Maroc">
+    <option value="Algérie">
+    <option value="Tunisie">
+    <option value="Sénégal">
+    <option value="Côte d'Ivoire">
+    <option value="Cameroun">
+    <option value="Madagascar">
+    <option value="Maurice">
+    <option value="Mali">
+    <option value="Guinée">
+    <option value="Togo">
+    <option value="Bénin">
+    <option value="Gabon">
+    <option value="Congo">
+    <option value="Liban">
+    <option value="Égypte">
+    <option value="Turquie">
+    <option value="Israël">
+    <option value="Émirats Arabes Unis">
+    <option value="États-Unis">
+    <option value="Mexique">
+    <option value="Brésil">
+    <option value="Argentine">
+    <option value="Colombie">
+    <option value="Chili">
+    <option value="Chine">
+    <option value="Japon">
+    <option value="Corée du Sud">
+    <option value="Inde">
+    <option value="Vietnam">
+    <option value="Thaïlande">
+    <option value="Australie">
+    <option value="Nouvelle-Zélande">
+    <option value="Russie">
+    <option value="Ukraine">
+  </datalist>
+
+  <script src="app.js"></script>
+</body>
+</html>

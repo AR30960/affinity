@@ -1,0 +1,706 @@
+[
+  {
+    "id": 80001,
+    "pack_id": 1,
+    "cible": 0,
+    "classe": 8,
+    "thematique": "Identité",
+    "sujet": "Identité",
+    "type": "P",
+    "texte": "Quelle est votre stature et taille exacte en centimètres ?",
+    "config": {
+      "mode": "numeric",
+      "unit": "cm",
+      "min": 100,
+      "max": 230,
+      "step": 1,
+      "default_min": 150,
+      "default_max": 190,
+      "dimension": "Taille"
+    }
+  },
+  {
+    "id": 80002,
+    "pack_id": 1,
+    "cible": 0,
+    "classe": 8,
+    "thematique": "Identité",
+    "sujet": "Identité",
+    "type": "P",
+    "texte": "Quel est votre poids de forme actuel en kilogrammes ?",
+    "config": {
+      "mode": "numeric",
+      "unit": "kg",
+      "min": 35,
+      "max": 200,
+      "step": 1,
+      "default_min": 50,
+      "default_max": 90,
+      "dimension": "Poids"
+    }
+  },
+  {
+    "id": 80003,
+    "pack_id": 1,
+    "cible": 0,
+    "classe": 8,
+    "thematique": "Identité",
+    "sujet": "Identité",
+    "type": "P",
+    "texte": "Comment décrivez-vous votre morphologie et silhouette générale ?",
+    "config": {
+      "mode": "select",
+      "dimension": "Silhouette",
+      "options": [
+        "Mince / Fine",
+        "Athlétique / Sportive",
+        "Élancée",
+        "Normale / Équilibrée",
+        "Enrobée / Ronde",
+        "Musclée",
+        "Forte / Corpulente"
+      ]
+    }
+  },
+  {
+    "id": 80004,
+    "pack_id": 1,
+    "cible": 0,
+    "classe": 8,
+    "thematique": "Identité",
+    "sujet": "Identité",
+    "type": "P",
+    "texte": "Quel est votre tour de poitrine (mensuration) en centimètres ?",
+    "config": {
+      "mode": "numeric",
+      "unit": "cm",
+      "min": 50,
+      "max": 160,
+      "step": 1,
+      "default_min": 75,
+      "default_max": 110,
+      "dimension": "Tour de poitrine"
+    }
+  },
+  {
+    "id": 80005,
+    "pack_id": 1,
+    "cible": 2,
+    "classe": 8,
+    "thematique": "Identité",
+    "sujet": "Identité",
+    "type": "P",
+    "texte": "Quelle est la taille de votre bonnet de poitrine ?",
+    "config": {
+      "mode": "select",
+      "dimension": "Bonnet de poitrine",
+      "options": [
+        "Bonnet A",
+        "Bonnet B",
+        "Bonnet C",
+        "Bonnet D",
+        "Bonnet E",
+        "Bonnet F ou plus"
+      ]
+    }
+  },
+  {
+    "id": 80006,
+    "pack_id": 1,
+    "cible": 0,
+    "classe": 8,
+    "thematique": "Identité",
+    "sujet": "Identité",
+    "type": "P",
+    "texte": "Quel est votre tour de taille (mensuration) en centimètres ?",
+    "config": {
+      "mode": "numeric",
+      "unit": "cm",
+      "min": 40,
+      "max": 150,
+      "step": 1,
+      "default_min": 60,
+      "default_max": 95,
+      "dimension": "Tour de taille"
+    }
+  },
+  {
+    "id": 80007,
+    "pack_id": 1,
+    "cible": 0,
+    "classe": 8,
+    "thematique": "Identité",
+    "sujet": "Identité",
+    "type": "P",
+    "texte": "Quel est votre tour de hanches (mensuration) en centimètres ?",
+    "config": {
+      "mode": "numeric",
+      "unit": "cm",
+      "min": 50,
+      "max": 160,
+      "step": 1,
+      "default_min": 75,
+      "default_max": 115,
+      "dimension": "Tour de hanches"
+    }
+  },
+  {
+    "id": 80008,
+    "pack_id": 1,
+    "cible": 0,
+    "classe": 8,
+    "thematique": "Identité",
+    "sujet": "Identité",
+    "type": "P",
+    "texte": "Quelle est votre pointure de chaussures habituelle ?",
+    "config": {
+      "mode": "numeric",
+      "unit": "",
+      "min": 32,
+      "max": 50,
+      "step": 0.5,
+      "default_min": 36,
+      "default_max": 45,
+      "dimension": "Pointure"
+    }
+  },
+  {
+    "id": 80009,
+    "pack_id": 1,
+    "cible": 0,
+    "classe": 8,
+    "thematique": "Identité",
+    "sujet": "Identité",
+    "type": "P",
+    "texte": "Quelle est la couleur naturelle dominante de vos yeux ?",
+    "config": {
+      "mode": "select",
+      "dimension": "Couleur des yeux",
+      "options": [
+        "Bleus",
+        "Verts",
+        "Marrons",
+        "Noirs",
+        "Noisette",
+        "Gris",
+        "Vairons"
+      ]
+    }
+  },
+  {
+    "id": 80010,
+    "pack_id": 1,
+    "cible": 0,
+    "classe": 8,
+    "thematique": "Identité",
+    "sujet": "Identité",
+    "type": "P",
+    "texte": "Quelle est votre couleur de cheveux actuelle ?",
+    "config": {
+      "mode": "select",
+      "dimension": "Couleur des cheveux",
+      "options": [
+        "Bruns",
+        "Noirs",
+        "Châtains",
+        "Blonds",
+        "Roux",
+        "Gris / Poivre et sel",
+        "Blancs",
+        "Chauve / Rasé",
+        "Colorés / Fantaisie"
+      ]
+    }
+  },
+  {
+    "id": 80011,
+    "pack_id": 1,
+    "cible": 0,
+    "classe": 8,
+    "thematique": "Identité",
+    "sujet": "Identité",
+    "type": "P",
+    "texte": "Quelle est la longueur habituelle de votre chevelure ?",
+    "config": {
+      "mode": "select",
+      "dimension": "Longueur des cheveux",
+      "options": [
+        "Très courts / Rasés",
+        "Courts",
+        "Mi-longs",
+        "Longs",
+        "Très longs"
+      ]
+    }
+  },
+  {
+    "id": 80012,
+    "pack_id": 1,
+    "cible": 1,
+    "classe": 8,
+    "thematique": "Identité",
+    "sujet": "Identité",
+    "type": "P",
+    "texte": "Quel est votre style de pilosité faciale habituel (barbe/moustache) ?",
+    "config": {
+      "mode": "select",
+      "dimension": "Pilosité faciale & Barbe",
+      "options": [
+        "Rasé de près",
+        "Barbe de 3 jours",
+        "Barbe courte soignée",
+        "Barbe sculptée",
+        "Barbe longue / Fournie",
+        "Moustache",
+        "Bouc"
+      ]
+    }
+  },
+  {
+    "id": 80013,
+    "pack_id": 1,
+    "cible": 0,
+    "classe": 8,
+    "thematique": "Identité",
+    "sujet": "Identité",
+    "type": "P",
+    "texte": "Quel style vestimentaire et allure définissent le mieux votre quotidien ?",
+    "config": {
+      "mode": "select",
+      "dimension": "Style vestimentaire & Allure",
+      "options": [
+        "Décontracté / Casual",
+        "Élégant / Soigné",
+        "Chic / Habillé",
+        "Sportswear / Athlétique",
+        "Urbain / Streetwear",
+        "Bohème / Romantique",
+        "Classique / Intemporel",
+        "Rock / Alternatif",
+        "Minimaliste",
+        "Autre / Éclectique"
+      ]
+    }
+  },
+  {
+    "id": 80014,
+    "pack_id": 1,
+    "cible": 0,
+    "classe": 8,
+    "thematique": "Identité",
+    "sujet": "Identité",
+    "type": "P",
+    "texte": "Quelles sont vos principales origines culturelles et géographiques ?",
+    "config": {
+      "mode": "select",
+      "dimension": "Origines culturelles & géographiques",
+      "options": [
+        "Caucasien(ne) / Européen(ne)",
+        "Méditerranéen(ne)",
+        "Maghrébin(ne) / Nord-Africain(ne)",
+        "Africain(ne) / Subsaharien(ne)",
+        "Asiatique (Est-Asiatique)",
+        "Sud-Asiatique / Indien(ne)",
+        "Proche & Moyen-Orient",
+        "Latino-Américain(ne) / Hispanique",
+        "Métis(se) / Multiculturel(le)",
+        "Autre"
+      ]
+    }
+  },
+  {
+    "id": 80015,
+    "pack_id": 1,
+    "cible": 0,
+    "classe": 8,
+    "thematique": "Identité",
+    "sujet": "Identité",
+    "type": "P",
+    "texte": "Quel est votre rythme de vie prédominant au quotidien ?",
+    "config": {
+      "mode": "select",
+      "dimension": "Rythme de vie",
+      "options": [
+        "Matinal(e) & Lève-tôt",
+        "Nocturne / Couche-tard",
+        "Dynamique & Très actif",
+        "Calme, Posé & Régulier",
+        "Casanier & Tranquille",
+        "Spontané & Imprévisible"
+      ]
+    }
+  },
+  {
+    "id": 80016,
+    "pack_id": 1,
+    "cible": 0,
+    "classe": 8,
+    "thematique": "Identité",
+    "sujet": "Identité",
+    "type": "P",
+    "texte": "Dans quel cadre de vie vous épanouissez-vous le plus ?",
+    "config": {
+      "mode": "select",
+      "dimension": "Cadre de vie",
+      "options": [
+        "Grande métropole animée",
+        "Ville moyenne à taille humaine",
+        "Bord de mer / Littoral",
+        "Campagne & Pleine nature",
+        "Montagne"
+      ]
+    }
+  },
+  {
+    "id": 85001,
+    "pack_id": 1,
+    "cible": 0,
+    "classe": 8,
+    "thematique": "Identité",
+    "sujet": "Identité",
+    "type": "T",
+    "texte": "Quelles sont vos tolérances de taille (stature) chez l'autre ?",
+    "config": {
+      "mode": "numeric",
+      "unit": "cm",
+      "min": 100,
+      "max": 230,
+      "step": 1,
+      "default_min": 150,
+      "default_max": 190,
+      "dimension": "Taille"
+    }
+  },
+  {
+    "id": 85002,
+    "pack_id": 1,
+    "cible": 0,
+    "classe": 8,
+    "thematique": "Identité",
+    "sujet": "Identité",
+    "type": "T",
+    "texte": "Quelles sont vos limites de poids de forme acceptées chez l'autre ?",
+    "config": {
+      "mode": "numeric",
+      "unit": "kg",
+      "min": 35,
+      "max": 200,
+      "step": 1,
+      "default_min": 50,
+      "default_max": 90,
+      "dimension": "Poids"
+    }
+  },
+  {
+    "id": 85003,
+    "pack_id": 1,
+    "cible": 0,
+    "classe": 8,
+    "thematique": "Identité",
+    "sujet": "Identité",
+    "type": "T",
+    "texte": "Quelles silhouettes appréciez-vous ou tolérez-vous chez l'autre ?",
+    "config": {
+      "mode": "select",
+      "dimension": "Silhouette",
+      "options": [
+        "Mince / Fine",
+        "Athlétique / Sportive",
+        "Élancée",
+        "Normale / Équilibrée",
+        "Enrobée / Ronde",
+        "Musclée",
+        "Forte / Corpulente"
+      ]
+    }
+  },
+  {
+    "id": 85004,
+    "pack_id": 1,
+    "cible": 0,
+    "classe": 8,
+    "thematique": "Identité",
+    "sujet": "Identité",
+    "type": "T",
+    "texte": "Quelles sont vos tolérances de tour de poitrine chez l'autre ?",
+    "config": {
+      "mode": "numeric",
+      "unit": "cm",
+      "min": 50,
+      "max": 160,
+      "step": 1,
+      "default_min": 75,
+      "default_max": 110,
+      "dimension": "Tour de poitrine"
+    }
+  },
+  {
+    "id": 85005,
+    "pack_id": 1,
+    "cible": 2,
+    "classe": 8,
+    "thematique": "Identité",
+    "sujet": "Identité",
+    "type": "T",
+    "texte": "Quels bonnets de poitrine appréciez-vous ou tolérez-vous chez une partenaire ?",
+    "config": {
+      "mode": "select",
+      "dimension": "Bonnet de poitrine",
+      "options": [
+        "Bonnet A",
+        "Bonnet B",
+        "Bonnet C",
+        "Bonnet D",
+        "Bonnet E",
+        "Bonnet F ou plus"
+      ]
+    }
+  },
+  {
+    "id": 85006,
+    "pack_id": 1,
+    "cible": 0,
+    "classe": 8,
+    "thematique": "Identité",
+    "sujet": "Identité",
+    "type": "T",
+    "texte": "Quelles sont vos tolérances de tour de taille chez l'autre ?",
+    "config": {
+      "mode": "numeric",
+      "unit": "cm",
+      "min": 40,
+      "max": 150,
+      "step": 1,
+      "default_min": 60,
+      "default_max": 95,
+      "dimension": "Tour de taille"
+    }
+  },
+  {
+    "id": 85007,
+    "pack_id": 1,
+    "cible": 0,
+    "classe": 8,
+    "thematique": "Identité",
+    "sujet": "Identité",
+    "type": "T",
+    "texte": "Quelles sont vos tolérances de tour de hanches chez l'autre ?",
+    "config": {
+      "mode": "numeric",
+      "unit": "cm",
+      "min": 50,
+      "max": 160,
+      "step": 1,
+      "default_min": 75,
+      "default_max": 115,
+      "dimension": "Tour de hanches"
+    }
+  },
+  {
+    "id": 85008,
+    "pack_id": 1,
+    "cible": 0,
+    "classe": 8,
+    "thematique": "Identité",
+    "sujet": "Identité",
+    "type": "T",
+    "texte": "Quelle plage de pointure tolérez-vous chez l'autre ?",
+    "config": {
+      "mode": "numeric",
+      "unit": "",
+      "min": 32,
+      "max": 50,
+      "step": 0.5,
+      "default_min": 36,
+      "default_max": 45,
+      "dimension": "Pointure"
+    }
+  },
+  {
+    "id": 85009,
+    "pack_id": 1,
+    "cible": 0,
+    "classe": 8,
+    "thematique": "Identité",
+    "sujet": "Identité",
+    "type": "T",
+    "texte": "Quelles couleurs d'yeux appréciez-vous particulièrement chez l'autre ?",
+    "config": {
+      "mode": "select",
+      "dimension": "Couleur des yeux",
+      "options": [
+        "Bleus",
+        "Verts",
+        "Marrons",
+        "Noirs",
+        "Noisette",
+        "Gris",
+        "Vairons"
+      ]
+    }
+  },
+  {
+    "id": 85010,
+    "pack_id": 1,
+    "cible": 0,
+    "classe": 8,
+    "thematique": "Identité",
+    "sujet": "Identité",
+    "type": "T",
+    "texte": "Quelles teintes de cheveux préférez-vous ou acceptez-vous chez l'autre ?",
+    "config": {
+      "mode": "select",
+      "dimension": "Couleur des cheveux",
+      "options": [
+        "Bruns",
+        "Noirs",
+        "Châtains",
+        "Blonds",
+        "Roux",
+        "Gris / Poivre et sel",
+        "Blancs",
+        "Chauve / Rasé",
+        "Colorés / Fantaisie"
+      ]
+    }
+  },
+  {
+    "id": 85011,
+    "pack_id": 1,
+    "cible": 0,
+    "classe": 8,
+    "thematique": "Identité",
+    "sujet": "Identité",
+    "type": "T",
+    "texte": "Quelles longueurs de cheveux préférez-vous chez l'autre ?",
+    "config": {
+      "mode": "select",
+      "dimension": "Longueur des cheveux",
+      "options": [
+        "Très courts / Rasés",
+        "Courts",
+        "Mi-longs",
+        "Longs",
+        "Très longs"
+      ]
+    }
+  },
+  {
+    "id": 85012,
+    "pack_id": 1,
+    "cible": 1,
+    "classe": 8,
+    "thematique": "Identité",
+    "sujet": "Identité",
+    "type": "T",
+    "texte": "Quel type de barbe ou pilosité faciale préférez-vous chez un homme ?",
+    "config": {
+      "mode": "select",
+      "dimension": "Pilosité faciale & Barbe",
+      "options": [
+        "Rasé de près",
+        "Barbe de 3 jours",
+        "Barbe courte soignée",
+        "Barbe sculptée",
+        "Barbe longue / Fournie",
+        "Moustache",
+        "Bouc"
+      ]
+    }
+  },
+  {
+    "id": 85013,
+    "pack_id": 1,
+    "cible": 0,
+    "classe": 8,
+    "thematique": "Identité",
+    "sujet": "Identité",
+    "type": "T",
+    "texte": "Quels styles vestimentaires appréciez-vous chez votre partenaire ?",
+    "config": {
+      "mode": "select",
+      "dimension": "Style vestimentaire & Allure",
+      "options": [
+        "Décontracté / Casual",
+        "Élégant / Soigné",
+        "Chic / Habillé",
+        "Sportswear / Athlétique",
+        "Urbain / Streetwear",
+        "Bohème / Romantique",
+        "Classique / Intemporel",
+        "Rock / Alternatif",
+        "Minimaliste",
+        "Autre / Éclectique"
+      ]
+    }
+  },
+  {
+    "id": 85014,
+    "pack_id": 1,
+    "cible": 0,
+    "classe": 8,
+    "thematique": "Identité",
+    "sujet": "Identité",
+    "type": "T",
+    "texte": "Quelles origines culturelles êtes-vous prêt(e) à découvrir chez l'autre ?",
+    "config": {
+      "mode": "select",
+      "dimension": "Origines culturelles & géographiques",
+      "options": [
+        "Caucasien(ne) / Européen(ne)",
+        "Méditerranéen(ne)",
+        "Maghrébin(ne) / Nord-Africain(ne)",
+        "Africain(ne) / Subsaharien(ne)",
+        "Asiatique (Est-Asiatique)",
+        "Sud-Asiatique / Indien(ne)",
+        "Proche & Moyen-Orient",
+        "Latino-Américain(ne) / Hispanique",
+        "Métis(se) / Multiculturel(le)",
+        "Autre"
+      ]
+    }
+  },
+  {
+    "id": 85015,
+    "pack_id": 1,
+    "cible": 0,
+    "classe": 8,
+    "thematique": "Identité",
+    "sujet": "Identité",
+    "type": "T",
+    "texte": "Quel rythme de vie recherchez-vous ou tolérez-vous chez l'autre ?",
+    "config": {
+      "mode": "select",
+      "dimension": "Rythme de vie",
+      "options": [
+        "Matinal(e) & Lève-tôt",
+        "Nocturne / Couche-tard",
+        "Dynamique & Très actif",
+        "Calme, Posé & Régulier",
+        "Casanier & Tranquille",
+        "Spontané & Imprévisible"
+      ]
+    }
+  },
+  {
+    "id": 85016,
+    "pack_id": 1,
+    "cible": 0,
+    "classe": 8,
+    "thematique": "Identité",
+    "sujet": "Identité",
+    "type": "T",
+    "texte": "Quel cadre de vie partagé envisagez-vous avec l'autre ?",
+    "config": {
+      "mode": "select",
+      "dimension": "Cadre de vie",
+      "options": [
+        "Grande métropole animée",
+        "Ville moyenne à taille humaine",
+        "Bord de mer / Littoral",
+        "Campagne & Pleine nature",
+        "Montagne"
+      ]
+    }
+  }
+]

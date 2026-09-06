@@ -1,0 +1,25 @@
+# Environnement virtuel Python et outils locaux
+.agents/
+.venv/
+env/
+venv/
+ENV/
+
+# Caches Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDE & Éditeurs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Fichiers temporaires et tests locaux
+scratch/
+test_affinity_temp.db
+*.log
+
+# Sauvegardes volumineuses
+Affinity-Full_BACKUP_*.mdb
