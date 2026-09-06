@@ -8,12 +8,46 @@ import urllib.parse
 import math
 import hashlib
 import secrets
+import shutil
 from datetime import datetime, timedelta, timezone
 
 PORT = int(os.environ.get("PORT", 8765))
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.environ.get("AFFINITY_DB_PATH", os.path.join(BASE_DIR, "affinity.db"))
 STATIC_DIR = os.path.join(BASE_DIR, "frontend")
+SEED_DB_PATH = os.path.join(BASE_DIR, "affinity.db")
+
+# Détection automatique du Disque Persistant (Render ou personnalisé)
+# 1. Variable d'environnement explicite AFFINITY_DB_PATH
+# 2. Variable d'environnement AFFINITY_DATA_DIR ou DATA_DIR
+# 3. Points de montage Render standards (/var/data ou /data)
+DATA_DIR = os.environ.get("AFFINITY_DATA_DIR") or os.environ.get("DATA_DIR")
+if not DATA_DIR:
+    if os.path.isdir("/var/data"):
+        DATA_DIR = "/var/data"
+    elif os.path.isdir("/data"):
+        DATA_DIR = "/data"
+
+if os.environ.get("AFFINITY_DB_PATH"):
+    DB_PATH = os.environ.get("AFFINITY_DB_PATH")
+elif DATA_DIR:
+    try:
+        os.makedirs(DATA_DIR, exist_ok=True)
+    except Exception:
+        pass
+    DB_PATH = os.path.join(DATA_DIR, "affinity.db")
+else:
+    DB_PATH = SEED_DB_PATH
+
+# Si un disque persistant externe est configuré et que la base n'existe pas encore,
+# on initialise automatiquement en copiant la base de référence du dépôt
+if DB_PATH != SEED_DB_PATH and not os.path.exists(DB_PATH) and os.path.exists(SEED_DB_PATH):
+    try:
+        shutil.copy2(SEED_DB_PATH, DB_PATH)
+        print(f"[PERSISTENCE] Disque persistant initialisé avec succès : base copiée vers {DB_PATH}")
+    except Exception as err:
+        print(f"[PERSISTENCE] Attention lors de l'initialisation du disque persistant : {err}")
+
+print(f"[DATABASE] Chemin de base actif : {DB_PATH}")
 
 CITY_COORDINATES = {
     "paris": (48.8566, 2.3522),
