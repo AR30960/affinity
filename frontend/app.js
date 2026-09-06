@@ -287,16 +287,16 @@ function checkProfileCompleteness() {
   if (missing.length === 0 && identityComplete) {
     banner.className = 'ckp-completeness-status complete';
     if (iconEl) iconEl.textContent = '✅';
-    if (titleEl) titleEl.textContent = 'Fiche complète';
+    if (titleEl) titleEl.textContent = 'Profil complété';
     if (descEl) {
       descEl.textContent = '';
-      descEl.style.display = 'none'; // Pas de texte superflu sous Fiche complète
+      descEl.style.display = 'none'; // Pas de texte superflu sous Profil complété
     }
     if (tooltipWrap) tooltipWrap.style.display = 'none';
   } else {
     banner.className = 'ckp-completeness-status incomplete';
     if (iconEl) iconEl.textContent = '⚠️';
-    if (titleEl) titleEl.textContent = 'Fiche incomplète';
+    if (titleEl) titleEl.textContent = 'Profil à compléter';
     if (tooltipWrap) tooltipWrap.style.display = 'inline-flex';
     if (descEl) {
       descEl.style.display = 'block';
@@ -963,8 +963,8 @@ function initEventListeners() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(bodyData)
       });
-      if (!res.ok) { const errD = await res.json().catch(() => ({})); throw new Error(errD.error || 'Erreur lors de la sauvegarde de la fiche d\'identité'); }
-      showToast('Fiche d\'identité mise à jour avec succès !');
+      if (!res.ok) { const errD = await res.json().catch(() => ({})); throw new Error(errD.error || 'Erreur lors de la sauvegarde du profil'); }
+      showToast('Profil mis à jour avec succès !');
       closeModals();
       await loadProfiles();
       updateActiveProfileWidget();
@@ -977,7 +977,7 @@ function initEventListeners() {
     }
   });
 
-  // Formulaire Cockpit Direct (Fiche d'identité avec boutons Enregistrer en haut et en bas)
+  // Formulaire Mon Profil Direct (Boutons Enregistrer en haut et en bas)
   const formDirect = document.getElementById('formDirectCockpit');
   if (formDirect) {
     formDirect.addEventListener('submit', async (e) => {
@@ -993,9 +993,13 @@ function initEventListeners() {
 
       const sitFamille = document.getElementById('ckpSelectSituationFamille')?.value.trim() || '';
       const rechercheDe = document.getElementById('ckpSelectRecherche')?.value.trim() || '';
+      const habPays = document.getElementById('ckpHabitePays')?.value.trim() || 'France';
+      const habDept = (document.getElementById('ckpHabiteRegionSelect')?.value.trim() || document.getElementById('ckpHabiteRegionText')?.value.trim() || document.getElementById('ckpHabiteRegion')?.value.trim() || '');
+      const userEmail = (document.getElementById('ckpInputEmail')?.value || '').trim();
 
       const bodyData = {
         pseudo: document.getElementById('ckpInputPseudo')?.value.trim() || undefined,
+        email: userEmail,
         prenom: document.getElementById('ckpInputPrenom')?.value.trim() || '',
         nom: document.getElementById('ckpInputNom')?.value.trim() || '',
         sexe: parseInt(document.getElementById('ckpSelectSexe')?.value, 10) || 0,
@@ -1019,9 +1023,9 @@ function initEventListeners() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(bodyData)
         });
-        if (!res.ok) { const errD = await res.json().catch(() => ({})); throw new Error(errD.error || 'Erreur lors de la sauvegarde de la fiche d\'identité'); }
+        if (!res.ok) { const errD = await res.json().catch(() => ({})); throw new Error(errD.error || 'Erreur lors de la sauvegarde du profil'); }
         
-        showToast('✔ Fiche d\'identité enregistrée avec succès !');
+        showToast('✔ Mon Profil enregistré avec succès !');
         if (feedback) {
           feedback.textContent = '✔ Modifications enregistrées avec succès !';
           setTimeout(() => { feedback.textContent = ''; }, 3500);
@@ -1120,20 +1124,7 @@ function initEventListeners() {
   document.getElementById('bankFilterClasse')?.addEventListener('change', () => renderQuestionsTable());
   document.getElementById('bankFilterCible')?.addEventListener('change', () => renderQuestionsTable());
   document.getElementById('bankFilterHierarchie')?.addEventListener('change', () => renderQuestionsTable());
-  document.getElementById('btnResetBankFilters')?.addEventListener('click', () => {
-    const sInput = document.getElementById('bankSearchInput');
-    if (sInput) sInput.value = '';
-    const bThema = document.getElementById('bankFilterThematique');
-    if (bThema) bThema.value = 'ALL';
-    updateBankSujetsDropdown();
-    const bClasse = document.getElementById('bankFilterClasse');
-    if (bClasse) bClasse.value = 'ALL';
-    const bCible = document.getElementById('bankFilterCible');
-    if (bCible) bCible.value = 'ALL';
-    const bHier = document.getElementById('bankFilterHierarchie');
-    if (bHier) bHier.value = 'ALL';
-    renderQuestionsTable();
-  });
+  document.getElementById('btnResetBankFilters')?.addEventListener('click', resetBankFilters);
 
   // Formulaire Création & Modification Question (Admin)
   document.getElementById('formEditQuestion').addEventListener('submit', async (e) => {
@@ -1264,8 +1255,8 @@ function switchTab(tabName) {
   const titles = {
     'dashboard': { title: 'Tableau de bord', sub: 'Aperçu global, dynamique des profils et affinités calculées' },
     'profiles': { 
-      title: isCurrentAdmin() ? 'Gestion des Profils & Fiches' : 'Mon Profil', 
-      sub: isCurrentAdmin() ? 'Enregistrez les identifiants et complétez les fiches obligatoires' : 'Consultez votre fiche, votre identifiant AFF et vos questions autorisées' 
+      title: isCurrentAdmin() ? 'Gestion des Profils' : 'Mon Profil', 
+      sub: isCurrentAdmin() ? 'Supervisez et gérez les comptes membres' : 'Consultez et complétez votre profil, vos informations et vos questions autorisées' 
     },
     'questionnaire': { title: 'Questionnaires', sub: 'Axes Vécu (V), Actuel (A), Découverte (D), Partage (P) et Goûts (G)' },
     'affinity': { title: 'Demande de Match & Radar d\'Affinité', sub: 'Calcul multidimensionnel, synergie croisée et points de fusion' },
@@ -1555,10 +1546,10 @@ function applyRolePermissionsUi() {
     }
   }
 
-  // 2. Renommer l'onglet Profil dans la sidebar : "Profil" pour Invité/Abonné, "Profils & Fiches" pour Admin
+  // 2. Renommer l'onglet Profil dans la sidebar : "Mon Profil" pour Invité/Abonné, "Gestion des Profils" pour Admin
   const navProfilesLabel = document.getElementById('navProfilesLabel');
   if (navProfilesLabel) {
-    navProfilesLabel.textContent = isCurrentAdmin() ? 'Profils & Fiches' : 'Mon Profil';
+    navProfilesLabel.textContent = isCurrentAdmin() ? 'Gestion des Profils' : 'Mon Profil';
   }
 
   // 2b. Cloisonnement de la vue Profils :
@@ -1790,12 +1781,11 @@ function setupAuthListeners() {
     });
   }
 
-  // Inscription (sans sexe ni date de naissance, avec e-mail optionnel)
+  // Inscription rapide (pseudo et mot de passe uniquement)
   if (formRegister) {
     formRegister.addEventListener('submit', async (e) => {
       e.preventDefault();
       const pseudo = document.getElementById('regPseudo').value.trim();
-      const email = (document.getElementById('regEmail')?.value || '').trim();
       const password = document.getElementById('regPassword').value.trim();
       const feedback = document.getElementById('registerFeedback');
       const btnSubmit = document.getElementById('btnSubmitRegister');
@@ -1809,7 +1799,7 @@ function setupAuthListeners() {
         const res = await fetch(`${API_BASE}/api/auth/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pseudo, email, password })
+          body: JSON.stringify({ pseudo, password })
         });
         const data = await res.json();
         if (!res.ok) {
@@ -2072,9 +2062,9 @@ function setActiveProfile(id) {
       if (prof.role === 'admin') {
         statusPill.innerHTML = '<span class="status-dot cyan"></span> Superviseur Système';
       } else if (prof.has_identity) {
-        statusPill.innerHTML = '<span class="status-dot success"></span> Fiche complétée';
+        statusPill.innerHTML = '<span class="status-dot success"></span> Profil complété';
       } else {
-        statusPill.innerHTML = '<span class="status-dot warning"></span> Fiche incomplète';
+        statusPill.innerHTML = '<span class="status-dot warning"></span> Profil à compléter';
       }
     }
 
@@ -2108,7 +2098,7 @@ function updateProfileDropdowns() {
 
   const memberOptionsHtml = memberProfiles.map(p => {
     const roleTag = (p.role === 'subscriber') ? '⭐' : '👤';
-    return `<option value="${p.id}">${roleTag} ${p.pseudo} (${p.prenom || 'Sans fiche'})</option>`;
+    return `<option value="${p.id}">${roleTag} ${p.pseudo} (${p.prenom || 'Profil à compléter'})</option>`;
   }).join('');
 
   if (qSelect) {
@@ -2204,7 +2194,7 @@ function renderProfilesGrid(filter = '') {
               ${roleBadge}
             </div>
             <p style="${isAdmin ? 'color:var(--accent-cyan); font-weight:500;' : ''}">
-              ${isAdmin ? 'Superviseur de la Plateforme Affinity' : (p.prenom ? `${p.prenom} ${p.nom || ''}` : 'Fiche d\'identité non saisie')}
+              ${isAdmin ? 'Superviseur de la Plateforme Affinity' : (p.prenom ? `${p.prenom} ${p.nom || ''}` : 'Profil non complété')}
             </p>
           </div>
         </div>
@@ -2216,20 +2206,20 @@ function renderProfilesGrid(filter = '') {
           </div>
           <div class="profile-status-badge" style="margin-bottom: 14px;">
             ${isReady 
-              ? '<span class="status-badge-live"><span class="status-dot success"></span> Fiche d\'identité Prête</span>' 
-              : '<span class="status-badge-live" style="color:var(--accent-amber)"><span class="status-dot warning"></span> Fiche Incomplète</span>'}
+              ? '<span class="status-badge-live"><span class="status-dot success"></span> Profil complété</span>' 
+              : '<span class="status-badge-live" style="color:var(--accent-amber)"><span class="status-dot warning"></span> Profil à compléter</span>'}
           </div>
         ` : `
           <div class="profile-status-badge" style="margin-bottom: 14px;">
             <span class="status-badge-live" style="color:var(--accent-cyan); background:rgba(0, 242, 254, 0.08); border-color:rgba(0, 242, 254, 0.25);">
-              <span class="status-dot cyan"></span> Compte Administrateur (Pas de fiche requise)
+              <span class="status-dot cyan"></span> Compte Administrateur
             </span>
           </div>
         `}
 
         <div class="profile-actions">
-          <button class="btn btn-sm btn-primary" onclick="openProfileCockpitDirect(${p.id})" title="Ouvrir la fiche complète Cockpit">
-            <span>📋</span> ${isAdmin ? 'Ma Fiche Cockpit' : 'Fiche Cockpit'}
+          <button class="btn btn-sm btn-primary" onclick="openProfileCockpitDirect(${p.id})" title="Consulter et modifier ce profil">
+            <span>👤</span> ${isAdmin ? 'Mon Profil' : 'Voir le Profil'}
           </button>
           <button class="btn btn-sm btn-outline" onclick="openIdentityDeck('self', ${p.id})" title="Répondre à vos caractéristiques personnelles (+ sur moi)">
             <span>👤</span> + sur moi
@@ -2351,6 +2341,8 @@ function renderSingleUserProfile() {
   const fAimePas = document.getElementById('ckpInputAimePasChezMoi');
 
   if (fPseudo) fPseudo.value = p.pseudo || '';
+  const fEmail = document.getElementById('ckpInputEmail');
+  if (fEmail) fEmail.value = p.email || '';
   if (fPrenom) fPrenom.value = p.prenom || '';
   if (fNom) fNom.value = p.nom || '';
   if (fSexe) fSexe.value = p.sexe ?? 0;
@@ -3470,7 +3462,7 @@ function renderDashboardProfiles() {
         <div class="ap-avatar" style="width:30px; height:30px; font-size:12px;">${p.pseudo.charAt(0).toUpperCase()}</div>
         <div>
           <div style="font-size:13.5px; font-weight:600;">${p.pseudo}</div>
-          <div style="font-size:11px; color:var(--text-dim);">${p.prenom ? `${p.prenom} (${p.ville || 'France'})` : 'Sans fiche'}</div>
+          <div style="font-size:11px; color:var(--text-dim);">${p.prenom ? `${p.prenom} (${p.ville || 'France'})` : 'Profil à compléter'}</div>
         </div>
       </div>
       <div>
@@ -3507,11 +3499,11 @@ async function deleteProfileConfirm(id, pseudo) {
   }
 }
 
-// Modal Fiche d'Identité
+// Modal Profil
 async function openIdentityCardModal(profileId) {
   const prof = state.profiles.find(p => p.id === profileId);
   document.getElementById('idProfileId').value = profileId;
-  document.getElementById('modalIdTitle').textContent = `Fiche d'identité de ${prof?.pseudo || 'ce profil'}`;
+  document.getElementById('modalIdTitle').textContent = `Profil de ${prof?.pseudo || 'ce membre'}`;
 
   // Remplir pseudo, email et ID calculé
   const elPseudo = document.getElementById('idPseudo');
@@ -4089,13 +4081,13 @@ function updateAffinitySelectorsStatus() {
 
   if (p1 && stat1) {
     stat1.innerHTML = p1.has_identity 
-      ? '<span class="status-dot success"></span> Fiche d\'identité Complète'
-      : '<span class="status-dot warning"></span> Fiche Incomplète (Obligatoire)';
+      ? '<span class="status-dot success"></span> Profil complété'
+      : '<span class="status-dot warning"></span> Profil à compléter (Obligatoire)';
   }
   if (p2 && stat2) {
     stat2.innerHTML = p2.has_identity 
-      ? '<span class="status-dot success"></span> Fiche d\'identité Complète'
-      : '<span class="status-dot warning"></span> Fiche Incomplète (Obligatoire)';
+      ? '<span class="status-dot success"></span> Profil complété'
+      : '<span class="status-dot warning"></span> Profil à compléter (Obligatoire)';
   }
 }
 
@@ -4158,7 +4150,7 @@ async function updateTargetProfilePreview() {
       }
     } else {
       elDist.className = 'tpc-distance-badge unknown';
-      elDist.innerHTML = `📍 Ville incomplète (renseigner la fiche d'identité)`;
+      elDist.innerHTML = `📍 Ville non renseignée dans le profil`;
     }
   }
 }
@@ -4193,7 +4185,7 @@ async function sendMatchRequest() {
   const p2 = state.profiles.find(p => p.id === p2Id);
 
   if (!p1?.has_identity || !p2?.has_identity) {
-    alert('Les fiches d\'identité des deux membres doivent être complétées avant de pouvoir initier une demande de match.');
+    alert('Le profil des deux membres doit être complété avant de pouvoir initier une demande de match.');
     return;
   }
 
@@ -4493,7 +4485,7 @@ async function computeAffinityAction() {
   const p1 = state.profiles.find(p => p.id === p1Id);
   const p2 = state.profiles.find(p => p.id === p2Id);
   if (p1?.role === 'admin' || p2?.role === 'admin') {
-    alert('Un compte administrateur supervise le système, n\'a pas de fiche d\'identité et ne peut pas participer à un calcul de match.');
+    alert('Un compte administrateur supervise le système et ne participe pas aux calculs de match.');
     return;
   }
 
@@ -5209,7 +5201,7 @@ function showToast(message) {
 // GESTION DE L'ESPACE D'ARBITRAGE DU JEU 3 (PROPOSITIONS EN ATTENTE)
 // ============================================================================
 
-function switchBankView(view) {
+async function switchBankView(view) {
   const activeContainer = document.getElementById('bankViewActiveContainer');
   const arbitrageContainer = document.getElementById('bankViewArbitrageContainer');
   const btnActive = document.getElementById('btnViewBankActive');
@@ -5230,7 +5222,8 @@ function switchBankView(view) {
       btnArbitrage.style.borderColor = 'rgba(245,158,11,0.3)';
       btnArbitrage.style.color = '#f59e0b';
     }
-    renderQuestionsTable();
+    await loadQuestions();
+    resetBankFilters();
   } else if (view === 'arbitrage') {
     if (activeContainer) activeContainer.style.display = 'none';
     if (arbitrageContainer) arbitrageContainer.style.display = 'block';
@@ -5256,8 +5249,25 @@ function switchBankView(view) {
     const fcb = document.getElementById('pendingFilterCible');
     if (fcb) fcb.value = 'ALL';
 
-    loadPendingQuestions();
+    await loadPendingQuestions();
   }
+}
+
+function resetBankFilters() {
+  const sInput = document.getElementById('bankSearchInput');
+  if (sInput) sInput.value = '';
+  const bThema = document.getElementById('bankFilterThematique');
+  if (bThema) bThema.value = 'ALL';
+  updateBankSujetsDropdown();
+  const bSujet = document.getElementById('bankFilterSujet');
+  if (bSujet) bSujet.value = 'ALL';
+  const bClasse = document.getElementById('bankFilterClasse');
+  if (bClasse) bClasse.value = 'ALL';
+  const bCible = document.getElementById('bankFilterCible');
+  if (bCible) bCible.value = 'ALL';
+  const bHier = document.getElementById('bankFilterHierarchie');
+  if (bHier) bHier.value = 'ALL';
+  renderQuestionsTable();
 }
 
 function resetPendingFilters() {
@@ -5494,26 +5504,13 @@ async function handleBatchValidation(action) {
     });
     if (!res.ok) throw new Error('Erreur lors de la validation par lot');
     const data = await res.json();
-    showToast(`🎉 ${data.validated_count} questions validées et activées avec succès !`);
+    const countVal = (data.count !== undefined) ? data.count : (data.validated_count || 0);
+    showToast(`🎉 ${countVal} question(s) validée(s) et activée(s) avec succès !`);
     await loadPendingQuestions();
     await loadQuestions();
   } catch (err) {
     alert(err.message);
   }
-}
-
-function resetPendingFilters() {
-  const sInput = document.getElementById('pendingSearchInput');
-  const cSel = document.getElementById('pendingFilterClasse');
-  const tSel = document.getElementById('pendingFilterType');
-  const cbSel = document.getElementById('pendingFilterCible');
-
-  if (sInput) sInput.value = '';
-  if (cSel) cSel.value = 'ALL';
-  if (tSel) tSel.value = 'ALL';
-  if (cbSel) cbSel.value = 'ALL';
-
-  renderPendingQuestionsTable();
 }
 
 // Exposition globale sur window pour accessibilité universelle

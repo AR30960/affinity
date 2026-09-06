@@ -48,7 +48,7 @@
               <span class="role-badge" id="activeRoleBadge">👤 Invité</span>
             </div>
             <div class="ap-status" id="activeStatusPill">
-              <span class="status-dot warning"></span> Fiche non créée
+              <span class="status-dot warning"></span> Profil à compléter
             </div>
           </div>
         </div>
@@ -61,7 +61,7 @@
         </button>
         <button class="nav-item" data-tab="profiles">
           <span class="nav-icon">👤</span>
-          <span class="nav-label" id="navProfilesLabel">Profils & Fiches</span>
+          <span class="nav-label" id="navProfilesLabel">Mon Profil</span>
         </button>
         <button class="nav-item" data-tab="questionnaire">
           <span class="nav-icon">✍️</span>
@@ -156,7 +156,7 @@
         <div class="hero-banner">
           <div class="hero-text">
             <h2>Bienvenue dans l'univers <span>Affinity</span></h2>
-            <p>Concevez des fiches d'identité complètes, remplissez les axes <strong>Vécu (V), Actuel (A), Découverte (D) et Partage (P)</strong>, et révélez la proximité élective entre profils.</p>
+            <p>Complétez votre profil, répondez aux axes <strong>Vécu (V), Actuel (A), Découverte (D) et Partage (P)</strong>, et révélez la proximité élective entre profils.</p>
             <div class="hero-buttons">
               <button class="btn btn-primary" onclick="switchTab('questionnaire')">Commencer à répondre</button>
               <button class="btn btn-outline" onclick="switchTab('affinity')">Simuler un calcul d'affinité</button>
@@ -195,7 +195,7 @@
             <div class="stat-icon amber">🎯</div>
             <div class="stat-content">
               <div class="stat-value" id="statCardsCount">0</div>
-              <div class="stat-title">Fiches Identité Prêtes</div>
+              <div class="stat-title">Profils Complétés</div>
             </div>
           </div>
         </div>
@@ -247,23 +247,23 @@
           </div>
         </div>
 
-        <!-- Vue 2: Invités et Abonnés (Fiche Compacte Tenant sur un Écran) -->
+        <!-- Vue 2: Mon Profil (Compact et clair, sans notion de fiche) -->
         <div id="singleProfileUserView" class="profile-cockpit-wrapper" style="display:none;">
           
-          <!-- Barre de fermeture / retour pour l'Administrateur qui consulte la fiche -->
+          <!-- Barre de fermeture / retour pour l'Administrateur qui consulte le profil -->
           <div id="ckpAdminExitBar" class="ckp-admin-exit-bar" style="display:none;">
             <div style="display:flex; align-items:center; gap:8px;">
               <span style="font-size:16px;">👑</span>
-              <span class="ckp-admin-exit-text">Mode consultation de la fiche en tant qu'<strong>Administrateur</strong></span>
+              <span class="ckp-admin-exit-text">Mode consultation du profil en tant qu'<strong>Administrateur</strong></span>
             </div>
             <button type="button" class="btn btn-sm btn-secondary" onclick="exitToProfilesList()" style="font-weight:600;">
-              <span>✕</span> Fermer la fiche & Revenir aux profils
+              <span>✕</span> Fermer & Revenir aux profils
             </button>
           </div>
 
           <div class="profile-cockpit-grid">
             
-            <!-- COLONNE GAUCHE : Fiche d'Identité ÉDITABLE DIRECTEMENT -->
+            <!-- COLONNE GAUCHE : Mon Profil ÉDITABLE DIRECTEMENT -->
             <div class="cockpit-card cockpit-left-card">
               <form id="formDirectCockpit" class="ckp-direct-form">
                 <input type="hidden" id="ckpProfileId">
@@ -292,7 +292,7 @@
 
                     <!-- Ligne 3 : Disquette, bouton "+ sur vous" [%] et bouton "+ sur l'autre" [%] sans chevauchement -->
                     <div class="ckp-ordered-line ckp-line-actions">
-                      <button type="submit" id="btnSaveDirectCockpitTop" class="ckp-btn-icon-save" title="Enregistrer la fiche d'identité (icône disquette)" aria-label="Enregistrer la fiche">
+                      <button type="submit" id="btnSaveDirectCockpitTop" class="ckp-btn-icon-save" title="Enregistrer mon profil (icône disquette)" aria-label="Enregistrer mon profil">
                         <span>💾</span>
                       </button>
                       <button type="button" id="btnOpenIdentityQuestionsTop" class="ckp-btn-top-identity" onclick="openIdentityDeck('self')" title="Répondre à vos caractéristiques personnelles (+ sur moi)">
@@ -313,16 +313,16 @@
                   </div>
                 </div>
 
-                <!-- Bannière d'état de complétude de la fiche avec infobulle -->
+                <!-- Bannière d'état de complétude de Mon Profil avec infobulle -->
                 <div id="ckpCompletenessStatus" class="ckp-completeness-status incomplete">
                   <span class="ckp-status-icon" id="ckpStatusIcon">⚠️</span>
                   <div class="ckp-status-content">
                     <div class="ckp-status-title-row">
-                      <strong class="ckp-status-title" id="ckpStatusTitle">Fiche incomplète</strong>
+                      <strong class="ckp-status-title" id="ckpStatusTitle">Profil à compléter</strong>
                       <div class="ckp-tooltip-container" id="ckpTooltipContainer">
                         <span class="ckp-tooltip-trigger" tabindex="0" aria-label="Informations de complétude">ℹ️</span>
                         <div class="ckp-tooltip-bubble" id="ckpTooltipBubble" role="tooltip">
-                          Pour être complète, vous devez renseigner tous les champs obligatoires (*) et répondre à 100% des questions dans « + sur vous » et « + sur l'autre ».
+                          Pour que votre profil soit complété, vous devez renseigner tous les champs obligatoires (*) et répondre à 100% des questions dans « + sur moi » et « + sur l'autre ».
                         </div>
                       </div>
                     </div>
@@ -396,6 +396,14 @@
                         <option value="Je ne sais pas vraiment">Je ne sais pas vraiment</option>
                       </select>
                     </div>
+                    <div class="ckp-form-field" style="grid-column: span 2;">
+                      <label for="ckpInputEmail">Adresse e-mail <span style="font-weight: 400; color: var(--text-muted);">(non obligatoire)</span></label>
+                      <input type="email" id="ckpInputEmail" class="ckp-input" placeholder="exemple@domaine.com" autocomplete="email">
+                      <div style="margin-top: 5px; padding: 6px 10px; background: rgba(245, 158, 11, 0.12); border-left: 3px solid #f59e0b; border-radius: 4px; font-size: 0.76rem; color: #fbbf24; line-height: 1.35;">
+                        ⚠️ <strong>Important</strong> : Si elle n'est pas renseignée = pas de récupération possible en cas de mot de passe oublié, et certaines fonctionnalités de l'application ne pourront pas être activées.
+                      </div>
+                    </div>
+                  </div>
                   </div>
 
                   <!-- J'habite ici -->
@@ -730,7 +738,7 @@
           <div class="lock-badge-tag">Rôle Invité &bull; Accès Restreint</div>
           <h2>Le Calculateur d'Affinité est réservé aux Abonnés</h2>
           <p class="lock-intro">
-            En tant qu'<strong>Invité</strong>, vous pouvez configurer votre profil, renseigner votre fiche d'identité et répondre aux 172 questions de compatibilité.<br>
+            En tant qu'<strong>Invité</strong>, vous pouvez configurer et compléter votre profil et répondre aux 172 questions de compatibilité.<br>
             Pour croiser vos réponses et débloquer les <strong>projections d'affinités électives, le radar multidimensionnel et les points de fusion</strong>, votre compte doit être promu au rôle <strong>Abonné</strong> par un administrateur.
           </p>
 
@@ -840,13 +848,13 @@
             </div>
           </div>
 
-          <!-- Block Alert si fiche non renseignée -->
+          <!-- Block Alert si profil non complété -->
           <div id="affinityRuleAlert" class="affinity-alert-box" style="display:none;">
             <div class="alert-icon">⚠️</div>
             <div class="alert-content">
-              <h4>Fiche d'identité obligatoire pour activer le calcul</h4>
-              <p id="affinityRuleAlertText">Conformément au document de spécification Affinity, les calculs d'affinité ne sont autorisés que si la fiche d'identité des deux profils est renseignée.</p>
-              <button class="btn btn-sm btn-outline" id="btnFixCards">Compléter les fiches d'identité maintenant &rarr;</button>
+              <h4>Profil obligatoire pour activer le calcul</h4>
+              <p id="affinityRuleAlertText">Conformément aux règles d'Affinity, les calculs d'affinité ne sont autorisés que si le profil des deux membres est complété.</p>
+              <button class="btn btn-sm btn-outline" id="btnFixCards">Compléter mon profil maintenant &rarr;</button>
             </div>
           </div>
 
@@ -1125,7 +1133,7 @@
               <div class="phone-content" id="phoneMockupContent">
                 <div class="phone-profile-pill">
                   <span id="phoneActiveName">Alexandre</span>
-                  <span class="mini-tag">Fiche active</span>
+                  <span class="mini-tag">Profil actif</span>
                 </div>
                 <div class="phone-card">
                   <div class="phone-card-title">Questionnaire en cours</div>
@@ -1294,7 +1302,7 @@
               <ul class="role-perks-list">
                 <li><span class="icon-yes">✔</span> <strong>Accès complet au Calculateur d'Affinité V-A-D-P</strong></li>
                 <li><span class="icon-yes">✔</span> Radar psychologique et détection des points de fusion</li>
-                <li><span class="icon-yes">✔</span> Création et personnalisation de sa fiche d'identité</li>
+                <li><span class="icon-yes">✔</span> Personnalisation de son profil</li>
                 <li><span class="icon-yes">✔</span> Réponse aux questionnaires autorisés par l'administrateur</li>
                 <li><span class="icon-no">✖</span> <strong>Pas d'accès à la banque de questions</strong></li>
                 <li><span class="icon-no">✖</span> Pas d'accès à la console d'administration</li>
@@ -1312,7 +1320,7 @@
               <p class="role-desc-text">Rôle attribué par défaut à tout nouvel utilisateur créé.</p>
               <ul class="role-perks-list">
                 <li><span class="icon-yes">✔</span> Création et personnalisation de son propre profil</li>
-                <li><span class="icon-yes">✔</span> Renseignement de sa fiche d'identité obligatoire</li>
+                <li><span class="icon-yes">✔</span> Complétion de son profil obligatoire</li>
                 <li><span class="icon-yes">✔</span> Saisie des réponses aux questionnaires autorisés</li>
                 <li><span class="icon-no">✖</span> <strong>Calculateur d'Affinité verrouillé</strong></li>
                 <li><span class="icon-no">✖</span> <strong>Pas d'accès à la banque de questions</strong></li>
@@ -1351,7 +1359,7 @@
               <p class="role-desc-text">Rôle par défaut attribué à tout nouveau membre.</p>
               <ul class="role-perks-list">
                 <li><span class="icon-yes">✔</span> Accès exclusif à son propre profil personnel</li>
-                <li><span class="icon-yes">✔</span> Renseignement de sa fiche d'identité obligatoire</li>
+                <li><span class="icon-yes">✔</span> Complétion de son profil obligatoire</li>
                 <li><span class="icon-yes">✔</span> Réponse aux questionnaires autorisés dans son périmètre</li>
                 <li><span class="icon-yes">✔</span> Suivi de sa progression par jeu et classe</li>
                 <li><span class="icon-no">✖</span> Pas d'accès aux profils des autres membres</li>
@@ -1387,7 +1395,7 @@
                 <li><span class="icon-yes">✔</span> <strong>Gestion par profil</strong> des jeux et classes autorisés</li>
                 <li><span class="icon-yes">✔</span> <strong>Banque de questions exclusive</strong> : création, édition et suppression</li>
                 <li><span class="icon-yes">✔</span> Lancement de calculs de match entre deux membres abonnés</li>
-                <li><span class="icon-no">✖</span> <strong>Pas de fiche d'identité requise</strong> (rôle neutre de supervision)</li>
+                <li><span class="icon-no">✖</span> <strong>Rôle neutre de supervision</strong> (pas de profil personnel)</li>
                 <li><span class="icon-no">✖</span> <strong>Ne répond pas aux questionnaires personnels</strong></li>
                 <li><span class="icon-no">✖</span> <strong>Non éligible aux matchs</strong> (aucun match avec le profil admin)</li>
               </ul>
@@ -1414,8 +1422,8 @@
             </div>
             <div class="doc-step-box">
               <div class="dsb-num">C</div>
-              <h4>Fiche d'Identité</h4>
-              <p>Votre fiche détaillée (prénom, nom, sexe, date de naissance, ville, statut) est obligatoire pour autoriser le calcul d'affinité, garantissant la fiabilité des résultats.</p>
+              <h4>Mon Profil</h4>
+              <p>Votre profil détaillé (prénom, nom, sexe, date de naissance, lieu de résidence, situation) est obligatoire pour autoriser le calcul d'affinité, garantissant la fiabilité des résultats.</p>
             </div>
           </div>
         </div>
@@ -1484,19 +1492,19 @@
     </div>
   </div>
 
-  <!-- MODAL 2: FICHE D'IDENTITÉ DÉTAILLÉE -->
+  <!-- MODAL 2: INFORMATIONS DU PROFIL DÉTAILLÉES -->
   <div class="modal-backdrop" id="modalIdentityCard" style="display:none;">
     <div class="modal-window modal-lg">
       <div class="modal-header">
         <div>
-          <h3 id="modalIdTitle">Fiche d'identité</h3>
-          <p class="modal-desc">Fiche d'identité du profil Affinity.</p>
+          <h3 id="modalIdTitle">Informations du Profil</h3>
+          <p class="modal-desc">Critères et informations du membre Affinity.</p>
         </div>
         <div style="display:flex; align-items:center; gap:8px;">
           <button type="button" class="btn btn-sm btn-outline" onclick="closeModals()" style="font-size:12px; padding:5px 12px; font-weight:600;">
             ✕ Fermer
           </button>
-          <button class="modal-close" onclick="closeModals()" title="Fermer la fiche">&times;</button>
+          <button class="modal-close" onclick="closeModals()" title="Fermer">&times;</button>
         </div>
       </div>
       <form id="formIdentityCard">
@@ -1711,7 +1719,7 @@
             <button type="button" class="btn btn-secondary" onclick="openIdentityQuestions()" title="Répondre aux questions de profil sur la personne (Classe 0 - Identité)">
               <span>✍️</span> Questions Identité (<span id="modalIdentityCompletion">0%</span>)
             </button>
-            <button type="submit" class="btn btn-primary">Enregistrer la fiche d'identité</button>
+            <button type="submit" class="btn btn-primary">Enregistrer le profil</button>
           </div>
         </div>
       </form>
@@ -2220,15 +2228,6 @@
         <div class="form-group" style="margin-bottom: 14px;">
           <label for="regPseudo" style="display: block; font-size: 0.85rem; margin-bottom: 6px; font-weight: 500;">Votre Pseudo *</label>
           <input type="text" id="regPseudo" class="form-input" placeholder="Ex: Julie, Marc..." required autocomplete="nickname">
-        </div>
-        <div class="form-group" style="margin-bottom: 14px;">
-          <label for="regEmail" style="display: block; font-size: 0.85rem; margin-bottom: 6px; font-weight: 500;">
-            Adresse e-mail <span style="font-weight: 400; color: var(--text-muted);">(non obligatoire)</span>
-          </label>
-          <input type="email" id="regEmail" class="form-input" placeholder="exemple@domaine.com" autocomplete="email">
-          <div style="margin-top: 6px; padding: 8px 10px; background: rgba(245, 158, 11, 0.12); border-left: 3px solid #f59e0b; border-radius: 4px; font-size: 0.76rem; color: #fbbf24; line-height: 1.35;">
-            ⚠️ <strong>Important</strong> : Si elle n'est pas renseignée = pas de récupération possible en cas de mot de passe oublié, et certaines fonctionnalités de l'application ne pourront pas être activées.
-          </div>
         </div>
         <div class="form-group" style="margin-bottom: 20px;">
           <label for="regPassword" style="display: block; font-size: 0.85rem; margin-bottom: 6px; font-weight: 500;">Créer un mot de passe *</label>

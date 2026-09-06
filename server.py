@@ -1646,7 +1646,7 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                            parent.texte as parent_texte,
                            (SELECT COUNT(*) FROM questions sq WHERE sq.n_quest_lie = q.id AND sq.id != q.id) as subquestions_count
                     FROM questions q
-                    JOIN question_packs p ON q.pack_id = p.id
+                    LEFT JOIN question_packs p ON q.pack_id = p.id
                     LEFT JOIN questions parent ON q.n_quest_lie = parent.id AND q.n_quest_lie != 0
                 """
                 if filter_parent is not None:
@@ -1673,7 +1673,7 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                     c.execute("""
                         SELECT q.*, p.nom as pack_nom 
                         FROM questions q
-                        JOIN question_packs p ON q.pack_id = p.id
+                        LEFT JOIN question_packs p ON q.pack_id = p.id
                         WHERE q.status = 'pending_review' AND q.classe = ?
                         ORDER BY q.id ASC
                     """, (int(cl_param),))
@@ -1681,7 +1681,7 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                     c.execute("""
                         SELECT q.*, p.nom as pack_nom 
                         FROM questions q
-                        JOIN question_packs p ON q.pack_id = p.id
+                        LEFT JOIN question_packs p ON q.pack_id = p.id
                         WHERE q.status = 'pending_review'
                         ORDER BY q.classe ASC, q.id ASC
                     """)
