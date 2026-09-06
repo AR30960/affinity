@@ -1237,7 +1237,18 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                 user = self.get_current_user()
                 if not user:
                     return self._send_json({"error": "Non authentifié"}, 401)
-                return self._send_json({"user": user})
+            # Diagnostic et vérification de la persistance de stockage
+            if path == "/api/system/storage":
+                is_persistent = (DB_PATH != SEED_DB_PATH)
+                db_size = os.path.getsize(DB_PATH) if os.path.exists(DB_PATH) else 0
+                return self._send_json({
+                    "database_path": DB_PATH,
+                    "is_persistent_disk": is_persistent,
+                    "database_exists": os.path.exists(DB_PATH),
+                    "database_size_bytes": db_size,
+                    "data_dir": DATA_DIR,
+                    "seed_db_path": SEED_DB_PATH
+                })
 
             conn = get_db()
             c = conn.cursor()
