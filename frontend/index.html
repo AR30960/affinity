@@ -949,25 +949,16 @@
 
         <!-- CONTENEUR 1 : BANQUE ACTIVE (QUESTIONS VALIDÉES) -->
         <div id="bankViewActiveContainer">
-          <!-- BARRE DE FILTRES SUR UNE SEULE LIGNE : Statut -> Jeux -> Classes -> Sujets -> Cible -->
+          <!-- BARRE DE FILTRES SUR UNE SEULE LIGNE : Thématique -> Classes -> Sujets -> Cible -->
           <div class="bank-filters-single-row">
-            <!-- 1. Sélection par boîte d'options : Tous / Répondues / Non répondues -->
+            <!-- 1. Thématique (filtre automatiquement les sujets) -->
             <div class="bank-filter-item">
-              <select id="bankFilterStatus" class="custom-select" onchange="renderQuestionsTable()" title="Filtrer par statut de réponse">
-                <option value="ALL">Toutes les questions</option>
-                <option value="ANSWERED">Répondues</option>
-                <option value="UNANSWERED">Non répondues</option>
+              <select id="bankFilterThematique" class="custom-select" onchange="onBankThematiqueChange()" title="Filtrer par Thématique">
+                <option value="ALL">Toutes les thématiques</option>
               </select>
             </div>
 
-            <!-- 2. Les Jeux -->
-            <div class="bank-filter-item">
-              <select id="bankFilterPack" class="custom-select" onchange="onBankPackChange()" title="Filtrer par Jeu">
-                <option value="ALL">Tous les jeux</option>
-              </select>
-            </div>
-
-            <!-- 3. Les Classes -->
+            <!-- 2. Les Classes -->
             <div class="bank-filter-item">
               <select id="bankFilterClasse" class="custom-select" onchange="renderQuestionsTable()" title="Filtrer par classe">
                 <option value="ALL">Toutes les classes</option>
@@ -982,14 +973,14 @@
               </select>
             </div>
 
-            <!-- 4. Les Sujets -->
+            <!-- 3. Les Sujets (affichés par rapport à la thématique sélectionnée) -->
             <div class="bank-filter-item">
               <select id="bankFilterSujet" class="custom-select" onchange="renderQuestionsTable()" title="Filtrer par sujet">
                 <option value="ALL">Tous les sujets</option>
               </select>
             </div>
 
-            <!-- 5. La Cible -->
+            <!-- 4. La Cible -->
             <div class="bank-filter-item">
               <select id="bankFilterCible" class="custom-select" onchange="renderQuestionsTable()" title="Filtrer par cible">
                 <option value="ALL">Toutes les cibles</option>
@@ -1007,7 +998,7 @@
             <!-- Compteur & Bouton Ajouter Question -->
             <div style="margin-left: auto; display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
               <span id="bankQuestionsCountBadge" class="badge-soft" style="font-size: 12px; padding: 6px 12px; white-space: nowrap;">205 questions</span>
-              <button class="btn btn-primary btn-sm admin-only" id="btnOpenAddQuestion" style="white-space: nowrap; display: none;">
+              <button class="btn btn-primary btn-sm admin-only" id="btnOpenAddQuestion" onclick="openAddQuestionModal()" style="white-space: nowrap; display: none;">
                 <span>+</span> Ajouter une Question
               </button>
             </div>
@@ -1072,7 +1063,7 @@
               </select>
               <select id="pendingFilterType" class="custom-select" style="min-width: 150px;" onchange="renderPendingQuestionsTable()">
                 <option value="ALL">Tous les types</option>
-                <option value="M">Multi-Axes (M)</option>
+                <option value="M">M - Multi-Axes (V, A, D, P)</option>
                 <option value="G">Goût Unique (G)</option>
               </select>
               <select id="pendingFilterCible" class="custom-select" style="min-width: 150px;" onchange="renderPendingQuestionsTable()">
@@ -1140,16 +1131,16 @@
                   <div class="phone-q-text" id="phoneQuestionText">La pratique régulière d'un sport ou d'une activité physique intensive.</div>
                   <div class="phone-buttons-preview">
                     <div class="phone-axis-row">
-                      <span>(V) Vécu :</span> <span class="badge-phone">Très souvent</span>
+                      <span>(V) Le Vécu (Passé) :</span> <span class="badge-phone">Très souvent</span>
                     </div>
                     <div class="phone-axis-row">
-                      <span>(A) Actuel :</span> <span class="badge-phone">Accro</span>
+                      <span>(A) Actuel (Présent) :</span> <span class="badge-phone">Accro</span>
                     </div>
                     <div class="phone-axis-row">
-                      <span>(D) Futur :</span> <span class="badge-phone">Envie</span>
+                      <span>(D) Découverte ou Poursuite (Futur) :</span> <span class="badge-phone">Envie</span>
                     </div>
                     <div class="phone-axis-row">
-                      <span>(P) Partage :</span> <span class="badge-phone">Obligatoire</span>
+                      <span>(P) Partage (Chez la personne qui partage votre quotidien ou chez les autres) :</span> <span class="badge-phone">Obligatoire</span>
                     </div>
                   </div>
                 </div>
@@ -1768,39 +1759,20 @@
       <form id="formEditQuestion">
         <input type="hidden" id="editQId">
 
-        <!-- Structure de la question : Question standard vs Sous-question rattachée -->
-        <div class="form-group" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 12px 14px; margin-bottom: 14px;">
-          <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 8px;">
-            Nature de la question *
-          </label>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-            <label class="q-hierarchy-option" id="optHierarchyMain" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: 6px; cursor: pointer; background: rgba(255,255,255,0.02); transition: all 0.2s ease;">
-              <input type="radio" name="editQHierarchyType" id="hierarchyTypeMain" value="MAIN" onchange="onHierarchyTypeChange()" checked>
-              <div>
-                <strong style="display: block; font-size: 0.86rem;">📌 Question standard</strong>
-                <span style="font-size: 0.75rem; color: var(--text-dim);">Question autonome</span>
-              </div>
-            </label>
-            <label class="q-hierarchy-option" id="optHierarchySub" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: 6px; cursor: pointer; background: rgba(255,255,255,0.02); transition: all 0.2s ease;">
-              <input type="radio" name="editQHierarchyType" id="hierarchyTypeSub" value="SUB" onchange="onHierarchyTypeChange()">
-              <div>
-                <strong style="display: block; font-size: 0.86rem;">📎 Sous-question</strong>
-                <span style="font-size: 0.75rem; color: var(--text-dim);">Précise une question existante</span>
-              </div>
-            </label>
-          </div>
+        <input type="hidden" id="editQNQuestLie" value="0">
 
-          <!-- Sélecteur de la question parente liée (affiché uniquement si sous-question) -->
-          <div id="boxEditQNQuestLie" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border-subtle);">
-            <label for="editQNQuestLie" style="font-size: 0.82rem; font-weight: 600; color: #38bdf8;">
-              Question à préciser (N_QUEST_LIE) *
+        <!-- Liste des questions attachées à cette question -->
+        <div id="boxEditQAttachedList" style="display: none; background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 12px 14px; margin-bottom: 14px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+            <label style="font-size: 0.85rem; font-weight: 700; color: #38bdf8; margin: 0; display: flex; align-items: center; gap: 6px;">
+              <span>📎</span> Questions attachées (<span id="countEditQAttached">0</span>)
             </label>
-            <select id="editQNQuestLie" class="form-control" onchange="onEditQNQuestLieChange()" style="margin-top: 4px;">
-              <option value="0">-- Sélectionner la question --</option>
-            </select>
-            <div id="inheritFeedback" style="display: none; margin-top: 6px; font-size: 0.78rem; color: #34d399;">
-              ✓ Jeu, thématique, sujet et classe automatiquement hérités de la question d'origine.
-            </div>
+            <button type="button" class="btn btn-sm btn-outline" id="btnModalAddAttached" style="font-size: 11px; padding: 3px 8px; color: #38bdf8; border-color: rgba(56,189,248,0.4);">
+              + Ajouter une question attachée
+            </button>
+          </div>
+          <div id="listEditQAttachedItems" style="display: flex; flex-direction: column; gap: 6px;">
+            <!-- Injecté dynamiquement par JS -->
           </div>
         </div>
 
@@ -1827,7 +1799,7 @@
           <div class="form-group col">
             <label for="editQType">Type de question *</label>
             <select id="editQType" class="form-control" onchange="toggleConfigReponsesSection()">
-              <option value="M">M - Multi-Axes (Vécu, Actuel, Découverte, Partage)</option>
+              <option value="M">M - (V) Le Vécu (Passé), (A) Actuel (Présent), (D) Découverte ou Poursuite (Futur), (P) Partage (Chez la personne qui partage votre quotidien ou chez les autres)</option>
               <option value="G">G - Goûts unique (1 à 5, 9: Pas du tout)</option>
               <option value="P">P - Précis (Identité : + sur moi)</option>
               <option value="T">T - Tolérance (Identité : + sur l'autre)</option>
@@ -1862,30 +1834,8 @@
         </div>
 
         <!-- SECTION CONFIGURATION ADAPTATIVE DES RÉPONSES SELON LE TYPE DE QUESTION -->
-        <div id="sectionConfigReponses" style="background:rgba(255,255,255,0.03); border:1px solid rgba(56,189,248,0.3); border-radius:10px; padding:14px; margin-bottom:16px;">
-          <!-- 1. Bloc informatif Type M (Multi-Axes) -->
-          <div id="infoTypeMulti" style="display:none;">
-            <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
-              <span style="font-size:18px;">🧭</span>
-              <strong style="color:var(--accent-cyan); font-size:13px;">Gestion des Réponses : Type M &bull; Multi-Axes</strong>
-            </div>
-            <p style="font-size:12.5px; color:#94a3b8; margin:0; line-height:1.4;">
-              Cette question utilise automatiquement la grille d'évaluation à <strong>4 curseurs indépendants (Vécu, Actuel, Découverte, Partage)</strong> gradués de 0 (Nul / Jamais) à 3 (Intensément / Totalement).
-            </p>
-          </div>
-
-          <!-- 2. Bloc informatif Type G (Goûts) -->
-          <div id="infoTypeGouts" style="display:none;">
-            <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
-              <span style="font-size:18px;">⭐</span>
-              <strong style="color:var(--accent-cyan); font-size:13px;">Gestion des Réponses : Type G &bull; Goûts Unique</strong>
-            </div>
-            <p style="font-size:12.5px; color:#94a3b8; margin:0; line-height:1.4;">
-              Cette question utilise automatiquement l'échelle standard d'appréciation des goûts : <strong>1 (Pas du tout) à 5 (Passionnément)</strong>, avec le code <strong>9 (Rejet / Jamais)</strong>.
-            </p>
-          </div>
-
-          <!-- 3. Bloc interactif Type P (Précis) et Type T (Tolérance) -->
+        <div id="sectionConfigReponses" style="background:rgba(255,255,255,0.03); border:1px solid rgba(56,189,248,0.3); border-radius:10px; padding:14px; margin-bottom:16px; display:none;">
+          <!-- Bloc interactif Type P (Précis) et Type T (Tolérance) -->
           <div id="boxConfigIdentityAnswers" style="display:none;">
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
               <div style="display:flex; align-items:center; gap:6px;">

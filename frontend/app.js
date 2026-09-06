@@ -1151,9 +1151,8 @@ function initEventListeners() {
     btnAddQ.addEventListener('click', openAddQuestionModal);
   }
 
-  // Filtres de la banque de questions (sur une seule ligne : Statut, Jeux, Classes, Sujets, Cible)
-  document.getElementById('bankFilterStatus')?.addEventListener('change', () => renderQuestionsTable());
-  document.getElementById('bankFilterPack')?.addEventListener('change', () => onBankPackChange());
+  // Filtres de la banque de questions (sur une seule ligne : Thématique, Classes, Sujets, Cible)
+  document.getElementById('bankFilterThematique')?.addEventListener('change', () => onBankThematiqueChange());
   document.getElementById('bankFilterClasse')?.addEventListener('change', () => renderQuestionsTable());
   document.getElementById('bankFilterSujet')?.addEventListener('change', () => renderQuestionsTable());
   document.getElementById('bankFilterCible')?.addEventListener('change', () => renderQuestionsTable());
@@ -4094,8 +4093,8 @@ function renderQuestionsDeck() {
           </div>
 
           <div class="axis-row">
-            <div class="axis-label-col">
-              <span class="axis-tag">P</span> Partage (Chez l'autre)
+            <div class="axis-label-col" style="min-width: 200px; width: auto;">
+              <span class="axis-tag">P</span> (P) Partage (Chez la personne qui partage votre quotidien ou chez les autres)
             </div>
             <div class="btn-scale-group">
               ${scalesDP.map(s => `
@@ -4841,44 +4840,39 @@ function renderRadarChart(thematiques) {
 // ============================================================================
 
 function populateBankFilters() {
-  // 1. Remplissage des Jeux (Packs)
-  const packSelect = document.getElementById('bankFilterPack');
-  if (packSelect) {
-    const prevPack = packSelect.value || 'ALL';
-    let packsList = (state.packs && state.packs.length > 0) ? state.packs : [];
-    if (packsList.length === 0 && state.questions.length > 0) {
-      const packIds = Array.from(new Set(state.questions.map(q => q.pack_id).filter(Boolean))).sort((a, b) => a - b);
-      packsList = packIds.map(pid => {
-        const qSample = state.questions.find(q => q.pack_id === pid);
-        return { id: pid, nom: qSample?.pack_nom || `Jeu ${pid}` };
-      });
-    }
+  // 1. Remplissage des Thématiques
+  const themaSelect = document.getElementById('bankFilterThematique');
+  if (themaSelect) {
+    const prevThema = themaSelect.value || 'ALL';
+    const thematiques = Array.from(new Set(state.questions.map(q => q.thematique).filter(Boolean))).sort();
 
-    packSelect.innerHTML = `<option value="ALL">Tous les jeux (${packsList.length})</option>` +
-      packsList.map(pk => `<option value="${pk.id}">${escapeHtml(pk.nom)}</option>`).join('');
+    themaSelect.innerHTML = `<option value="ALL">Toutes les thématiques (${thematiques.length})</option>` +
+      thematiques.map(th => `<option value="${escapeHtml(th)}">${escapeHtml(th)}</option>`).join('');
 
-    if (prevPack === 'ALL' || packsList.some(pk => String(pk.id) === String(prevPack))) {
-      packSelect.value = prevPack;
+    if (prevThema === 'ALL' || thematiques.includes(prevThema)) {
+      themaSelect.value = prevThema;
     } else {
-      packSelect.value = 'ALL';
+      themaSelect.value = 'ALL';
     }
   }
 
-  // 2. Remplissage des Sujets
+  // 2. Remplissage des Sujets (filtrés par thématique ou tous)
   updateBankSujetsDropdown();
 }
 
 function updateBankSujetsDropdown() {
-  const packSelect = document.getElementById('bankFilterPack');
+  const themaSelect = document.getElementById('bankFilterThematique');
   const sujetSelect = document.getElementById('bankFilterSujet');
   if (!sujetSelect) return;
 
   const prevSujet = sujetSelect.value || 'ALL';
-  const currentPack = packSelect ? packSelect.value : 'ALL';
+  const currentThema = themaSelect ? themaSelect.value : 'ALL';
 
-  const filteredQuestions = (currentPack === 'ALL')
+  // Si pas de thématique sélectionnée -> afficher tous les sujets
+  // Si thématique sélectionnée -> afficher uniquement les sujets attachés à cette thématique
+  const filteredQuestions = (currentThema === 'ALL')
     ? state.questions
-    : state.questions.filter(q => String(q.pack_id) === String(currentPack));
+    : state.questions.filter(q => String(q.thematique) === String(currentThema));
 
   const sujets = Array.from(new Set(filteredQuestions.map(q => q.sujet).filter(Boolean))).sort();
   sujetSelect.innerHTML = `<option value="ALL">Tous les sujets (${sujets.length})</option>` +
@@ -4891,11 +4885,11 @@ function updateBankSujetsDropdown() {
   }
 }
 
-function onBankPackChange() {
+function onBankThematiqueChange() {
   updateBankSujetsDropdown();
   renderBankDeck();
 }
-window.onBankPackChange = onBankPackChange;
+window.onBankThematiqueChange = onBankThematiqueChange;
 
 // Gestion du pliage / dépliage des sous-questions dans la banque de questions
 function toggleBankSubquestions(mainQId) {
@@ -4904,18 +4898,18 @@ function toggleBankSubquestions(mainQId) {
   if (!wrap) return;
 
   const count = wrap.getAttribute('data-count') || '';
-  const isHidden = (wrap.style.display === 'none' || !wrap.style.display);
+  const isHidden = (wrap.style.display === 'none');
 
   if (isHidden) {
     wrap.style.display = 'block';
     if (btn) {
-      btn.innerHTML = `<span style="font-weight:bold; font-size:14px;">▼</span> Masquer sous-questions (${count})`;
+      btn.innerHTML = `<span style="font-weight:bold; font-size:14px;">▼</span> Masquer questions attachées (${count})`;
       btn.style.background = 'rgba(56,189,248,0.15)';
     }
   } else {
     wrap.style.display = 'none';
     if (btn) {
-      btn.innerHTML = `<span style="font-weight:bold; font-size:14px;">+</span> Sous-questions (${count})`;
+      btn.innerHTML = `<span style="font-weight:bold; font-size:14px;">+</span> Voir questions attachées (${count})`;
       btn.style.background = 'transparent';
     }
   }
@@ -4931,7 +4925,7 @@ function renderBankSubCard(sq) {
 
   const isMulti = (sq.type === 'M' || sq.type === 'MULTI');
   const typeBadgeHtml = isMulti
-    ? '<span class="badge-tag type">Multi-Axes (V-A-D-P)</span>'
+    ? '<span class="badge-tag type" title="(V) Le Vécu (Passé)&#10;(A) Actuel (Présent)&#10;(D) Découverte ou Poursuite (Futur)&#10;(P) Partage (Chez la personne qui partage votre quotidien ou chez les autres)">Multi-Axes (V-A-D-P)</span>'
     : (sq.type === 'G' 
         ? '<span class="badge-tag type">Goût (G)</span>' 
         : (sq.type === 'P' ? '<span class="badge-tag type" style="background:#0284c7; color:#fff;">Précis (P)</span>' : '<span class="badge-tag type">Standard</span>'));
@@ -4942,24 +4936,18 @@ function renderBankSubCard(sq) {
         ? '<span class="badge-tag" style="background:rgba(56,189,248,0.15); color:#38bdf8;">Homme (1)</span>'
         : '<span class="badge-tag" style="background:rgba(236,72,153,0.15); color:#f472b6;">Femme (2)</span>');
 
-  const isAnswered = isQuestionAnswered(sq);
-  const statusBadge = isAnswered
-    ? '<span class="badge-tag" style="background: rgba(52,211,153,0.15); color: #34d399; border: 1px solid rgba(52,211,153,0.3);">✓ Répondue</span>'
-    : '<span class="badge-tag" style="background: rgba(148,163,184,0.12); color: #94a3b8;">Non répondue</span>';
-
   return `
     <div class="question-card is-subquestion" id="bank-qcard-${sq.id}">
       <div class="q-card-header">
         <div class="q-badge-group">
-          <span class="badge-tag">#${sq.id} &bull; ${escapeHtml(sq.sujet || '')}</span>
+          <span class="badge-tag">#${sq.id} &bull; ${escapeHtml(sq.thematique || '')} &bull; ${escapeHtml(sq.sujet || '')}</span>
           <span class="badge-tag classe">${classeLabels[sq.classe] || `Classe ${sq.classe}`}</span>
           ${typeBadgeHtml}
           ${cibleBadgeHtml}
-          ${statusBadge}
         </div>
         <div>
           ${isCurrentAdmin() ? `
-            <button class="btn btn-sm btn-outline" onclick="openEditQuestionModal(${sq.id})" title="Modifier cette sous-question" style="font-size: 11.5px; padding: 4px 9px;">
+            <button class="btn btn-sm btn-outline" onclick="openEditQuestionModal(${sq.id})" title="Modifier cette question attachée" style="font-size: 11.5px; padding: 4px 9px;">
               ✏️ Modifier
             </button>
           ` : ''}
@@ -4978,31 +4966,22 @@ function renderBankDeck() {
   if (!deck) return;
 
   try {
-    // 5 Filtres sur une seule ligne dans l'ordre demandé
-    // 1. Tous / Répondues / Non répondues
-    const filterStatus = document.getElementById('bankFilterStatus')?.value || 'ALL';
-    // 2. Les Jeux
-    const filterPack = document.getElementById('bankFilterPack')?.value || 'ALL';
-    // 3. Les Classes
+    // 4 Filtres sur une seule ligne : Thématique -> Classes -> Sujets -> Cible
+    const filterThema = document.getElementById('bankFilterThematique')?.value || 'ALL';
     const filterClasse = document.getElementById('bankFilterClasse')?.value || 'ALL';
-    // 4. Les Sujets
     const filterSujet = document.getElementById('bankFilterSujet')?.value || 'ALL';
-    // 5. La Cible
     const filterCible = document.getElementById('bankFilterCible')?.value || 'ALL';
 
     const questionsList = Array.isArray(state.questions) ? state.questions : [];
 
     const filtered = questionsList.filter(q => {
-      // 1. Statut (Tous / Répondues / Non répondues)
-      if (filterStatus === 'ANSWERED' && !isQuestionAnswered(q)) return false;
-      if (filterStatus === 'UNANSWERED' && isQuestionAnswered(q)) return false;
-      // 2. Jeu
-      if (filterPack !== 'ALL' && String(q.pack_id) !== String(filterPack)) return false;
-      // 3. Classe
+      // 1. Thématique
+      if (filterThema !== 'ALL' && String(q.thematique) !== String(filterThema)) return false;
+      // 2. Classe
       if (filterClasse !== 'ALL' && String(q.classe) !== String(filterClasse)) return false;
-      // 4. Sujet
+      // 3. Sujet
       if (filterSujet !== 'ALL' && String(q.sujet) !== String(filterSujet)) return false;
-      // 5. Cible
+      // 4. Cible
       if (filterCible !== 'ALL' && String(q.cible) !== String(filterCible)) return false;
 
       return true;
@@ -5018,7 +4997,7 @@ function renderBankDeck() {
         <div class="empty-state" style="padding: 40px 20px; text-align: center; background: var(--bg-card); border-radius: var(--radius-md); border: 1px dashed var(--border-subtle);">
           <span style="font-size: 36px; display: block; margin-bottom: 10px;">🔍</span>
           <h4 style="color: var(--text-main); margin-bottom: 6px;">Aucune question trouvée</h4>
-          <p style="color: var(--text-dim); font-size: 13.5px;">Aucune question ne correspond aux filtres sélectionnés.</p>
+          <p style="color: var(--text-dim); font-size: 13.5px;">Aucune question ne correspond aux critères sélectionnés.</p>
         </div>`;
       return;
     }
@@ -5036,16 +5015,16 @@ function renderBankDeck() {
     let deckHtml = '';
 
     mainQuestions.forEach(mainQ => {
-      // Sous-questions attachées à cette question mère
+      // Questions attachées à cette question mère
       const attachedSubs = subQuestions.filter(sq => sq.n_quest_lie === mainQ.id);
       const totalAttachedSubs = questionsList.filter(sq => sq.n_quest_lie === mainQ.id && sq.classe !== 8);
-      const subsToDisplay = attachedSubs.length > 0 ? attachedSubs : (filterStatus === 'ALL' && filterClasse === 'ALL' && filterCible === 'ALL' ? totalAttachedSubs : []);
+      const subsToDisplay = attachedSubs.length > 0 ? attachedSubs : (filterClasse === 'ALL' && filterCible === 'ALL' ? totalAttachedSubs : []);
 
       subsToDisplay.forEach(sq => renderedSubIds.add(sq.id));
 
       const isMulti = (mainQ.type === 'M' || mainQ.type === 'MULTI');
       const typeBadgeHtml = isMulti
-        ? '<span class="badge-tag type">Multi-Axes (V-A-D-P)</span>'
+        ? '<span class="badge-tag type" title="(V) Le Vécu (Passé)&#10;(A) Actuel (Présent)&#10;(D) Découverte ou Poursuite (Futur)&#10;(P) Partage (Chez la personne qui partage votre quotidien ou chez les autres)">Multi-Axes (V-A-D-P)</span>'
         : (mainQ.type === 'G' 
             ? '<span class="badge-tag type">Goût (G)</span>' 
             : (mainQ.type === 'P' ? '<span class="badge-tag type" style="background:#0284c7; color:#fff;">Précis (P)</span>' : '<span class="badge-tag type">Standard</span>'));
@@ -5056,33 +5035,29 @@ function renderBankDeck() {
             ? '<span class="badge-tag" style="background:rgba(56,189,248,0.15); color:#38bdf8;">Homme (1)</span>'
             : '<span class="badge-tag" style="background:rgba(236,72,153,0.15); color:#f472b6;">Femme (2)</span>');
 
-      const isAnswered = isQuestionAnswered(mainQ);
-      const statusBadge = isAnswered
-        ? '<span class="badge-tag" style="background: rgba(52,211,153,0.15); color: #34d399; border: 1px solid rgba(52,211,153,0.3);">✓ Répondue</span>'
-        : '<span class="badge-tag" style="background: rgba(148,163,184,0.12); color: #94a3b8;">Non répondue</span>';
-
-      const packNom = mainQ.pack_nom || (mainQ.pack_id ? `Jeu ${mainQ.pack_id}` : 'Jeu Général');
       const hasSubs = (subsToDisplay.length > 0);
 
       deckHtml += `
         <div class="question-card" id="bank-qcard-${mainQ.id}">
           <div class="q-card-header">
             <div class="q-badge-group">
-              <span class="badge-tag">#${mainQ.id} &bull; ${escapeHtml(packNom)} &bull; ${escapeHtml(mainQ.sujet || '')}</span>
+              <span class="badge-tag">#${mainQ.id} &bull; ${escapeHtml(mainQ.thematique || '')} &bull; ${escapeHtml(mainQ.sujet || '')}</span>
               <span class="badge-tag classe">${classeLabels[mainQ.classe] || `Classe ${mainQ.classe}`}</span>
               ${typeBadgeHtml}
               ${cibleBadgeHtml}
-              ${statusBadge}
             </div>
             <div style="display: flex; align-items: center; gap: 8px;">
               ${isCurrentAdmin() ? `
                 ${hasSubs ? `
-                  <button class="btn btn-sm btn-outline btn-toggle-subs" onclick="toggleBankSubquestions(${mainQ.id})" id="btn-toggle-subs-${mainQ.id}" title="Voir et modifier les sous-questions" style="color: #38bdf8; border-color: rgba(56,189,248,0.4); font-size: 12px; font-weight: 600; padding: 5px 11px; display: inline-flex; align-items: center; gap: 5px;">
-                    <span style="font-weight:bold; font-size:14px;">+</span> Sous-questions (${subsToDisplay.length})
+                  <button class="btn btn-sm btn-outline btn-toggle-subs" onclick="toggleBankSubquestions(${mainQ.id})" id="btn-toggle-subs-${mainQ.id}" title="Afficher ou masquer les questions attachées" style="color: #38bdf8; border-color: rgba(56,189,248,0.4); font-size: 12px; font-weight: 600; padding: 5px 11px; display: inline-flex; align-items: center; gap: 5px;">
+                    <span style="font-weight:bold; font-size:14px;">▼</span> Questions attachées (${subsToDisplay.length})
+                  </button>
+                  <button class="btn btn-sm btn-outline" onclick="openAddAttachedQuestionModal(${mainQ.id})" title="Ajouter une question attachée à cette question" style="color: #38bdf8; border-color: rgba(56,189,248,0.4); font-size: 12px; font-weight: 600; padding: 5px 10px; display: inline-flex; align-items: center; gap: 3px;">
+                    <span>+</span>
                   </button>
                 ` : `
-                  <button class="btn btn-sm btn-outline" onclick="openAddAttachedQuestionModal(${mainQ.id})" title="Créer une sous-question rattachée" style="color: #38bdf8; border-color: rgba(56,189,248,0.4); font-size: 12px; font-weight: 600; padding: 5px 11px; display: inline-flex; align-items: center; gap: 4px;">
-                    <span style="font-weight:bold; font-size:14px;">+</span> Sous-question
+                  <button class="btn btn-sm btn-outline" onclick="openAddAttachedQuestionModal(${mainQ.id})" title="Créer une question attachée" style="color: #38bdf8; border-color: rgba(56,189,248,0.4); font-size: 12px; font-weight: 600; padding: 5px 11px; display: inline-flex; align-items: center; gap: 4px;">
+                    <span style="font-weight:bold; font-size:14px;">+</span> Question attachée
                   </button>
                 `}
                 <button class="btn btn-sm btn-outline" onclick="openEditQuestionModal(${mainQ.id})" title="Modifier cette question" style="font-size: 12px; padding: 5px 10px;">
@@ -5095,19 +5070,19 @@ function renderBankDeck() {
         </div>
       `;
 
-      // Bloc des sous-questions rattachées
+      // Affichage direct de la liste des questions attachées
       if (hasSubs) {
         deckHtml += `
-          <div class="q-attached-subquestions-wrap bank-attached-subs" id="bank-attached-subs-${mainQ.id}" data-count="${subsToDisplay.length}" style="display: none;">
+          <div class="q-attached-subquestions-wrap bank-attached-subs" id="bank-attached-subs-${mainQ.id}" data-count="${subsToDisplay.length}" style="display: block;">
             <div class="q-attached-header">
               <div class="q-attached-title">
                 <span style="font-size:14px;">📎</span>
-                <strong>${subsToDisplay.length} sous-question${subsToDisplay.length > 1 ? 's' : ''} rattachée${subsToDisplay.length > 1 ? 's' : ''}</strong>
-                <span style="opacity:0.75; font-size:11px;">(à la question #${mainQ.id})</span>
+                <strong>${subsToDisplay.length} question${subsToDisplay.length > 1 ? 's' : ''} attachée${subsToDisplay.length > 1 ? 's' : ''}</strong>
+                <span style="opacity:0.75; font-size:11px;">(rattachée${subsToDisplay.length > 1 ? 's' : ''} à la question #${mainQ.id})</span>
               </div>
               ${isCurrentAdmin() ? `
-                <button class="btn btn-sm btn-outline bank-btn-add-sub" onclick="openAddAttachedQuestionModal(${mainQ.id})" title="Ajouter une autre sous-question à #${mainQ.id}">
-                  <span style="font-weight:bold; font-size:13px;">+</span> Ajouter une sous-question
+                <button class="btn btn-sm btn-outline bank-btn-add-sub" onclick="openAddAttachedQuestionModal(${mainQ.id})" title="Ajouter une autre question attachée à #${mainQ.id}">
+                  <span style="font-weight:bold; font-size:13px;">+</span> Ajouter question attachée
                 </button>
               ` : ''}
             </div>
@@ -5119,7 +5094,7 @@ function renderBankDeck() {
       }
     });
 
-    // Sous-questions orphelines éventuelles (dont la question mère a été filtrée)
+    // Questions attachées orphelines éventuelles (dont la question mère a été filtrée)
     const orphanSubs = subQuestions.filter(sq => !renderedSubIds.has(sq.id));
     if (orphanSubs.length > 0) {
       deckHtml += orphanSubs.map(sq => renderBankSubCard(sq)).join('');
@@ -5139,6 +5114,20 @@ function renderQuestionsTable() {
 }
 window.renderBankDeck = renderBankDeck;
 window.renderQuestionsTable = renderQuestionsTable;
+
+function resetBankFilters() {
+  const themaSel = document.getElementById('bankFilterThematique');
+  if (themaSel) themaSel.value = 'ALL';
+  updateBankSujetsDropdown();
+  const classeSel = document.getElementById('bankFilterClasse');
+  if (classeSel) classeSel.value = 'ALL';
+  const sujetSel = document.getElementById('bankFilterSujet');
+  if (sujetSel) sujetSel.value = 'ALL';
+  const cibleSel = document.getElementById('bankFilterCible');
+  if (cibleSel) cibleSel.value = 'ALL';
+  renderBankDeck();
+}
+window.resetBankFilters = resetBankFilters;
 
 function populateModalThematiques(selectedThema = 'Identité', selectedSujet = 'Identité') {
   const themaSel = document.getElementById('editQThematiqueSelect');
@@ -5252,116 +5241,38 @@ function onEditQSujetSelectChange() {
   }
 }
 
-function onHierarchyTypeChange() {
-  const isSub = document.getElementById('hierarchyTypeSub')?.checked;
-  const boxLie = document.getElementById('boxEditQNQuestLie');
-  const optMain = document.getElementById('optHierarchyMain');
-  const optSub = document.getElementById('optHierarchySub');
-  const inheritFeedback = document.getElementById('inheritFeedback');
-
-  if (isSub) {
-    if (boxLie) boxLie.style.display = 'block';
-    if (optSub) optSub.classList.add('active');
-    if (optMain) optMain.classList.remove('active');
-  } else {
-    if (boxLie) boxLie.style.display = 'none';
-    if (optMain) optMain.classList.add('active');
-    if (optSub) optSub.classList.remove('active');
-    const sel = document.getElementById('editQNQuestLie');
-    if (sel) sel.value = '0';
-    if (inheritFeedback) inheritFeedback.style.display = 'none';
-  }
-}
-window.onHierarchyTypeChange = onHierarchyTypeChange;
-
-function onEditQNQuestLieChange() {
-  const sel = document.getElementById('editQNQuestLie');
-  const inheritFeedback = document.getElementById('inheritFeedback');
-  if (!sel) return;
-
-  const parentId = parseInt(sel.value, 10);
-  if (parentId > 0) {
-    const parent = state.questions.find(q => q.id === parentId);
-    if (parent) {
-      // Héritage de la thématique
-      const themaSel = document.getElementById('editQThematiqueSelect');
-      if (themaSel && parent.thematique) {
-        themaSel.value = parent.thematique;
-        document.getElementById('editQThematique').value = parent.thematique;
-        updateModalSujetsDropdown(parent.sujet);
-      }
-      // Héritage de la classe, cible et type
-      if (parent.classe !== undefined) {
-        document.getElementById('editQClasse').value = parent.classe;
-      }
-      if (parent.cible !== undefined) {
-        document.getElementById('editQCible').value = parent.cible;
-      }
-      if (parent.type) {
-        document.getElementById('editQType').value = (parent.type === 'MULTI' ? 'M' : parent.type);
-      }
-
-      toggleConfigReponsesSection();
-      if (inheritFeedback) {
-        inheritFeedback.style.display = 'block';
-        inheritFeedback.textContent = `✓ Thématique (${parent.thematique}), sujet (${parent.sujet}) et classe ${parent.classe} hérités de la question d'origine #${parent.id}.`;
-      }
-    }
-  } else {
-    if (inheritFeedback) inheritFeedback.style.display = 'none';
-  }
-}
-window.onEditQNQuestLieChange = onEditQNQuestLieChange;
-
-function populateEditQNQuestLieSelect(currentQid = null, selectedParentId = 0) {
-  const sel = document.getElementById('editQNQuestLie');
-  if (!sel) return;
-  sel.innerHTML = '<option value="0">-- Sélectionner la question d\'origine parente --</option>';
-
-  // Seules les questions d'origine principales (non sous-questions) peuvent être des questions d'origine
-  const candidates = state.questions.filter(q => {
-    if (q.id === currentQid) return false;
-    if (q.classe === 8) return false;
-    const isSub = Boolean(q.n_quest_lie && q.n_quest_lie !== 0 && q.n_quest_lie !== q.id);
-    return !isSub;
-  });
-
-  candidates.sort((a, b) => (a.thematique || '').localeCompare(b.thematique || '') || a.id - b.id);
-
-  candidates.forEach(q => {
-    const opt = document.createElement('option');
-    opt.value = q.id;
-    const subCountTxt = q.subquestions_count > 0 ? ` [${q.subquestions_count} précision${q.subquestions_count > 1 ? 's' : ''}]` : '';
-    const cleanText = (q.texte || '').substring(0, 50) + ((q.texte || '').length > 50 ? '...' : '');
-    opt.textContent = `#${q.id} [${q.thematique} &bull; ${q.sujet}] ${cleanText}${subCountTxt}`;
-    if (q.id === selectedParentId) {
-      opt.selected = true;
-    }
-    sel.appendChild(opt);
-  });
-}
-
 function openAddAttachedQuestionModal(parentQid) {
   openAddQuestionModal();
   const parent = state.questions.find(q => q.id === parentQid);
   if (!parent) return;
 
-  document.getElementById('editQModalTitle').textContent = `Ajouter une précision à la question #${parentQid}`;
-  document.getElementById('editQIdBadge').textContent = 'Précision';
+  document.getElementById('editQModalTitle').textContent = `Ajouter une question attachée à la question #${parentQid}`;
+  document.getElementById('editQIdBadge').textContent = `Attachée à #${parentQid}`;
 
-  const radioSub = document.getElementById('hierarchyTypeSub');
-  if (radioSub) radioSub.checked = true;
-  onHierarchyTypeChange();
+  const hiddenLie = document.getElementById('editQNQuestLie');
+  if (hiddenLie) hiddenLie.value = String(parentQid);
 
-  populateEditQNQuestLieSelect(null, parentQid);
-  const sel = document.getElementById('editQNQuestLie');
-  if (sel) sel.value = String(parentQid);
-  onEditQNQuestLieChange();
+  // Masquer la liste des questions attachées puisqu'on est en train d'en créer une
+  const boxAttached = document.getElementById('boxEditQAttachedList');
+  if (boxAttached) boxAttached.style.display = 'none';
+
+  // Hériter thématique, sujet, classe et cible de la question mère
+  populateModalThematiques(parent.thematique, parent.sujet);
+  if (parent.classe !== undefined) {
+    document.getElementById('editQClasse').value = String(parent.classe);
+  }
+  if (parent.cible !== undefined) {
+    document.getElementById('editQCible').value = String(parent.cible);
+  }
+  if (parent.type) {
+    document.getElementById('editQType').value = (parent.type === 'MULTI' ? 'M' : parent.type);
+  }
+  toggleConfigReponsesSection();
 
   const inputTexte = document.getElementById('editQTexte');
   if (inputTexte) {
     inputTexte.value = '';
-    inputTexte.placeholder = `Précision liée à "${parent.texte}"...`;
+    inputTexte.placeholder = `Question attachée à : "${(parent.texte || '').substring(0, 60)}..."`;
     inputTexte.focus();
   }
 }
@@ -5372,20 +5283,22 @@ function openAddQuestionModal() {
   document.getElementById('editQModalTitle').textContent = 'Créer une nouvelle question';
   document.getElementById('editQIdBadge').textContent = 'Nouveau';
 
-  // Par défaut, question d'origine principale
-  const radioMain = document.getElementById('hierarchyTypeMain');
-  if (radioMain) radioMain.checked = true;
-  onHierarchyTypeChange();
+  // N_QUEST_LIE par défaut à 0 (question autonome)
+  const hiddenLie = document.getElementById('editQNQuestLie');
+  if (hiddenLie) hiddenLie.value = '0';
 
-  // Initialisation des listes déroulantes de thématique et sujet
+  // Masquer la liste des questions attachées en création
+  const boxAttached = document.getElementById('boxEditQAttachedList');
+  if (boxAttached) boxAttached.style.display = 'none';
+
+  // Initialisation par défaut
   populateModalThematiques('Identité', 'Identité');
-  populateEditQNQuestLieSelect(null, 0);
   document.getElementById('editQClasse').value = '8';
   document.getElementById('editQType').value = 'P';
   document.getElementById('editQCible').value = '0';
   document.getElementById('editQTexte').value = '';
 
-  // Configuration par défaut en mode sélection
+  // Configuration des réponses
   document.getElementById('modeReponseSelect').checked = true;
   document.getElementById('modeReponseNumeric').checked = false;
   document.getElementById('cfgSelectOptions').value = '';
@@ -5405,6 +5318,7 @@ function openAddQuestionModal() {
 
   document.getElementById('modalEditQuestion').style.display = 'flex';
 }
+window.openAddQuestionModal = openAddQuestionModal;
 
 function openEditQuestionModal(qid) {
   const q = state.questions.find(item => item.id === qid) || (state.pendingQuestions || []).find(item => item.id === qid);
@@ -5414,19 +5328,43 @@ function openEditQuestionModal(qid) {
   document.getElementById('editQModalTitle').textContent = 'Modifier la question';
   document.getElementById('editQIdBadge').textContent = `#${q.id}`;
 
-  populateModalThematiques(q.thematique, q.sujet);
-  populateEditQNQuestLieSelect(q.id, q.n_quest_lie || 0);
+  const hiddenLie = document.getElementById('editQNQuestLie');
+  if (hiddenLie) hiddenLie.value = String(q.n_quest_lie || 0);
 
-  // Hiérarchie : question d'origine ou question de précision attachée
-  const isSub = Boolean(q.n_quest_lie && q.n_quest_lie !== 0 && q.n_quest_lie !== q.id && q.classe !== 8);
-  if (isSub) {
-    const radioSub = document.getElementById('hierarchyTypeSub');
-    if (radioSub) radioSub.checked = true;
-  } else {
-    const radioMain = document.getElementById('hierarchyTypeMain');
-    if (radioMain) radioMain.checked = true;
+  // Affichage dynamique de la liste des questions attachées à cette question
+  const boxAttached = document.getElementById('boxEditQAttachedList');
+  const countAttached = document.getElementById('countEditQAttached');
+  const listAttached = document.getElementById('listEditQAttachedItems');
+  const btnAddAttached = document.getElementById('btnModalAddAttached');
+
+  const attachedList = state.questions.filter(sq => sq.n_quest_lie === q.id && sq.classe !== 8 && sq.id !== q.id);
+
+  if (boxAttached) {
+    boxAttached.style.display = 'block';
+    if (countAttached) countAttached.textContent = attachedList.length;
+    if (btnAddAttached) {
+      btnAddAttached.onclick = () => openAddAttachedQuestionModal(q.id);
+    }
+    if (listAttached) {
+      if (attachedList.length === 0) {
+        listAttached.innerHTML = `<div style="font-size: 12px; color: var(--text-dim); font-style: italic; padding: 4px 0;">Aucune question attachée pour le moment.</div>`;
+      } else {
+        listAttached.innerHTML = attachedList.map(sq => `
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 6px 10px; font-size: 12.5px;">
+            <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
+              <span class="badge-tag" style="font-size: 11px; padding: 2px 6px;">#${sq.id}</span>
+              <span style="color: #cbd5e1; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; max-width: 330px;">${escapeHtml(sq.texte || '')}</span>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline" onclick="openEditQuestionModal(${sq.id})" style="font-size: 11px; padding: 2px 7px; white-space: nowrap;">
+              ✏️ Modifier
+            </button>
+          </div>
+        `).join('');
+      }
+    }
   }
-  onHierarchyTypeChange();
+
+  populateModalThematiques(q.thematique, q.sujet);
 
   document.getElementById('editQClasse').value = q.classe ?? 1;
   document.getElementById('editQType').value = (q.type === 'MULTI' ? 'M' : (q.type || 'M'));
@@ -5474,12 +5412,12 @@ function openEditQuestionModal(qid) {
 
   document.getElementById('modalEditQuestion').style.display = 'flex';
 }
+window.openEditQuestionModal = openEditQuestionModal;
 
 function toggleConfigReponsesSection() {
   const tp = document.getElementById('editQType').value;
   let cl = parseInt(document.getElementById('editQClasse').value, 10);
-  const infoMulti = document.getElementById('infoTypeMulti');
-  const infoGouts = document.getElementById('infoTypeGouts');
+  const secRep = document.getElementById('sectionConfigReponses');
   const boxIdentity = document.getElementById('boxConfigIdentityAnswers');
   const iconId = document.getElementById('configIdentityIcon');
   const titleId = document.getElementById('configIdentityTitle');
@@ -5487,7 +5425,7 @@ function toggleConfigReponsesSection() {
   const lblSel = document.getElementById('labelModeSelect');
   const hintT = document.getElementById('hintModeSelectT');
 
-  // Ajustement de cohérence entre le type et la classe
+  // Cohérence entre le type et la classe
   if (tp === 'P' || tp === 'T') {
     document.getElementById('editQClasse').value = '8';
     cl = 8;
@@ -5501,18 +5439,9 @@ function toggleConfigReponsesSection() {
     cl = 1;
   }
 
-  // Adaptation de la section des réponses selon le type
-  if (tp === 'M') {
-    if (infoMulti) infoMulti.style.display = 'block';
-    if (infoGouts) infoGouts.style.display = 'none';
-    if (boxIdentity) boxIdentity.style.display = 'none';
-  } else if (tp === 'G') {
-    if (infoMulti) infoMulti.style.display = 'none';
-    if (infoGouts) infoGouts.style.display = 'block';
-    if (boxIdentity) boxIdentity.style.display = 'none';
-  } else if (tp === 'P') {
-    if (infoMulti) infoMulti.style.display = 'none';
-    if (infoGouts) infoGouts.style.display = 'none';
+  // Seuls les types P et T affichent la section de configuration des réponses (aucun commentaire ni bloc affiché pour M ou G)
+  if (tp === 'P') {
+    if (secRep) secRep.style.display = 'block';
     if (boxIdentity) boxIdentity.style.display = 'block';
     if (iconId) iconId.textContent = '👤';
     if (titleId) titleId.textContent = 'Gestion des Réponses Précises : Type P (+ sur moi)';
@@ -5520,16 +5449,20 @@ function toggleConfigReponsesSection() {
     if (lblSel) lblSel.textContent = 'Liste de choix fermée';
     if (hintT) hintT.style.display = 'none';
   } else if (tp === 'T') {
-    if (infoMulti) infoMulti.style.display = 'none';
-    if (infoGouts) infoGouts.style.display = 'none';
+    if (secRep) secRep.style.display = 'block';
     if (boxIdentity) boxIdentity.style.display = 'block';
     if (iconId) iconId.textContent = '👥';
     if (titleId) titleId.textContent = 'Gestion des Réponses Tolérances : Type T (+ sur l\'autre)';
     if (lblNum) lblNum.textContent = 'Plage de tolérance (Min/Max)';
     if (lblSel) lblSel.textContent = 'Options multiples à cocher';
     if (hintT) hintT.style.display = 'block';
+  } else {
+    // Type M ou G : aucun commentaire affiché, bloc replié
+    if (secRep) secRep.style.display = 'none';
+    if (boxIdentity) boxIdentity.style.display = 'none';
   }
 }
+window.toggleConfigReponsesSection = toggleConfigReponsesSection;
 
 function switchReponseMode(mode) {
   const numBox = document.getElementById('configModeNumeric');
@@ -5817,7 +5750,7 @@ function renderPendingQuestionsTable() {
 
     // Badge de type
     const typeBadgeHtml = q.type === 'M'
-      ? `<span class="badge-tag type" title="Question à 4 axes (V, A, D, P)">Multi-Axes (M)</span>`
+      ? `<span class="badge-tag type" title="(V) Le Vécu (Passé)&#10;(A) Actuel (Présent)&#10;(D) Découverte ou Poursuite (Futur)&#10;(P) Partage (Chez la personne qui partage votre quotidien ou chez les autres)">Multi-Axes (V-A-D-P)</span>`
       : `<span class="badge-tag type" style="background: rgba(56,189,248,0.18); color: #38bdf8;" title="Question à échelle unique d'accord (Goût)">Goût (G)</span>`;
 
     // Badge de cible
