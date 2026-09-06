@@ -656,12 +656,34 @@ body {
 
 .profile-actions {
   display: flex;
+  flex-direction: column;
   gap: 8px;
   margin-top: auto;
+  width: 100%;
 }
 
-.profile-actions button {
-  flex: 1;
+.profile-actions-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.profile-actions-row button,
+.profile-actions-row .btn,
+.profile-actions button,
+.profile-actions .btn {
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 8px;
+  font-size: 11.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-sizing: border-box;
 }
 
 /* Section Toolbar */

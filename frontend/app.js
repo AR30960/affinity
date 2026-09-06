@@ -2422,30 +2422,47 @@ function renderProfilesGrid(filter = '') {
         `}
 
         <div class="profile-actions">
-          <button class="btn btn-sm btn-primary" onclick="openProfileCockpitDirect(${p.id})" title="Consulter et modifier ce profil">
-            <span>👤</span> ${isAdmin ? 'Mon Profil' : 'Voir le Profil'}
-          </button>
-          ${!isAdmin ? `
-            <button class="btn btn-sm btn-outline" onclick="openIdentityDeck('self', ${p.id})" title="Répondre à vos caractéristiques personnelles (+ sur moi)">
-              <span>👤</span> + sur moi
-            </button>
-            <button class="btn btn-sm btn-outline partner-btn" onclick="openIdentityDeck('partner', ${p.id})" title="Définir les critères pour l'autre (+ sur l'autre)">
-              <span>👥</span> + sur l'autre
-            </button>
-            <button class="btn btn-sm btn-secondary" onclick="selectAndGoToQuestionnaire(${p.id})" title="Accéder aux questionnaires généraux">
-              <span>✍️</span> Questionnaire
-            </button>
-          ` : ''}
-          ${isRealAdmin() && !isAdmin ? `
-            <button class="btn btn-sm btn-outline" onclick="testViewAsProfile(${p.id})" title="Tester l'application comme ce membre" style="border-color:rgba(56,189,248,0.4); color:#38BDF8;">
-              <span>👁️</span> Vue
-            </button>
-          ` : ''}
-          ${!isAdmin || state.profiles.filter(pr => pr.role === 'admin').length > 1 ? `
-            <button class="btn btn-sm btn-outline" onclick="deleteProfileConfirm(${p.id}, '${p.pseudo}')" title="Supprimer">
-              <span>🗑️</span>
-            </button>
-          ` : ''}
+          ${isAdmin ? `
+            <div class="profile-actions-row">
+              <button class="btn btn-sm btn-primary" onclick="openProfileCockpitDirect(${p.id})" title="Consulter et modifier ce profil" style="width:100%;">
+                <span>👤</span> Mon Profil
+              </button>
+            </div>
+          ` : (isRealAdmin() || isCurrentAdmin()) ? `
+            <div class="profile-actions-row">
+              <button class="btn btn-sm btn-primary" onclick="openProfileCockpitDirect(${p.id})" title="Consulter et administrer ce profil">
+                <span>👤</span> Voir le Profil
+              </button>
+              <button class="btn btn-sm btn-secondary" onclick="selectAndGoToQuestionnaire(${p.id})" title="Consulter le questionnaire de ce membre">
+                <span>✍️</span> Questionnaire
+              </button>
+            </div>
+            <div class="profile-actions-row">
+              <button class="btn btn-sm btn-outline" onclick="testViewAsProfile(${p.id})" title="Tester l'application comme ce membre" style="border-color:rgba(56,189,248,0.4); color:#38BDF8;">
+                <span>👁️</span> Vue
+              </button>
+              <button class="btn btn-sm btn-outline" onclick="deleteProfileConfirm(${p.id}, '${p.pseudo}')" title="Supprimer ce profil" style="border-color:rgba(239,68,68,0.35); color:#f87171;">
+                <span>🗑️</span> Supprimer
+              </button>
+            </div>
+          ` : `
+            <div class="profile-actions-row">
+              <button class="btn btn-sm btn-primary" onclick="openProfileCockpitDirect(${p.id})" title="Consulter et modifier ce profil">
+                <span>👤</span> Voir le Profil
+              </button>
+              <button class="btn btn-sm btn-secondary" onclick="selectAndGoToQuestionnaire(${p.id})" title="Accéder aux questionnaires">
+                <span>✍️</span> Questionnaire
+              </button>
+            </div>
+            <div class="profile-actions-row">
+              <button class="btn btn-sm btn-outline" onclick="openIdentityDeck('self', ${p.id})" title="Répondre à vos caractéristiques personnelles (+ sur moi)">
+                <span>👤</span> + sur moi
+              </button>
+              <button class="btn btn-sm btn-outline partner-btn" onclick="openIdentityDeck('partner', ${p.id})" title="Définir les critères pour l'autre (+ sur l'autre)">
+                <span>👥</span> + sur l'autre
+              </button>
+            </div>
+          `}
         </div>
       </div>
     `;
@@ -3706,8 +3723,14 @@ function renderDashboardProfiles() {
 }
 
 function selectAndGoToQuestionnaire(id) {
-  setActiveProfile(id);
-  switchTab('questionnaire');
+  const prof = state.profiles ? state.profiles.find(p => p.id === id) : null;
+  if (prof && prof.role !== 'admin' && (isRealAdmin() || isCurrentAdmin())) {
+    setSimulatedRole(prof.role || 'subscriber', id);
+    switchTab('questionnaire');
+  } else {
+    setActiveProfile(id);
+    switchTab('questionnaire');
+  }
 }
 
 async function deleteProfileConfirm(id, pseudo) {
