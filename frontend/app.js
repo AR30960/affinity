@@ -1383,14 +1383,15 @@ function getLoggedInAdmin() {
 }
 
 function isRealAdmin() {
-  if (state.currentUser && state.currentUser.role === 'admin') {
-    return true;
+  if (state.currentUser) {
+    return state.currentUser.role === 'admin';
   }
   if (state.realAdminId) {
-    const me = state.profiles.find(p => p.id === state.realAdminId);
+    const me = state.profiles ? state.profiles.find(p => p.id === state.realAdminId) : null;
     return me?.role === 'admin';
   }
-  return false;
+  const cur = getActiveProfile();
+  return cur?.role === 'admin';
 }
 
 function getActiveRole() {
@@ -1715,10 +1716,16 @@ function applyRolePermissionsUi() {
     }
   }
 
-  // 4. Sélecteur de simulation dans le header (accessible pour un vrai admin)
+  // 4. Sélecteur de simulation dans le header (accessible pour un vrai admin en vue normale admin uniquement)
   const simSwitchBox = document.getElementById('simulationSwitchBox');
   if (simSwitchBox) {
-    simSwitchBox.style.display = isRealAdmin() ? 'flex' : 'none';
+    simSwitchBox.style.display = (isRealAdmin() && isCurrentAdmin() && !state.simulatedRole) ? 'flex' : 'none';
+  }
+
+  // 4b. Bouton Lancer un Match dans le header (strictement réservé aux Abonnés et Administrateurs)
+  const btnQuickMatch = document.getElementById('btnQuickMatch');
+  if (btnQuickMatch) {
+    btnQuickMatch.style.display = isCurrentSubscriberOrAdmin() ? 'inline-flex' : 'none';
   }
 
   // 5. Calculateur d'Affinité (Verrouillé si Invité)
@@ -1760,10 +1767,8 @@ function applyRolePermissionsUi() {
   }
 
   // 8. Boutons persistants Revenir Administrateur (sidebar et header)
-  const isReal = isRealAdmin();
-  const currentPid = state.activeProfileId;
-  const realAdminPid = state.realAdminId || (state.profiles ? state.profiles.find(p => p.role === 'admin')?.id : null);
-  const showRevert = Boolean(isReal && (currentPid !== realAdminPid || state.simulatedRole));
+  // Strictement réservés à l'Administrateur ayant explicitement activé une simulation de rôle
+  const showRevert = Boolean(isRealAdmin() && state.simulatedRole);
 
   const btnRevertSidebar = document.getElementById('btnRevertToAdmin');
   const btnRevertHeader = document.getElementById('btnHeaderRevertAdmin');
@@ -1778,6 +1783,7 @@ function applyRolePermissionsUi() {
 }
 
 function revertToAdmin() {
+  if (!isRealAdmin()) return;
   let adminId = state.realAdminId;
   if (!adminId && state.profiles) {
     const adm = state.profiles.find(p => p.role === 'admin');
@@ -2221,10 +2227,13 @@ async function loadProfiles() {
     const data = await res.json();
     state.profiles = data.profiles || [];
     
-    // Mémoriser l'administrateur système connecté
-    if (!state.realAdminId) {
-      const adm = state.profiles.find(p => p.role === 'admin');
-      if (adm) state.realAdminId = adm.id;
+    // Mémoriser l'administrateur système connecté UNIQUEMENT si l'utilisateur connecté est administrateur
+    if (state.currentUser && state.currentUser.role === 'admin') {
+      state.realAdminId = state.currentUser.id;
+    } else if (state.currentUser && state.currentUser.role !== 'admin') {
+      state.realAdminId = null;
+      state.simulatedRole = null;
+      state.simulatedProfileId = null;
     }
 
     renderProfilesGrid();
@@ -2475,7 +2484,7 @@ function renderProfilesGrid(filter = '') {
 
 // Ouvrir directement la fiche cockpit pour un profil sélectionné
 function openProfileCockpitDirect(profileId) {
-  if (!state.realAdminId && state.profiles) {
+  if (isRealAdmin() && !state.realAdminId && state.profiles) {
     const adm = state.profiles.find(p => p.role === 'admin');
     if (adm) state.realAdminId = adm.id;
   }
