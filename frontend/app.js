@@ -1,3 +1,15 @@
+// Helper universel pour échapper les chaînes HTML
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+window.escapeHtml = escapeHtml;
+
 // Helpers pour calcul d'âge et validation de cohérence
 function calculateAgeFromBirthDate(birthDateStr) {
   if (!birthDateStr || !String(birthDateStr).trim()) return { age: null, error: null };
@@ -4877,142 +4889,159 @@ function renderQuestionsTable() {
   const tbody = document.getElementById('questionsTableBody');
   if (!tbody) return;
 
-  const searchTerm = (document.getElementById('bankSearchInput')?.value || '').toLowerCase().trim();
-  const filterThema = document.getElementById('bankFilterThematique')?.value || 'ALL';
-  const filterSujet = document.getElementById('bankFilterSujet')?.value || 'ALL';
-  const filterClasse = document.getElementById('bankFilterClasse')?.value || 'ALL';
-  const filterCible = document.getElementById('bankFilterCible')?.value || 'ALL';
-  const filterHierarchie = document.getElementById('bankFilterHierarchie')?.value || 'ALL';
+  try {
+    const searchTerm = (document.getElementById('bankSearchInput')?.value || '').toLowerCase().trim();
+    const filterThema = document.getElementById('bankFilterThematique')?.value || 'ALL';
+    const filterSujet = document.getElementById('bankFilterSujet')?.value || 'ALL';
+    const filterClasse = document.getElementById('bankFilterClasse')?.value || 'ALL';
+    const filterCible = document.getElementById('bankFilterCible')?.value || 'ALL';
+    const filterHierarchie = document.getElementById('bankFilterHierarchie')?.value || 'ALL';
 
-  const filtered = state.questions.filter(q => {
-    if (filterThema !== 'ALL' && String(q.thematique) !== String(filterThema)) return false;
-    if (filterSujet !== 'ALL' && String(q.sujet) !== String(filterSujet)) return false;
-    if (filterClasse !== 'ALL' && String(q.classe) !== String(filterClasse)) return false;
-    if (filterCible !== 'ALL' && String(q.cible) !== String(filterCible)) return false;
-    if (filterHierarchie === 'MAIN') {
-      if ((q.n_quest_lie && q.n_quest_lie !== 0 && q.n_quest_lie !== q.id) && q.classe !== 8) return false;
-    } else if (filterHierarchie === 'PARENT') {
-      if (!q.subquestions_count || q.subquestions_count <= 0) return false;
-    } else if (filterHierarchie === 'SUB') {
-      if (!q.n_quest_lie || q.n_quest_lie === 0 || q.n_quest_lie === q.id || q.classe === 8) return false;
+    const questionsList = Array.isArray(state.questions) ? state.questions : [];
+
+    const filtered = questionsList.filter(q => {
+      if (filterThema !== 'ALL' && String(q.thematique) !== String(filterThema)) return false;
+      if (filterSujet !== 'ALL' && String(q.sujet) !== String(filterSujet)) return false;
+      if (filterClasse !== 'ALL' && String(q.classe) !== String(filterClasse)) return false;
+      if (filterCible !== 'ALL' && String(q.cible) !== String(filterCible)) return false;
+      if (filterHierarchie === 'MAIN') {
+        if ((q.n_quest_lie && q.n_quest_lie !== 0 && q.n_quest_lie !== q.id) && q.classe !== 8) return false;
+      } else if (filterHierarchie === 'PARENT') {
+        if (!q.subquestions_count || q.subquestions_count <= 0) return false;
+      } else if (filterHierarchie === 'SUB') {
+        if (!q.n_quest_lie || q.n_quest_lie === 0 || q.n_quest_lie === q.id || q.classe === 8) return false;
+      }
+      if (searchTerm) {
+        const matchText = (q.texte || '').toLowerCase().includes(searchTerm);
+        const matchThema = (q.thematique || '').toLowerCase().includes(searchTerm);
+        const matchSujet = (q.sujet || '').toLowerCase().includes(searchTerm);
+        const matchId = String(q.id).includes(searchTerm);
+        if (!matchText && !matchThema && !matchSujet && !matchId) return false;
+      }
+      return true;
+    });
+
+    const countBadge = document.getElementById('bankQuestionsCountBadge');
+    if (countBadge) {
+      countBadge.textContent = `${filtered.length} question${filtered.length > 1 ? 's' : ''}`;
     }
-    if (searchTerm) {
-      const matchText = (q.texte || '').toLowerCase().includes(searchTerm);
-      const matchThema = (q.thematique || '').toLowerCase().includes(searchTerm);
-      const matchSujet = (q.sujet || '').toLowerCase().includes(searchTerm);
-      if (!matchText && !matchThema && !matchSujet) return false;
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="8" style="text-align:center; padding: 36px 16px; color: var(--text-dim); font-size: 14px;">
+            🔍 Aucune question ne correspond aux filtres sélectionnés.
+          </td>
+        </tr>`;
+      return;
     }
-    return true;
-  });
 
-  const countBadge = document.getElementById('bankQuestionsCountBadge');
-  if (countBadge) {
-    countBadge.textContent = `${filtered.length} question${filtered.length > 1 ? 's' : ''}`;
-  }
+    const classeLabels = {
+      0: '0 - Non définies', 1: '1 - Standards', 2: '2 - Personnelles', 3: '3 - Intimes',
+      4: '4 - Privées', 5: '5 - A caractère sexuel', 8: '8 - Identité', 9: '9 - Amorales / Interdits'
+    };
 
-  if (filtered.length === 0) {
+    // Ordonnancement hiérarchique : Regrouper les sous-questions immédiatement sous leur question d'origine
+    let sortedQuestions = [];
+    if (filterHierarchie === 'ALL') {
+      const mainList = filtered.filter(q => !q.n_quest_lie || q.n_quest_lie === 0 || q.n_quest_lie === q.id || q.classe === 8);
+      const subList = filtered.filter(q => q.n_quest_lie && q.n_quest_lie !== 0 && q.n_quest_lie !== q.id && q.classe !== 8);
+      const addedSubIds = new Set();
+
+      mainList.forEach(mQ => {
+        sortedQuestions.push(mQ);
+        const childSubs = subList.filter(sQ => sQ.n_quest_lie === mQ.id);
+        childSubs.forEach(sQ => {
+          sortedQuestions.push(sQ);
+          addedSubIds.add(sQ.id);
+        });
+      });
+
+      // Ajouter les sous-questions dont le parent n'est pas dans mainList
+      subList.forEach(sQ => {
+        if (!addedSubIds.has(sQ.id)) {
+          sortedQuestions.push(sQ);
+        }
+      });
+    } else {
+      sortedQuestions = filtered;
+    }
+
+    tbody.innerHTML = sortedQuestions.map(q => {
+      let typeBadgeHtml = '<span class="badge-tag type">Multi-Axes (M)</span>';
+      if (q.type === 'P') {
+        typeBadgeHtml = '<span class="badge-tag type" style="background:#0284c7; color:#fff;">Précis (P)</span>';
+      } else if (q.type === 'T') {
+        typeBadgeHtml = '<span class="badge-tag type" style="background:#7c3aed; color:#fff;">Tolérance (T)</span>';
+      } else if (q.type === 'G') {
+        typeBadgeHtml = '<span class="badge-tag type">Goût (G)</span>';
+      }
+
+      const cibleBadgeHtml = q.cible === 0 
+        ? '<span class="badge-tag" style="background:rgba(148,163,184,0.15); color:#cbd5e1;">Mixte (0)</span>'
+        : (q.cible === 1 
+            ? '<span class="badge-tag" style="background:rgba(56,189,248,0.15); color:#38bdf8;">Homme (1)</span>'
+            : '<span class="badge-tag" style="background:rgba(236,72,153,0.15); color:#f472b6;">Femme (2)</span>');
+
+      const cleanThema = escapeHtml(q.thematique || 'Non définie');
+      const cleanSujet = escapeHtml(q.sujet || 'Général');
+      const cleanTexte = escapeHtml(q.texte || '');
+
+      const sujetLabel = (q.n_sujet !== undefined && q.n_sujet !== null && q.n_sujet > 0)
+        ? `<span class="badge-tag" style="font-size:10px; padding:2px 6px; margin-right:4px; opacity:0.85;">#${q.n_sujet}</span>${cleanSujet}`
+        : cleanSujet;
+
+      let hierHtml = '';
+      if (q.subquestions_count && q.subquestions_count > 0) {
+        hierHtml = `<div style="margin-top:5px;"><span class="badge-tag parent-tag" style="font-size:10.5px; padding:2px 7px;" title="${q.subquestions_count} question(s) de précision rattachée(s)">📂 Question Principale (${q.subquestions_count} précision${q.subquestions_count > 1 ? 's' : ''})</span></div>`;
+      } else if (q.n_quest_lie && q.n_quest_lie !== 0 && q.classe !== 8) {
+        const pTitle = q.parent_texte ? `Précision de #${q.n_quest_lie} : ${escapeHtml(q.parent_texte)}` : `Précision de #${q.n_quest_lie}`;
+        const shortParent = q.parent_texte ? ` (${escapeHtml(q.parent_texte.substring(0, 30))}...)` : '';
+        hierHtml = `<div style="margin-top:5px;"><span class="badge-tag subquestion-tag" style="font-size:10.5px; padding:2px 7px;" title="${pTitle}">↳ Précision de #${q.n_quest_lie}${shortParent}</span></div>`;
+      } else if (q.classe === 8 && q.n_quest_lie) {
+        hierHtml = `<div style="margin-top:5px;"><span class="badge-tag" style="font-size:10px; padding:2px 6px; background:rgba(124,58,237,0.15); color:#c084fc; border:1px solid rgba(124,58,237,0.3);" title="Question miroir #${q.n_quest_lie}">↔ Miroir #${q.n_quest_lie}</span></div>`;
+      }
+
+      const isSub = Boolean(q.n_quest_lie && q.n_quest_lie !== 0 && q.classe !== 8);
+
+      return `
+      <tr class="${isSub ? 'subquestion-table-row' : ''}">
+        <td>#${q.id}</td>
+        <td><strong>${cleanThema}</strong></td>
+        <td>${sujetLabel}</td>
+        <td>${classeLabels[q.classe] || `Classe ${q.classe}`}</td>
+        <td>${typeBadgeHtml}</td>
+        <td>${cibleBadgeHtml}</td>
+        <td>
+          <div style="${isSub ? 'padding-left:16px; border-left:2.5px solid var(--accent-cyan);' : ''}">
+            ${isSub ? '<span style="color:var(--accent-cyan); font-weight:bold; margin-right:4px;">↳</span>' : ''}${cleanTexte}
+            ${hierHtml}
+          </div>
+        </td>
+        <td style="text-align:right; white-space:nowrap;">
+          ${isCurrentAdmin() ? `
+            ${!isSub && q.classe !== 8 ? `
+              <button class="btn btn-sm btn-outline" onclick="openAddAttachedQuestionModal(${q.id})" title="Ajouter une question de précision rattachée à celle-ci" style="color: #38bdf8; border-color: rgba(56,189,248,0.4); margin-right: 6px;">
+                <span>➕</span> Préciser
+              </button>
+            ` : ''}
+            <button class="btn btn-sm btn-outline" onclick="openEditQuestionModal(${q.id})" title="Modifier cette question">
+              ✏️ Modifier
+            </button>
+          ` : `<span style="font-size:11px; color:var(--text-dim); padding:4px 8px;">Lecture</span>`}
+        </td>
+      </tr>
+    `;
+    }).join('');
+  } catch (renderErr) {
+    console.error('Erreur lors du rendu de la table des questions:', renderErr);
     tbody.innerHTML = `
       <tr>
-        <td colspan="8" style="text-align:center; padding: 36px 16px; color: var(--text-dim); font-size: 14px;">
-          🔍 Aucune question ne correspond aux filtres sélectionnés.
+        <td colspan="8" style="text-align:center; padding: 24px 16px; color: #f87171; font-size: 13px;">
+          ⚠️ Une erreur est survenue lors de l'affichage des questions : ${escapeHtml(renderErr.message || String(renderErr))}
         </td>
       </tr>`;
-    return;
   }
-
-  const classeLabels = {
-    0: '0 - Non définies', 1: '1 - Standards', 2: '2 - Personnelles', 3: '3 - Intimes',
-    4: '4 - Privées', 5: '5 - A caractère sexuel', 8: '8 - Identité', 9: '9 - Amorales / Interdits'
-  };
-
-  // Ordonnancement hiérarchique : Regrouper les sous-questions immédiatement sous leur question d'origine
-  let sortedQuestions = [];
-  if (filterHierarchie === 'ALL') {
-    const mainList = filtered.filter(q => !q.n_quest_lie || q.n_quest_lie === 0 || q.n_quest_lie === q.id || q.classe === 8);
-    const subList = filtered.filter(q => q.n_quest_lie && q.n_quest_lie !== 0 && q.n_quest_lie !== q.id && q.classe !== 8);
-    const addedSubIds = new Set();
-
-    mainList.forEach(mQ => {
-      sortedQuestions.push(mQ);
-      const childSubs = subList.filter(sQ => sQ.n_quest_lie === mQ.id);
-      childSubs.forEach(sQ => {
-        sortedQuestions.push(sQ);
-        addedSubIds.add(sQ.id);
-      });
-    });
-
-    // Ajouter les sous-questions dont le parent n'est pas dans mainList
-    subList.forEach(sQ => {
-      if (!addedSubIds.has(sQ.id)) {
-        sortedQuestions.push(sQ);
-      }
-    });
-  } else {
-    sortedQuestions = filtered;
-  }
-
-  tbody.innerHTML = sortedQuestions.map(q => {
-    let typeBadgeHtml = '<span class="badge-tag type">Multi-Axes (M)</span>';
-    if (q.type === 'P') {
-      typeBadgeHtml = '<span class="badge-tag type" style="background:#0284c7; color:#fff;">Précis (P)</span>';
-    } else if (q.type === 'T') {
-      typeBadgeHtml = '<span class="badge-tag type" style="background:#7c3aed; color:#fff;">Tolérance (T)</span>';
-    } else if (q.type === 'G') {
-      typeBadgeHtml = '<span class="badge-tag type">Goût (G)</span>';
-    }
-
-    const cibleBadgeHtml = q.cible === 0 
-      ? '<span class="badge-tag" style="background:rgba(148,163,184,0.15); color:#cbd5e1;">Mixte (0)</span>'
-      : (q.cible === 1 
-          ? '<span class="badge-tag" style="background:rgba(56,189,248,0.15); color:#38bdf8;">Homme (1)</span>'
-          : '<span class="badge-tag" style="background:rgba(236,72,153,0.15); color:#f472b6;">Femme (2)</span>');
-
-    const sujetLabel = (q.n_sujet !== undefined && q.n_sujet !== null && q.n_sujet > 0)
-      ? `<span class="badge-tag" style="font-size:10px; padding:2px 6px; margin-right:4px; opacity:0.85;">#${q.n_sujet}</span>${q.sujet}`
-      : q.sujet;
-
-    let hierHtml = '';
-    if (q.subquestions_count && q.subquestions_count > 0) {
-      hierHtml = `<div style="margin-top:5px;"><span class="badge-tag parent-tag" style="font-size:10.5px; padding:2px 7px;" title="${q.subquestions_count} question(s) de précision rattachée(s)">📂 Question Principale (${q.subquestions_count} précision${q.subquestions_count > 1 ? 's' : ''})</span></div>`;
-    } else if (q.n_quest_lie && q.n_quest_lie !== 0 && q.classe !== 8) {
-      const pTitle = q.parent_texte ? `Précision de #${q.n_quest_lie} : ${escapeHtml(q.parent_texte)}` : `Précision de #${q.n_quest_lie}`;
-      const shortParent = q.parent_texte ? ` (${escapeHtml(q.parent_texte.substring(0, 30))}...)` : '';
-      hierHtml = `<div style="margin-top:5px;"><span class="badge-tag subquestion-tag" style="font-size:10.5px; padding:2px 7px;" title="${pTitle}">↳ Précision de #${q.n_quest_lie}${shortParent}</span></div>`;
-    } else if (q.classe === 8 && q.n_quest_lie) {
-      hierHtml = `<div style="margin-top:5px;"><span class="badge-tag" style="font-size:10px; padding:2px 6px; background:rgba(124,58,237,0.15); color:#c084fc; border:1px solid rgba(124,58,237,0.3);" title="Question miroir #${q.n_quest_lie}">↔ Miroir #${q.n_quest_lie}</span></div>`;
-    }
-
-    const isSub = Boolean(q.n_quest_lie && q.n_quest_lie !== 0 && q.classe !== 8);
-
-    return `
-    <tr class="${isSub ? 'subquestion-table-row' : ''}">
-      <td>#${q.id}</td>
-      <td><strong>${q.thematique}</strong></td>
-      <td>${sujetLabel}</td>
-      <td>${classeLabels[q.classe] || `Classe ${q.classe}`}</td>
-      <td>${typeBadgeHtml}</td>
-      <td>${cibleBadgeHtml}</td>
-      <td>
-        <div style="${isSub ? 'padding-left:16px; border-left:2.5px solid var(--accent-cyan);' : ''}">
-          ${isSub ? '<span style="color:var(--accent-cyan); font-weight:bold; margin-right:4px;">↳</span>' : ''}${q.texte}
-          ${hierHtml}
-        </div>
-      </td>
-      <td style="text-align:right; white-space:nowrap;">
-        ${isCurrentAdmin() ? `
-          ${!isSub && q.classe !== 8 ? `
-            <button class="btn btn-sm btn-outline" onclick="openAddAttachedQuestionModal(${q.id})" title="Ajouter une question de précision rattachée à celle-ci" style="color: #38bdf8; border-color: rgba(56,189,248,0.4); margin-right: 6px;">
-              <span>➕</span> Préciser
-            </button>
-          ` : ''}
-          <button class="btn btn-sm btn-outline" onclick="openEditQuestionModal(${q.id})" title="Modifier cette question">
-            ✏️ Modifier
-          </button>
-        ` : `<span style="font-size:11px; color:var(--text-dim); padding:4px 8px;">Lecture</span>`}
-      </td>
-    </tr>
-  `;
-  }).join('');
 }
 
 function populateModalThematiques(selectedThema = 'Identité', selectedSujet = 'Identité') {
