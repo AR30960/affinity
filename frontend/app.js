@@ -1026,11 +1026,6 @@ function initEventListeners() {
   document.getElementById('formIdentityCard').addEventListener('submit', async (e) => {
     e.preventDefault();
     const profileId = document.getElementById('idProfileId').value;
-    const tp = document.getElementById('idPoitrine')?.value ? parseFloat(document.getElementById('idPoitrine').value) : null;
-    const tt = document.getElementById('idTailleTour')?.value ? parseFloat(document.getElementById('idTailleTour').value) : null;
-    const th = document.getElementById('idHanches')?.value ? parseFloat(document.getElementById('idHanches').value) : null;
-    const mens = (tp || tt || th) ? `${tp || '-'}-${tt || '-'}-${th || '-'}` : (document.getElementById('idMensurations')?.value.trim() || '');
-
     const bodyData = {
       pseudo: document.getElementById('idPseudo')?.value.trim() || undefined,
       email: document.getElementById('idEmail')?.value.trim() || '',
@@ -1044,16 +1039,6 @@ function initEventListeners() {
       habite_commune: document.getElementById('idHabiteCommune')?.value.trim() || '',
       ville: document.getElementById('idHabiteCommune')?.value.trim() || document.getElementById('idVille')?.value.trim() || '',
       statut: document.getElementById('idStatut')?.value.trim() || '',
-      taille: document.getElementById('idTaille')?.value ? parseFloat(document.getElementById('idTaille').value) : null,
-      poids: document.getElementById('idPoids')?.value ? parseFloat(document.getElementById('idPoids').value) : null,
-      pointure: document.getElementById('idPointure')?.value ? parseFloat(document.getElementById('idPointure').value) : null,
-      tour_poitrine: tp,
-      tour_taille: tt,
-      tour_hanches: th,
-      mensurations: mens,
-      origines: document.getElementById('idOrigines')?.value || '',
-      couleur_cheveux: document.getElementById('idCouleurCheveux')?.value || '',
-      style: document.getElementById('idStyle')?.value || '',
       bio: document.getElementById('idBio')?.value.trim() || '',
       aime_chez_moi: document.getElementById('idAimeChezMoi')?.value.trim() || '',
       aime_pas_chez_moi: document.getElementById('idAimePasChezMoi')?.value.trim() || ''
@@ -4000,40 +3985,6 @@ async function openIdentityCardModal(profileId) {
     updateIdentityCompletionBadge();
     document.getElementById('idStatut').value = card.statut || '';
     
-    // Champs Morphologie & Mensurations
-    const elTaille = document.getElementById('idTaille');
-    if (elTaille) elTaille.value = card.taille ?? '';
-    const elPoids = document.getElementById('idPoids');
-    if (elPoids) elPoids.value = card.poids ?? '';
-    const elPointure = document.getElementById('idPointure');
-    if (elPointure) elPointure.value = card.pointure ?? '';
-
-    let cTp = card.tour_poitrine ?? '';
-    let cTt = card.tour_taille ?? '';
-    let cTh = card.tour_hanches ?? '';
-    if ((!cTp && !cTt && !cTh) && card.mensurations && card.mensurations.includes('-')) {
-      const parts = card.mensurations.split('-');
-      if (parts[0] && parts[0] !== '-') cTp = parts[0];
-      if (parts[1] && parts[1] !== '-') cTt = parts[1];
-      if (parts[2] && parts[2] !== '-') cTh = parts[2];
-    }
-    const elPoitrine = document.getElementById('idPoitrine');
-    if (elPoitrine) elPoitrine.value = cTp;
-    const elTailleTour = document.getElementById('idTailleTour');
-    if (elTailleTour) elTailleTour.value = cTt;
-    const elHanches = document.getElementById('idHanches');
-    if (elHanches) elHanches.value = cTh;
-    const elMens = document.getElementById('idMensurations');
-    if (elMens) elMens.value = card.mensurations || '';
-
-    // Champs Allure, Style & Origines
-    const elOrig = document.getElementById('idOrigines');
-    if (elOrig) elOrig.value = card.origines || '';
-    const elCheveux = document.getElementById('idCouleurCheveux');
-    if (elCheveux) elCheveux.value = card.couleur_cheveux || '';
-    const elStyle = document.getElementById('idStyle');
-    if (elStyle) elStyle.value = card.style || '';
-
     document.getElementById('idBio').value = card.bio || '';
     const elAime = document.getElementById('idAimeChezMoi');
     if (elAime) elAime.value = card.aime_chez_moi || '';
