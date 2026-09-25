@@ -256,7 +256,7 @@
           <div class="section-toolbar">
             <div class="search-box">
               <span class="search-icon">🔍</span>
-              <input type="text" id="profileSearchInput" placeholder="Rechercher par pseudo, ville, prénom...">
+              <input type="text" id="profileSearchInput" placeholder="Rechercher par pseudo, ville...">
             </div>
             <button class="btn btn-primary" id="btnOpenAddProfile">
               <span>+</span> Créer un Profil
@@ -296,9 +296,9 @@
                     <span class="role-badge" id="myProfileRoleBadge">Rôle</span>
                   </div>
                   <div class="ckp-header-ordered-col">
-                    <!-- Ligne 1 : NOM : Nom et Prénom sur la même ligne -->
+                    <!-- Ligne 1 : PSEUDO : Affichage direct du pseudo public -->
                     <div class="ckp-ordered-line ckp-line-nom">
-                      <span class="ckp-ordered-label">NOM :</span>
+                      <span class="ckp-ordered-label">PSEUDO :</span>
                       <strong class="ckp-fullname-val" id="myProfileFullName">Non renseigné</strong>
                     </div>
 
@@ -354,14 +354,7 @@
                     <span>👤 État Civil & Situation</span>
                   </div>
                   <div class="ckp-form-grid">
-                    <div class="ckp-form-field">
-                      <label for="ckpInputPrenom">Prénom <span class="req-star">*</span></label>
-                      <input type="text" id="ckpInputPrenom" class="ckp-input" placeholder="Ex: Alexandre" required>
-                    </div>
-                    <div class="ckp-form-field">
-                      <label for="ckpInputNom">Nom <span class="req-star">*</span></label>
-                      <input type="text" id="ckpInputNom" class="ckp-input" placeholder="Ex: Roger" required>
-                    </div>
+
                     <div class="ckp-form-field">
                       <label for="ckpSelectSexe">Sexe <span class="req-star">*</span></label>
                       <select id="ckpSelectSexe" class="ckp-input">
@@ -1463,7 +1456,7 @@
             <div class="doc-step-box">
               <div class="dsb-num">C</div>
               <h4>Mon Profil</h4>
-              <p>Votre profil détaillé (prénom, nom, sexe, date de naissance, lieu de résidence, situation) est obligatoire pour autoriser le calcul d'affinité, garantissant la fiabilité des résultats.</p>
+              <p>Votre profil détaillé (pseudo, sexe, date de naissance, lieu de résidence, situation) est obligatoire pour autoriser le calcul d'affinité, garantissant la fiabilité des résultats.</p>
             </div>
           </div>
         </div>
@@ -1494,7 +1487,7 @@
             <div class="doc-step-box">
               <div class="dsb-num">1</div>
               <h4>Demande de Match</h4>
-              <p>Un abonné choisit un autre membre abonné dans le Calculateur. Il consulte sa <strong>présentation</strong> (prénom, statut, bio) et la <strong>distance kilométrique</strong> entre leurs résidences, puis valide l'envoi de la demande.</p>
+              <p>Un abonné choisit un autre membre abonné dans le Calculateur. Il consulte sa <strong>présentation</strong> (pseudo, statut, bio) et la <strong>distance kilométrique</strong> entre leurs résidences, puis valide l'envoi de la demande.</p>
             </div>
             <div class="doc-step-box">
               <div class="dsb-num">2</div>
@@ -1573,17 +1566,6 @@
           </div>
         </div>
 
-        <!-- État Civil -->
-        <div class="form-row">
-          <div class="form-group col">
-            <label for="idPrenom">Prénom <span class="req-star">*</span></label>
-            <input type="text" id="idPrenom" class="form-control" placeholder="Ex: Alexandre" required>
-          </div>
-          <div class="form-group col">
-            <label for="idNom">Nom <span class="req-star">*</span></label>
-            <input type="text" id="idNom" class="form-control" placeholder="Ex: Roger" required>
-          </div>
-        </div>
 
         <div class="form-row">
           <div class="form-group col">

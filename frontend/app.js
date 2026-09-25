@@ -250,8 +250,6 @@ function checkProfileCompleteness() {
   if (!banner) return;
 
   const pseudo = document.getElementById('ckpInputPseudo')?.value.trim();
-  const prenom = document.getElementById('ckpInputPrenom')?.value.trim();
-  const nom = document.getElementById('ckpInputNom')?.value.trim();
   const sexeVal = document.getElementById('ckpSelectSexe')?.value;
   const sexe = (sexeVal === '1' || sexeVal === '2');
   const birth = document.getElementById('ckpInputBirth')?.value.trim();
@@ -261,16 +259,14 @@ function checkProfileCompleteness() {
   const rechercheDe = document.getElementById('ckpSelectRecherche')?.value.trim();
   const bio = document.getElementById('ckpInputBio')?.value.trim();
 
-  // Mise à jour en direct du nom complet affiché dans l'en-tête du cockpit
+  // Mise à jour en direct du pseudo affiché dans l'en-tête du cockpit
   if (fullNameEl) {
-    const computedName = `${prenom || ''} ${nom || ''}`.trim();
-    fullNameEl.textContent = computedName || 'Non renseigné';
+    const computedName = pseudo || getActiveProfile()?.pseudo || 'Non renseigné';
+    fullNameEl.textContent = computedName;
   }
 
   const missing = [];
   if (!pseudo) missing.push("Pseudo public");
-  if (!prenom) missing.push("Prénom");
-  if (!nom) missing.push("Nom");
   if (!sexe) missing.push("Sexe (Homme / Femme)");
   if (!birth) missing.push("Date de naissance");
   if (!habPays || !habDept || !habCommune) {
@@ -432,7 +428,7 @@ function setupGeographicAndCompletenessListeners() {
     });
   }
 
-  const reqIds = ['ckpInputPseudo', 'ckpInputPrenom', 'ckpInputNom', 'ckpSelectSexe', 'ckpInputBirth', 'ckpSelectSituationFamille', 'ckpSelectRecherche', 'ckpInputBio'];
+  const reqIds = ['ckpInputPseudo', 'ckpSelectSexe', 'ckpInputBirth', 'ckpSelectSituationFamille', 'ckpSelectRecherche', 'ckpInputBio'];
   reqIds.forEach(id => {
     const el = document.getElementById(id);
     if (el) {
@@ -1029,8 +1025,6 @@ function initEventListeners() {
     const bodyData = {
       pseudo: document.getElementById('idPseudo')?.value.trim() || undefined,
       email: document.getElementById('idEmail')?.value.trim() || '',
-      prenom: document.getElementById('idPrenom')?.value.trim() || '',
-      nom: document.getElementById('idNom')?.value.trim() || '',
       sexe: parseInt(document.getElementById('idSexe')?.value, 10) || 0,
       date_naissance: document.getElementById('idDateNaiss')?.value || '',
       pays_naissance: document.getElementById('idPaysNaissance')?.value.trim() || '',
@@ -1087,8 +1081,6 @@ function initEventListeners() {
       const bodyData = {
         pseudo: document.getElementById('ckpInputPseudo')?.value.trim() || undefined,
         email: userEmail,
-        prenom: document.getElementById('ckpInputPrenom')?.value.trim() || '',
-        nom: document.getElementById('ckpInputNom')?.value.trim() || '',
         sexe: parseInt(document.getElementById('ckpSelectSexe')?.value, 10) || 0,
         date_naissance: document.getElementById('ckpInputBirth')?.value || '',
         pays_naissance: document.getElementById('ckpInputPaysNaissance')?.value.trim() || '',
@@ -2332,7 +2324,7 @@ function updateProfileDropdowns() {
 
   const memberOptionsHtml = memberProfiles.map(p => {
     const roleTag = (p.role === 'subscriber') ? '⭐' : '👤';
-    return `<option value="${p.id}">${roleTag} ${p.pseudo} (${p.prenom || 'Profil à compléter'})</option>`;
+    return `<option value="${p.id}">${roleTag} ${p.pseudo}</option>`;
   }).join('');
 
   if (qSelect) {
@@ -2396,7 +2388,6 @@ function renderProfilesGrid(filter = '') {
   const filtered = state.profiles.filter(p => {
     const term = filter.toLowerCase();
     return p.pseudo.toLowerCase().includes(term) ||
-           (p.prenom && p.prenom.toLowerCase().includes(term)) ||
            (p.ville && p.ville.toLowerCase().includes(term));
   });
 
@@ -2428,7 +2419,7 @@ function renderProfilesGrid(filter = '') {
               ${roleBadge}
             </div>
             <p style="${isAdmin ? 'color:var(--accent-cyan); font-weight:500;' : ''}">
-              ${isAdmin ? 'Superviseur de la Plateforme Affinity' : (p.prenom ? `${p.prenom} ${p.nom || ''}` : 'Profil non complété')}
+              ${isAdmin ? 'Superviseur de la Plateforme Affinity' : (p.ville ? `Membre (${p.ville})` : 'Membre Affinity')}
             </p>
           </div>
         </div>
@@ -2597,12 +2588,10 @@ async function renderSingleUserProfile() {
 
   // 2. Remplissage direct du Formulaire d'Identité (gauche)
   const elFullName = document.getElementById('myProfileFullName');
-  const computedName = `${p.prenom || ''} ${p.nom || ''}`.trim();
-  if (elFullName) elFullName.textContent = computedName || 'Non renseigné';
+  const computedName = p.pseudo || 'Non renseigné';
+  if (elFullName) elFullName.textContent = computedName;
 
   const fPseudo = document.getElementById('ckpInputPseudo');
-  const fPrenom = document.getElementById('ckpInputPrenom');
-  const fNom = document.getElementById('ckpInputNom');
   const fSexe = document.getElementById('ckpSelectSexe');
   const fBirth = document.getElementById('ckpInputBirth');
   const fSitFamille = document.getElementById('ckpSelectSituationFamille');
@@ -2614,8 +2603,6 @@ async function renderSingleUserProfile() {
   if (fPseudo) fPseudo.value = p.pseudo || '';
   const fEmail = document.getElementById('ckpInputEmail');
   if (fEmail) fEmail.value = p.email || '';
-  if (fPrenom) fPrenom.value = p.prenom || '';
-  if (fNom) fNom.value = p.nom || '';
   if (fSexe) fSexe.value = p.sexe ?? 0;
   if (fBirth) {
     fBirth.value = p.date_naissance || '';
@@ -3552,7 +3539,7 @@ function renderAdminUsersTable() {
             <strong>${p.pseudo}</strong>
           </div>
         </td>
-        <td>${role === 'admin' ? '<span style="color:var(--accent-cyan); font-weight:600;">👑 Non requise (Admin)</span>' : (p.prenom ? `${p.prenom} ${p.nom || ''}` : '<span style="color:var(--text-dim)">Non renseignée</span>')}</td>
+        <td>${role === 'admin' ? '<span style="color:var(--accent-cyan); font-weight:600;">👑 Non requise (Admin)</span>' : (p.has_identity ? '<span style="color:var(--accent-teal);">✓ Complété</span>' : '<span style="color:var(--text-dim)">À compléter</span>')}</td>
         <td>${p.ville || '-'}</td>
         <td>${role === 'admin' ? '<span style="color:var(--text-dim);">- (Non concerné)</span>' : `<strong>${p.answers_count || 0}</strong> / 172`}</td>
         <td>${roleBadgeHtml}</td>
@@ -3897,7 +3884,7 @@ function renderDashboardProfiles() {
         <div class="ap-avatar" style="width:30px; height:30px; font-size:12px;">${p.pseudo.charAt(0).toUpperCase()}</div>
         <div>
           <div style="font-size:13.5px; font-weight:600;">${p.pseudo}</div>
-          <div style="font-size:11px; color:var(--text-dim);">${p.prenom ? `${p.prenom} (${p.ville || 'France'})` : 'Profil à compléter'}</div>
+          <div style="font-size:11px; color:var(--text-dim);">${p.ville || 'France'}</div>
         </div>
       </div>
       <div>
@@ -3958,8 +3945,6 @@ async function openIdentityCardModal(profileId) {
   try {
     const res = await fetch(`${API_BASE}/api/profiles/${profileId}/identity`);
     const card = await res.json();
-    document.getElementById('idPrenom').value = card.prenom || '';
-    document.getElementById('idNom').value = card.nom || '';
     document.getElementById('idSexe').value = card.sexe ?? 0;
     const modBirth = document.getElementById('idDateNaiss');
     if (modBirth) {
@@ -5832,7 +5817,7 @@ function updateDevicesPreview() {
   const active = state.profiles.find(p => p.id === state.activeProfileId);
   const nameEl = document.getElementById('phoneActiveName');
   if (nameEl && active) {
-    nameEl.textContent = active.prenom || active.pseudo;
+    nameEl.textContent = active.pseudo;
   }
 }
 

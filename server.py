@@ -2144,8 +2144,8 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT(profile_id) DO UPDATE SET
-                    nom = excluded.nom,
-                    prenom = excluded.prenom,
+                    nom = CASE WHEN excluded.nom != '' THEN excluded.nom ELSE identity_cards.nom END,
+                    prenom = CASE WHEN excluded.prenom != '' THEN excluded.prenom ELSE identity_cards.prenom END,
                     date_naissance = excluded.date_naissance,
                     sexe = excluded.sexe,
                     ville = excluded.ville,
