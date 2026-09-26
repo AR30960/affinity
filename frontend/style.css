@@ -739,17 +739,24 @@ body {
   border-radius: var(--radius-md);
 }
 
-/* Questionnaire Header */
+/* Questionnaire Header & Meta Bar */
+.questionnaire-meta-bar,
 .questionnaire-header-bar {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
-  padding: 20px 24px;
+  padding: 16px 22px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  margin-bottom: 26px;
+  margin-bottom: 20px;
+}
+
+.q-active-profile-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
 
 .q-profile-selector {

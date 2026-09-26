@@ -11,6 +11,18 @@ import secrets
 import shutil
 from datetime import datetime, timedelta, timezone
 
+# Sécurisation des flux sous Windows avec pythonw (évite les crashs si stdout/stderr sont None)
+if sys.stdout is None:
+    try:
+        sys.stdout = open(os.devnull, "w", encoding="utf-8")
+    except Exception:
+        pass
+if sys.stderr is None:
+    try:
+        sys.stderr = open(os.devnull, "w", encoding="utf-8")
+    except Exception:
+        pass
+
 PORT = int(os.environ.get("PORT", 8765))
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "frontend")
@@ -1199,6 +1211,14 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=STATIC_DIR, **kwargs)
 
+    def log_message(self, format, *args):
+        # Évite les crashs si stderr est fermé ou indisponible
+        if sys.stderr:
+            try:
+                sys.stderr.write("%s - - [%s] %s\n" % (self.address_string(), self.log_date_time_string(), format % args))
+            except Exception:
+                pass
+
     def get_auth_token(self):
         auth_header = self.headers.get("Authorization", "")
         if auth_header.startswith("Bearer "):
@@ -1380,7 +1400,8 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                         3: "Classe 3 - Intimes",
                         4: "Classe 4 - Privées",
                         5: "Classe 5 - A caractère sexuel",
-                        9: "Classe 9 - Interdits / Fantasmes"
+                        8: "Classe 8 - Identité",
+                        9: "Classe 9 - Amorales / Interdits"
                     }
                     c.execute("SELECT DISTINCT classe FROM questions WHERE classe != 8 ORDER BY classe ASC")
                     db_classes = [row["classe"] for row in c.fetchall()]
@@ -1395,7 +1416,8 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                         # Grouper les thématiques de cette classe
                         th_map = {}
                         for q in q_rows:
-                            th_name = q["thematique"] or "Divers"
+                            raw_th = q["thematique"] or "Divers"
+                            th_name = "Goûts" if raw_th in ("Gouts", "Goûts") else raw_th
                             if th_name not in th_map:
                                 th_map[th_name] = {"thematique": th_name, "total": 0, "answered": 0}
                             th_map[th_name]["total"] += 1
@@ -1420,7 +1442,8 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                     items = [dict(row) for row in c.fetchall()]
                     thematiques_dict = {}
                     for it in items:
-                        th = it["thematique"]
+                        raw_th = it["thematique"] or "Divers"
+                        th = "Goûts" if raw_th in ("Gouts", "Goûts") else raw_th
                         if th not in thematiques_dict:
                             thematiques_dict[th] = []
                         has_it = (

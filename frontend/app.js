@@ -10,6 +10,17 @@ function escapeHtml(str) {
 }
 window.escapeHtml = escapeHtml;
 
+// Helper universel pour normaliser les thématiques (fusion systématique 'Gouts' / 'Goûts')
+function normalizeThematique(th) {
+  if (!th) return '';
+  const s = String(th).trim();
+  if (s.toLowerCase() === 'gouts' || s.toLowerCase() === 'goûts') {
+    return 'Goûts';
+  }
+  return s;
+}
+window.normalizeThematique = normalizeThematique;
+
 // Helpers pour calcul d'âge et validation de cohérence
 function calculateAgeFromBirthDate(birthDateStr) {
   if (!birthDateStr || !String(birthDateStr).trim()) return { age: null, error: null };
@@ -1128,11 +1139,14 @@ function initEventListeners() {
   });
 
   // Filtres questionnaire
-  document.getElementById('qFilterThematique')?.addEventListener('change', renderQuestionsDeck);
-  document.getElementById('qFilterPack')?.addEventListener('change', renderQuestionsDeck);
+  document.getElementById('qFilterThematique')?.addEventListener('change', () => onQThematiqueChange());
+  document.getElementById('qFilterSujet')?.addEventListener('change', renderQuestionsDeck);
   document.getElementById('qFilterClasse')?.addEventListener('change', renderQuestionsDeck);
+  document.getElementById('qFilterCible')?.addEventListener('change', renderQuestionsDeck);
+  document.getElementById('qFilterPack')?.addEventListener('change', renderQuestionsDeck);
   document.getElementById('qFilterStatus')?.addEventListener('change', renderQuestionsDeck);
   document.getElementById('qFilterHierarchie')?.addEventListener('change', renderQuestionsDeck);
+  document.getElementById('btnResetQFilters')?.addEventListener('click', resetQuestionnaireFilters);
 
   // Recherche Profils
   document.getElementById('profileSearchInput').addEventListener('input', (e) => {
@@ -1196,11 +1210,14 @@ function initEventListeners() {
   document.getElementById('bankFilterCible')?.addEventListener('change', () => renderQuestionsTable());
   document.getElementById('btnResetBankFilters')?.addEventListener('click', resetBankFilters);
 
-  // Filtres arbitrage (Jeu 3)
-  document.getElementById('pendingSearchInput')?.addEventListener('input', () => renderPendingQuestionsTable());
+  // Filtres arbitrage (Jeu 3 / Propositions en attente)
+  document.getElementById('pendingFilterThematique')?.addEventListener('change', () => onPendingThematiqueChange());
+  document.getElementById('pendingFilterSujet')?.addEventListener('change', () => renderPendingQuestionsTable());
   document.getElementById('pendingFilterClasse')?.addEventListener('change', () => renderPendingQuestionsTable());
-  document.getElementById('pendingFilterType')?.addEventListener('change', () => renderPendingQuestionsTable());
   document.getElementById('pendingFilterCible')?.addEventListener('change', () => renderPendingQuestionsTable());
+  document.getElementById('pendingFilterType')?.addEventListener('change', () => renderPendingQuestionsTable());
+  document.getElementById('pendingSearchInput')?.addEventListener('input', () => renderPendingQuestionsTable());
+  document.getElementById('btnResetPendingFilters')?.addEventListener('click', resetPendingFilters);
 
   // Formulaire Création & Modification Question (Admin)
   document.getElementById('formEditQuestion').addEventListener('submit', async (e) => {
@@ -1360,6 +1377,7 @@ function switchTab(tabName) {
       renderProfilesGrid();
     }
   } else if (tabName === 'questionnaire') {
+    updateQuestionnaireProfileHeader();
     renderQuestionsDeck();
   } else if (tabName === 'affinity') {
     updateAffinityAccessUi();
@@ -1788,8 +1806,45 @@ function applyRolePermissionsUi() {
     btnRevertHeader.style.display = showRevert ? 'inline-flex' : 'none';
   }
 
+  updateQuestionnaireProfileHeader();
   renderQuestionsTable();
 }
+
+function updateQuestionnaireProfileHeader() {
+  const metaBar = document.getElementById('questionnaireMetaBar');
+  const profInfo = document.getElementById('qActiveProfileInfo');
+  const profSelectorWrap = document.getElementById('qProfileSelectorWrap');
+  if (!metaBar) return;
+
+  const curProf = getActiveProfile();
+  if (isCurrentAdmin()) {
+    if (profInfo) profInfo.style.display = 'none';
+    if (profSelectorWrap) profSelectorWrap.style.display = 'flex';
+  } else {
+    if (profSelectorWrap) profSelectorWrap.style.display = 'none';
+    if (profInfo) {
+      profInfo.style.display = 'flex';
+      const avatarEl = document.getElementById('qActiveProfileAvatar');
+      const pseudoEl = document.getElementById('qActiveProfilePseudo');
+      const roleEl = document.getElementById('qActiveProfileRole');
+      const subEl = document.getElementById('qActiveProfileSub');
+      if (curProf) {
+        if (avatarEl) avatarEl.textContent = (curProf.pseudo || '?').charAt(0).toUpperCase();
+        if (pseudoEl) pseudoEl.textContent = curProf.pseudo || 'Mon Profil';
+        if (roleEl) {
+          roleEl.className = `role-badge ${curProf.role}`;
+          roleEl.textContent = (curProf.role === 'subscriber') ? '⭐ Abonné' : '👤 Invité';
+        }
+        if (subEl) {
+          subEl.textContent = (curProf.role === 'subscriber') 
+            ? 'Complétez vos réponses pour révéler vos affinités électives'
+            : 'Complétez vos réponses pour découvrir votre indice de compatibilité';
+        }
+      }
+    }
+  }
+}
+window.updateQuestionnaireProfileHeader = updateQuestionnaireProfileHeader;
 
 function revertToAdmin() {
   if (!isRealAdmin()) return;
@@ -4013,7 +4068,10 @@ async function loadQuestions() {
   try {
     const res = await fetch(`${API_BASE}/api/questions`);
     const data = await res.json();
-    state.questions = data.questions || [];
+    state.questions = (data.questions || []).map(q => {
+      if (q.thematique) q.thematique = normalizeThematique(q.thematique);
+      return q;
+    });
     populateBankFilters();
     renderQuestionsTable();
     updateQuestionnaireFilters();
@@ -4115,17 +4173,18 @@ function updateQuestionnaireFilters() {
   const filterPack = document.getElementById('qFilterPack');
   const filterClasse = document.getElementById('qFilterClasse');
   const filterStatus = document.getElementById('qFilterStatus');
+  const filterCible = document.getElementById('qFilterCible');
   if (!filterPack || !filterClasse) return;
 
   const eligible = getActiveProfileEligibleQuestions();
-  const availableThemas = Array.from(new Set(eligible.map(q => q.thematique).filter(Boolean))).sort();
+  const availableThemas = Array.from(new Set(eligible.map(q => normalizeThematique(q.thematique)).filter(Boolean))).sort();
   const availablePackIds = new Set(eligible.map(q => q.pack_id));
   const availableClasses = new Set(eligible.map(q => q.classe));
 
   if (filterThema) {
     const prevThema = filterThema.value;
     filterThema.innerHTML = `<option value="ALL">Toutes les thématiques (${availableThemas.length})</option>` +
-      availableThemas.map(th => `<option value="${th}">${th}</option>`).join('');
+      availableThemas.map(th => `<option value="${escapeHtml(th)}">${escapeHtml(th)}</option>`).join('');
     if (prevThema === 'ALL' || availableThemas.includes(prevThema)) {
       filterThema.value = prevThema;
     } else {
@@ -4133,21 +4192,32 @@ function updateQuestionnaireFilters() {
     }
   }
 
+  // Mise à jour dynamique des sujets filtrés selon la thématique active
+  updateQuestionnaireSujetsDropdown();
+
+  // Filtre Pack / Jeu
   const prevPack = filterPack.value;
   filterPack.innerHTML = `<option value="ALL">Tous les jeux autorisés (${availablePackIds.size})</option>` +
     state.packs
       .filter(pk => availablePackIds.has(pk.id))
-      .map(pk => `<option value="${pk.id}">${pk.nom}</option>`).join('');
+      .map(pk => `<option value="${pk.id}">${escapeHtml(pk.nom)}</option>`).join('');
   if (prevPack === 'ALL' || availablePackIds.has(parseInt(prevPack, 10))) {
     filterPack.value = prevPack;
   } else {
     filterPack.value = 'ALL';
   }
 
+  // Filtre Classes (Harmonisé 0 à 9)
   const prevClasse = filterClasse.value;
   const classeLabels = {
-    0: '0 - Non définies', 1: '1 - Standards', 2: '2 - Personnelles', 3: '3 - Intimes',
-    4: '4 - Privées', 5: '5 - A caractère sexuel', 9: '9 - Interdits / Fantasmes'
+    0: '0 - Non définies',
+    1: '1 - Standards',
+    2: '2 - Personnelles',
+    3: '3 - Intimes',
+    4: '4 - Privées',
+    5: '5 - A caractère sexuel',
+    8: '8 - Identité',
+    9: '9 - Amorales / Interdits'
   };
   filterClasse.innerHTML = `<option value="ALL">Toutes les classes autorisées (${availableClasses.size})</option>` +
     Array.from(availableClasses)
@@ -4157,6 +4227,22 @@ function updateQuestionnaireFilters() {
     filterClasse.value = prevClasse;
   } else {
     filterClasse.value = 'ALL';
+  }
+
+  // Filtre Cible dans le questionnaire
+  if (filterCible) {
+    const prevCible = filterCible.value || 'ALL';
+    filterCible.innerHTML = `
+      <option value="ALL">Toutes les cibles</option>
+      <option value="0">0 - Mixte (Tous)</option>
+      <option value="1">1 - Hommes</option>
+      <option value="2">2 - Femmes</option>
+    `;
+    if (['ALL', '0', '1', '2'].includes(prevCible)) {
+      filterCible.value = prevCible;
+    } else {
+      filterCible.value = 'ALL';
+    }
   }
 
   // Filtre par statut de réponse (Toutes, Non répondues uniquement, Répondues uniquement)
@@ -4181,13 +4267,48 @@ function updateQuestionnaireFilters() {
   }
 }
 
+function updateQuestionnaireSujetsDropdown() {
+  const filterThema = document.getElementById('qFilterThematique');
+  const filterSujet = document.getElementById('qFilterSujet');
+  if (!filterSujet) return;
+
+  const eligible = getActiveProfileEligibleQuestions();
+  const currentThema = filterThema ? filterThema.value : 'ALL';
+  const prevSujet = filterSujet.value || 'ALL';
+
+  const filteredQuestions = (currentThema === 'ALL')
+    ? eligible
+    : eligible.filter(q => normalizeThematique(q.thematique) === currentThema);
+
+  const sujets = Array.from(new Set(filteredQuestions.map(q => q.sujet).filter(Boolean))).sort();
+  filterSujet.innerHTML = `<option value="ALL">Tous les sujets (${sujets.length})</option>` +
+    sujets.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+
+  if (prevSujet === 'ALL' || sujets.includes(prevSujet)) {
+    filterSujet.value = prevSujet;
+  } else {
+    filterSujet.value = 'ALL';
+  }
+}
+
+function onQThematiqueChange() {
+  updateQuestionnaireSujetsDropdown();
+  renderQuestionsDeck();
+}
+window.onQThematiqueChange = onQThematiqueChange;
+
 function resetQuestionnaireFilters() {
   const fThema = document.getElementById('qFilterThematique');
   if (fThema) fThema.value = 'ALL';
+  updateQuestionnaireSujetsDropdown();
+  const fSujet = document.getElementById('qFilterSujet');
+  if (fSujet) fSujet.value = 'ALL';
   const fPack = document.getElementById('qFilterPack');
   if (fPack) fPack.value = 'ALL';
   const fClasse = document.getElementById('qFilterClasse');
   if (fClasse) fClasse.value = 'ALL';
+  const fCible = document.getElementById('qFilterCible');
+  if (fCible) fCible.value = 'ALL';
   const fStatus = document.getElementById('qFilterStatus');
   if (fStatus) fStatus.value = 'ALL';
   const fHier = document.getElementById('qFilterHierarchie');
@@ -4238,15 +4359,19 @@ function renderQuestionsDeck() {
   }
 
   const themaFilter = document.getElementById('qFilterThematique')?.value || 'ALL';
+  const sujetFilter = document.getElementById('qFilterSujet')?.value || 'ALL';
   const packFilter = document.getElementById('qFilterPack')?.value || 'ALL';
   const classeFilter = document.getElementById('qFilterClasse')?.value || 'ALL';
+  const cibleFilter = document.getElementById('qFilterCible')?.value || 'ALL';
   const statusFilter = document.getElementById('qFilterStatus')?.value || 'ALL';
   const hierarchieFilter = document.getElementById('qFilterHierarchie')?.value || 'ALL';
 
   const filtered = eligible.filter(q => {
-    if (themaFilter !== 'ALL' && String(q.thematique) !== String(themaFilter)) return false;
+    if (themaFilter !== 'ALL' && normalizeThematique(q.thematique) !== themaFilter) return false;
+    if (sujetFilter !== 'ALL' && String(q.sujet) !== String(sujetFilter)) return false;
     if (packFilter !== 'ALL' && String(q.pack_id) !== String(packFilter)) return false;
     if (classeFilter !== 'ALL' && String(q.classe) !== String(classeFilter)) return false;
+    if (cibleFilter !== 'ALL' && String(q.cible) !== String(cibleFilter)) return false;
     if (statusFilter === 'UNANSWERED' && isQuestionAnswered(q)) return false;
     if (statusFilter === 'ANSWERED' && !isQuestionAnswered(q)) return false;
     if (hierarchieFilter === 'MAIN') {
@@ -4258,6 +4383,11 @@ function renderQuestionsDeck() {
     }
     return true;
   });
+
+  const countBadge = document.getElementById('qQuestionsCountBadge');
+  if (countBadge) {
+    countBadge.textContent = `${filtered.length} question${filtered.length > 1 ? 's' : ''}`;
+  }
 
   if (filtered.length === 0) {
     if (statusFilter === 'UNANSWERED') {
@@ -4274,8 +4404,14 @@ function renderQuestionsDeck() {
   }
 
   const classeLabels = {
-    0: 'Non définies', 1: 'Standards', 2: 'Personnelles', 3: 'Intimes',
-    4: 'Privées', 5: 'A caractère sexuel', 9: 'Interdits / Fantasmes'
+    0: '0 - Non définies',
+    1: '1 - Standards',
+    2: '2 - Personnelles',
+    3: '3 - Intimes',
+    4: '4 - Privées',
+    5: '5 - A caractère sexuel',
+    8: '8 - Identité',
+    9: '9 - Amorales / Interdits'
   };
 
   // Échelles de réponse textuelle selon Affinity.docx
@@ -4396,27 +4532,44 @@ function renderQuestionsDeck() {
       `;
     }
 
+    const typeBadgeHtml = isMulti
+      ? '<span class="badge-tag type" title="(V) Le Vécu (Passé)&#10;(A) Actuel (Présent)&#10;(D) Découverte ou Poursuite (Futur)&#10;(P) Partage (Chez la personne qui partage votre quotidien ou chez les autres)">Multi-Axes (V-A-D-P)</span>'
+      : '<span class="badge-tag type">Goût (G)</span>';
+
+    const cibleBadgeHtml = q.cible === 0 
+      ? '<span class="badge-tag" style="background:rgba(148,163,184,0.15); color:#cbd5e1;">Mixte (0)</span>'
+      : (q.cible === 1 
+          ? '<span class="badge-tag" style="background:rgba(56,189,248,0.15); color:#38bdf8;">Homme (1)</span>'
+          : '<span class="badge-tag" style="background:rgba(236,72,153,0.15); color:#f472b6;">Femme (2)</span>');
+
+    const isAnswered = isQuestionAnswered(q);
+    const statusBadgeHtml = isAnswered
+      ? '<span class="badge-soft" style="background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); font-size: 11px; padding: 2px 7px; font-weight: 600;">✅ Répondue</span>'
+      : '<span class="badge-soft" style="background: rgba(148,163,184,0.12); color: var(--text-dim); border: 1px solid rgba(148,163,184,0.25); font-size: 11px; padding: 2px 7px; font-weight: 500;">⚪ À répondre</span>';
+
     const isParent = Boolean(q.subquestions_count && q.subquestions_count > 0);
     let hierBadge = '';
     if (isSub) {
       const parentName = q.parent_texte ? escapeHtml(q.parent_texte) : `#${q.n_quest_lie}`;
-      hierBadge = `<span class="badge-tag subquestion-tag" title="Question de précision attachée à #${q.n_quest_lie}">↳ Précision de #${q.n_quest_lie} : ${parentName}</span>`;
+      hierBadge = `<span class="badge-tag subquestion-tag" title="Question de précision attachée à #${q.n_quest_lie}">↳ Précision de #${q.n_quest_lie}</span>`;
     } else if (isParent) {
-      hierBadge = `<span class="badge-tag parent-tag" title="Question d'origine regroupant ${q.subquestions_count} question(s) de précision">📂 Question d'origine (${q.subquestions_count} précision${q.subquestions_count > 1 ? 's' : ''})</span>`;
+      hierBadge = `<span class="badge-tag parent-tag" title="Question d'origine regroupant ${q.subquestions_count} question(s) de précision">📂 Question d'origine (${q.subquestions_count})</span>`;
     }
 
     return `
       <div class="question-card ${isSub ? 'is-subquestion' : ''}" id="qcard-${q.id}">
         <div class="q-card-header">
           <div class="q-badge-group">
-            <span class="badge-tag">#${q.id} &bull; ${q.thematique} &bull; ${q.sujet}</span>
-            <span class="badge-tag classe">Classe ${q.classe} - ${classeLabels[q.classe] || ''}</span>
-            <span class="badge-tag type">${q.type === 'G' ? 'Goût Unique' : 'Matrice 4 Axes'}</span>
+            <span class="badge-tag">#${q.id} &bull; ${escapeHtml(q.thematique || '')} &bull; ${escapeHtml(q.sujet || '')}</span>
+            <span class="badge-tag classe">${classeLabels[q.classe] || 'Classe ' + q.classe}</span>
+            ${typeBadgeHtml}
+            ${cibleBadgeHtml}
+            ${statusBadgeHtml}
             ${hierBadge}
           </div>
-          ${isCurrentAdmin() ? `<button class="btn-text-icon" title="Modifier la question" onclick="openEditQuestionModal(${q.id})" style="font-size:14px; padding:4px 8px; border-radius:6px; background:rgba(255,255,255,0.05);">✏️ Modifier</button>` : ''}
+          ${isCurrentAdmin() ? `<button class="btn btn-sm btn-outline" title="Modifier la question" onclick="openEditQuestionModal(${q.id})" style="font-size:12px; padding:4px 8px; border-radius:6px;">✏️ Modifier</button>` : ''}
         </div>
-        <div class="q-text">${isSub ? '<span class="subquestion-indicator">↳</span> ' : ''}${q.texte}</div>
+        <div class="q-text">${isSub ? '<span class="subquestion-indicator">↳</span> ' : ''}${escapeHtml(q.texte || '')}</div>
         ${answersUi}
       </div>
     `;
@@ -5133,11 +5286,11 @@ function renderRadarChart(thematiques) {
 // ============================================================================
 
 function populateBankFilters() {
-  // 1. Remplissage des Thématiques
+  // 1. Remplissage des Thématiques (avec normalisation anti-doublon Goûts)
   const themaSelect = document.getElementById('bankFilterThematique');
   if (themaSelect) {
     const prevThema = themaSelect.value || 'ALL';
-    const thematiques = Array.from(new Set(state.questions.map(q => q.thematique).filter(Boolean))).sort();
+    const thematiques = Array.from(new Set(state.questions.map(q => normalizeThematique(q.thematique)).filter(Boolean))).sort();
 
     themaSelect.innerHTML = `<option value="ALL">Toutes les thématiques (${thematiques.length})</option>` +
       thematiques.map(th => `<option value="${escapeHtml(th)}">${escapeHtml(th)}</option>`).join('');
@@ -5165,7 +5318,7 @@ function updateBankSujetsDropdown() {
   // Si thématique sélectionnée -> afficher uniquement les sujets attachés à cette thématique
   const filteredQuestions = (currentThema === 'ALL')
     ? state.questions
-    : state.questions.filter(q => String(q.thematique) === String(currentThema));
+    : state.questions.filter(q => normalizeThematique(q.thematique) === String(currentThema));
 
   const sujets = Array.from(new Set(filteredQuestions.map(q => q.sujet).filter(Boolean))).sort();
   sujetSelect.innerHTML = `<option value="ALL">Tous les sujets (${sujets.length})</option>` +
@@ -5269,7 +5422,7 @@ function renderBankDeck() {
 
     const filtered = questionsList.filter(q => {
       // 1. Thématique
-      if (filterThema !== 'ALL' && String(q.thematique) !== String(filterThema)) return false;
+      if (filterThema !== 'ALL' && normalizeThematique(q.thematique) !== String(filterThema)) return false;
       // 2. Classe
       if (filterClasse !== 'ALL' && String(q.classe) !== String(filterClasse)) return false;
       // 3. Sujet
@@ -5426,10 +5579,10 @@ function populateModalThematiques(selectedThema = 'Identité', selectedSujet = '
   const themaSel = document.getElementById('editQThematiqueSelect');
   if (!themaSel) return;
 
-  const thematiques = Array.from(new Set(state.questions.map(q => q.thematique).filter(Boolean))).sort();
+  const thematiques = Array.from(new Set(state.questions.map(q => normalizeThematique(q.thematique)).filter(Boolean))).sort();
   if (!thematiques.includes('Identité')) thematiques.unshift('Identité');
 
-  let optsHtml = thematiques.map(th => `<option value="${th}">${th}</option>`).join('');
+  let optsHtml = thematiques.map(th => `<option value="${escapeHtml(th)}">${escapeHtml(th)}</option>`).join('');
   optsHtml += `<option value="__NEW__">+ Autre thématique (saisie libre)...</option>`;
   themaSel.innerHTML = optsHtml;
 
@@ -5472,7 +5625,7 @@ function updateModalSujetsDropdown(selectedSujet = null) {
   }
 
   sujetSel.style.display = 'block';
-  const filtered = state.questions.filter(q => q.thematique === curThema);
+  const filtered = state.questions.filter(q => normalizeThematique(q.thematique) === curThema);
   const sujets = Array.from(new Set(filtered.map(q => q.sujet).filter(Boolean))).sort();
   if (curThema === 'Identité' && !sujets.includes('Identité')) sujets.unshift('Identité');
 
@@ -5911,22 +6064,77 @@ function resetBankFilters() {
 function resetPendingFilters() {
   const s = document.getElementById('pendingSearchInput');
   if (s) s.value = '';
+  const fth = document.getElementById('pendingFilterThematique');
+  if (fth) fth.value = 'ALL';
+  updatePendingSujetsDropdown();
+  const fsj = document.getElementById('pendingFilterSujet');
+  if (fsj) fsj.value = 'ALL';
   const fc = document.getElementById('pendingFilterClasse');
   if (fc) fc.value = 'ALL';
-  const ft = document.getElementById('pendingFilterType');
-  if (ft) ft.value = 'ALL';
   const fcb = document.getElementById('pendingFilterCible');
   if (fcb) fcb.value = 'ALL';
+  const ft = document.getElementById('pendingFilterType');
+  if (ft) ft.value = 'ALL';
   renderPendingQuestionsTable();
 }
 window.resetPendingFilters = resetPendingFilters;
+
+function populatePendingFilters() {
+  const themaSelect = document.getElementById('pendingFilterThematique');
+  if (themaSelect) {
+    const prevThema = themaSelect.value || 'ALL';
+    const thematiques = Array.from(new Set((state.pendingQuestions || []).map(q => normalizeThematique(q.thematique)).filter(Boolean))).sort();
+
+    themaSelect.innerHTML = `<option value="ALL">Toutes les thématiques (${thematiques.length})</option>` +
+      thematiques.map(th => `<option value="${escapeHtml(th)}">${escapeHtml(th)}</option>`).join('');
+
+    if (prevThema === 'ALL' || thematiques.includes(prevThema)) {
+      themaSelect.value = prevThema;
+    } else {
+      themaSelect.value = 'ALL';
+    }
+  }
+  updatePendingSujetsDropdown();
+}
+
+function updatePendingSujetsDropdown() {
+  const themaSelect = document.getElementById('pendingFilterThematique');
+  const sujetSelect = document.getElementById('pendingFilterSujet');
+  if (!sujetSelect) return;
+
+  const prevSujet = sujetSelect.value || 'ALL';
+  const currentThema = themaSelect ? themaSelect.value : 'ALL';
+
+  const filtered = (currentThema === 'ALL')
+    ? (state.pendingQuestions || [])
+    : (state.pendingQuestions || []).filter(q => normalizeThematique(q.thematique) === currentThema);
+
+  const sujets = Array.from(new Set(filtered.map(q => q.sujet).filter(Boolean))).sort();
+  sujetSelect.innerHTML = `<option value="ALL">Tous les sujets (${sujets.length})</option>` +
+    sujets.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+
+  if (prevSujet === 'ALL' || sujets.includes(prevSujet)) {
+    sujetSelect.value = prevSujet;
+  } else {
+    sujetSelect.value = 'ALL';
+  }
+}
+
+function onPendingThematiqueChange() {
+  updatePendingSujetsDropdown();
+  renderPendingQuestionsTable();
+}
+window.onPendingThematiqueChange = onPendingThematiqueChange;
 
 async function loadPendingQuestions() {
   try {
     const res = await fetch(`${API_BASE}/api/admin/questions/pending`);
     if (!res.ok) return;
     const data = await res.json();
-    state.pendingQuestions = data.pending_questions || data.questions || [];
+    state.pendingQuestions = (data.pending_questions || data.questions || []).map(q => {
+      if (q.thematique) q.thematique = normalizeThematique(q.thematique);
+      return q;
+    });
 
     // Mise à jour des KPI et badges
     const badgePending = document.getElementById('badgePendingQuestionsCount');
@@ -5948,12 +6156,14 @@ async function loadPendingQuestions() {
     if (kpiContainer) {
       const counts = data.counts_by_class || {};
       const classeNames = {
+        '0': 'Cl. 0 (Non définies)',
         '1': 'Cl. 1 (Standards)',
         '2': 'Cl. 2 (Personnelles)',
         '3': 'Cl. 3 (Intimes)',
         '4': 'Cl. 4 (Privées)',
         '5': 'Cl. 5 (Sexuel)',
-        '9': 'Cl. 9 (Fantasmes)'
+        '8': 'Cl. 8 (Identité)',
+        '9': 'Cl. 9 (Amorales / Interdits)'
       };
       let kpiHtml = `
         <div style="background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3); border-radius: var(--radius-sm); padding: 10px 14px; text-align: center; min-width: 90px;">
@@ -5975,6 +6185,7 @@ async function loadPendingQuestions() {
     const btnBatchAll = document.getElementById('btnBatchValidateAll');
     if (btnBatchAll) btnBatchAll.textContent = `🌟 Tout valider (${data.total} questions)`;
 
+    populatePendingFilters();
     renderPendingQuestionsTable();
   } catch (err) {
     console.error("Erreur chargement questions en attente:", err);
@@ -5982,15 +6193,20 @@ async function loadPendingQuestions() {
 }
 
 function renderPendingQuestionsTable() {
+  const deck = document.getElementById('pendingQuestionsDeck');
   const tbody = document.getElementById('pendingQuestionsTableBody');
-  if (!tbody) return;
+  if (!deck && !tbody) return;
 
   const searchTerm = (document.getElementById('pendingSearchInput')?.value || '').toLowerCase().trim();
+  const filterThema = document.getElementById('pendingFilterThematique')?.value || 'ALL';
+  const filterSujet = document.getElementById('pendingFilterSujet')?.value || 'ALL';
   const filterClasse = document.getElementById('pendingFilterClasse')?.value || 'ALL';
   const filterType = document.getElementById('pendingFilterType')?.value || 'ALL';
   const filterCible = document.getElementById('pendingFilterCible')?.value || 'ALL';
 
   const filtered = (state.pendingQuestions || []).filter(q => {
+    if (filterThema !== 'ALL' && normalizeThematique(q.thematique) !== filterThema) return false;
+    if (filterSujet !== 'ALL' && String(q.sujet) !== String(filterSujet)) return false;
     if (filterClasse !== 'ALL' && String(q.classe) !== String(filterClasse)) return false;
     if (filterType !== 'ALL' && String(q.type).toUpperCase() !== String(filterType).toUpperCase()) return false;
     if (filterCible !== 'ALL' && String(q.cible) !== String(filterCible)) return false;
@@ -6013,84 +6229,82 @@ function renderPendingQuestionsTable() {
     const emptyMsg = state.pendingQuestions.length === 0
       ? '🎉 <strong>Toutes les propositions ont été arbitrées !</strong><br><span style="font-size:12.5px; opacity:0.8;">Aucune question en attente de révision. Elles sont désormais actives dans la banque officielle.</span>'
       : '🔍 Aucune proposition ne correspond aux filtres sélectionnés.';
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="8" style="text-align:center; padding: 48px 16px; color: var(--text-dim); font-size: 14.5px;">
-          ${emptyMsg}
-        </td>
-      </tr>`;
+    if (deck) {
+      deck.innerHTML = `
+        <div class="empty-state" style="padding: 40px 20px; text-align: center; background: var(--bg-card); border-radius: var(--radius-md); border: 1px dashed var(--border-subtle);">
+          <span style="font-size: 36px; display: block; margin-bottom: 10px;">⚖️</span>
+          <h4 style="color: var(--text-main); margin-bottom: 6px;">Aucune proposition</h4>
+          <p style="color: var(--text-dim); font-size: 13.5px;">${emptyMsg}</p>
+        </div>`;
+    }
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding: 48px 16px; color: var(--text-dim); font-size: 14.5px;">${emptyMsg}</td></tr>`;
+    }
     return;
   }
 
-  tbody.innerHTML = filtered.map(q => {
-    // Badge de classe
-    let classeBadgeHtml = '';
-    if (q.classe === 1) {
-      classeBadgeHtml = `<span class="badge-tag" style="background: rgba(56,189,248,0.22); color: #38bdf8; border: 1px solid rgba(56,189,248,0.4); font-weight:600;">1 - Standards</span>`;
-    } else if (q.classe === 2) {
-      classeBadgeHtml = `<span class="badge-tag" style="background: rgba(16,185,129,0.22); color: #34d399; border: 1px solid rgba(16,185,129,0.4); font-weight:600;">2 - Personnelles</span>`;
-    } else if (q.classe === 3) {
-      classeBadgeHtml = `<span class="badge-tag" style="background: rgba(245,158,11,0.22); color: #fbbf24; border: 1px solid rgba(245,158,11,0.4); font-weight:600;">3 - Intimes</span>`;
-    } else if (q.classe === 4) {
-      classeBadgeHtml = `<span class="badge-tag" style="background: rgba(236,72,153,0.22); color: #f472b6; border: 1px solid rgba(236,72,153,0.4); font-weight:600;">4 - Privées</span>`;
-    } else if (q.classe === 5) {
-      classeBadgeHtml = `<span class="badge-tag" style="background: rgba(139,92,246,0.22); color: #c084fc; border: 1px solid rgba(139,92,246,0.4); font-weight:600;">5 - Sexuel</span>`;
-    } else if (q.classe === 9) {
-      classeBadgeHtml = `<span class="badge-tag" style="background: rgba(244,63,94,0.22); color: #fb7185; border: 1px solid rgba(244,63,94,0.4); font-weight:600;">9 - Fantasmes</span>`;
-    } else {
-      classeBadgeHtml = `<span class="badge-tag">Classe ${q.classe}</span>`;
-    }
+  const classeLabels = {
+    0: '0 - Non définies',
+    1: '1 - Standards',
+    2: '2 - Personnelles',
+    3: '3 - Intimes',
+    4: '4 - Privées',
+    5: '5 - A caractère sexuel',
+    8: '8 - Identité',
+    9: '9 - Amorales / Interdits'
+  };
 
-    // Badge de type
-    const typeBadgeHtml = q.type === 'M'
-      ? `<span class="badge-tag type" title="(V) Le Vécu (Passé)&#10;(A) Actuel (Présent)&#10;(D) Découverte ou Poursuite (Futur)&#10;(P) Partage (Chez la personne qui partage votre quotidien ou chez les autres)">Multi-Axes (V-A-D-P)</span>`
-      : `<span class="badge-tag type" style="background: rgba(56,189,248,0.18); color: #38bdf8;" title="Question à échelle unique d'accord (Goût)">Goût (G)</span>`;
+  if (deck) {
+    deck.innerHTML = filtered.map(q => {
+      const isMulti = (q.type === 'M' || q.type === 'MULTI');
+      const typeBadgeHtml = isMulti
+        ? '<span class="badge-tag type" title="(V) Le Vécu (Passé)&#10;(A) Actuel (Présent)&#10;(D) Découverte ou Poursuite (Futur)&#10;(P) Partage (Chez la personne qui partage votre quotidien ou chez les autres)">Multi-Axes (V-A-D-P)</span>'
+        : '<span class="badge-tag type">Goût (G)</span>';
 
-    // Badge de cible
-    const cibleBadgeHtml = q.cible === 0 
-      ? '<span class="badge-tag" style="background:rgba(148,163,184,0.15); color:#cbd5e1;">Mixte (0)</span>'
-      : (q.cible === 1 
-          ? '<span class="badge-tag" style="background:rgba(56,189,248,0.15); color:#38bdf8;">Homme (1)</span>'
-          : '<span class="badge-tag" style="background:rgba(236,72,153,0.15); color:#f472b6;">Femme (2)</span>');
+      const cibleBadgeHtml = q.cible === 0 
+        ? '<span class="badge-tag" style="background:rgba(148,163,184,0.15); color:#cbd5e1;">Mixte (0)</span>'
+        : (q.cible === 1 
+            ? '<span class="badge-tag" style="background:rgba(56,189,248,0.15); color:#38bdf8;">Homme (1)</span>'
+            : '<span class="badge-tag" style="background:rgba(236,72,153,0.15); color:#f472b6;">Femme (2)</span>');
 
-    const sujetLabel = (q.n_sujet !== undefined && q.n_sujet !== null && q.n_sujet > 0)
-      ? `<span class="badge-tag" style="font-size:10px; padding:2px 6px; margin-right:4px; opacity:0.85;">#${q.n_sujet}</span>${q.sujet}`
-      : q.sujet;
+      const sujetLabel = (q.n_sujet !== undefined && q.n_sujet !== null && q.n_sujet > 0)
+        ? `#${q.n_sujet} &bull; ${escapeHtml(q.sujet || '')}`
+        : escapeHtml(q.sujet || '');
 
-    return `
-      <tr id="row-pending-${q.id}">
-        <td><strong style="color: var(--accent-amber);">#${q.id}</strong></td>
-        <td>${classeBadgeHtml}</td>
-        <td>${typeBadgeHtml}</td>
-        <td>${cibleBadgeHtml}</td>
-        <td><span style="font-size:12.5px; color: var(--text-main);">${sujetLabel}</span></td>
-        <td style="line-height: 1.45; font-weight: 500;">${q.texte}</td>
-        <td>
-          <span class="badge-soft" style="background: rgba(245,158,11,0.15); color: #fbbf24; font-size: 11px; padding: 3px 8px; border: 1px solid rgba(245,158,11,0.3); border-radius: 4px;">
-            ⏳ En attente
-          </span>
-        </td>
-        <td style="text-align:right; white-space:nowrap;">
-          <div style="display: inline-flex; gap: 6px; align-items: center;">
-            <select id="select-pack-${q.id}" class="custom-select" style="padding: 4px 6px; font-size: 11px; font-weight: 600; min-width: 76px; background: rgba(255,255,255,0.06);" title="Choisir le Jeu auquel affecter la question">
-              <option value="3" ${q.pack_id === 3 ? 'selected' : ''}>Jeu 3</option>
-              <option value="1" ${q.pack_id === 1 ? 'selected' : ''}>Jeu 1</option>
-              <option value="2" ${q.pack_id === 2 ? 'selected' : ''}>Jeu 2</option>
-            </select>
-            <button class="btn btn-sm" onclick="validatePendingQuestion(${q.id})" style="background: #10b981; color: #fff; border: none; padding: 5px 10px; font-weight: 600; cursor: pointer; border-radius: 6px;" title="Valider dans le jeu sélectionné">
-              ✅ Valider
-            </button>
-            <button class="btn btn-sm btn-outline" onclick="openEditQuestionModal(${q.id})" style="padding: 5px 8px; border-radius: 6px;" title="Modifier le libellé, le sujet ou la cible avant validation">
-              ✏️
-            </button>
-            <button class="btn btn-sm" onclick="deletePendingQuestion(${q.id})" style="background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.35); padding: 5px 8px; cursor: pointer; border-radius: 6px;" title="Supprimer définitivement cette proposition">
-              🗑️
-            </button>
+      return `
+        <div class="question-card" id="pending-qcard-${q.id}">
+          <div class="q-card-header">
+            <div class="q-badge-group">
+              <span class="badge-tag">#${q.id} &bull; ${escapeHtml(q.thematique || '')} &bull; ${sujetLabel}</span>
+              <span class="badge-tag classe">${classeLabels[q.classe] || 'Classe ' + q.classe}</span>
+              ${typeBadgeHtml}
+              ${cibleBadgeHtml}
+              <span class="badge-soft" style="background: rgba(245,158,11,0.18); color: #fbbf24; border: 1px solid rgba(245,158,11,0.4); font-size: 11px; padding: 3px 8px; font-weight: 600;">
+                ⏳ En attente
+              </span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <select id="select-pack-${q.id}" class="custom-select" style="padding: 5px 8px; font-size: 11.5px; font-weight: 600; min-width: 80px; background: rgba(255,255,255,0.06);" title="Choisir le Jeu auquel affecter la question">
+                <option value="3" ${q.pack_id === 3 ? 'selected' : ''}>Jeu 3</option>
+                <option value="1" ${q.pack_id === 1 ? 'selected' : ''}>Jeu 1</option>
+                <option value="2" ${q.pack_id === 2 ? 'selected' : ''}>Jeu 2</option>
+              </select>
+              <button class="btn btn-sm" onclick="validatePendingQuestion(${q.id})" style="background: #10b981; color: #fff; border: none; padding: 5px 12px; font-weight: 600; cursor: pointer; border-radius: 6px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;" title="Valider dans le jeu sélectionné">
+                ✅ Valider
+              </button>
+              <button class="btn btn-sm btn-outline" onclick="openEditQuestionModal(${q.id})" style="padding: 5px 9px; font-size: 12px; border-radius: 6px;" title="Modifier le libellé, le sujet ou la cible avant validation">
+                ✏️ Modifier
+              </button>
+              <button class="btn btn-sm btn-outline" onclick="deletePendingQuestion(${q.id})" style="background: rgba(239,68,68,0.12); color: #f87171; border-color: rgba(239,68,68,0.3); padding: 5px 9px; font-size: 12px; cursor: pointer; border-radius: 6px;" title="Supprimer définitivement cette proposition">
+                🗑️ Supprimer
+              </button>
+            </div>
           </div>
-        </td>
-      </tr>
-    `;
-  }).join('');
+          <div class="q-text">${escapeHtml(q.texte || '')}</div>
+        </div>
+      `;
+    }).join('');
+  }
 }
 
 async function validatePendingQuestion(qid) {
@@ -6189,4 +6403,9 @@ window.openProfileCompletenessModal = openProfileCompletenessModal;
 window.onHierarchyTypeChange = onHierarchyTypeChange;
 window.onEditQNQuestLieChange = onEditQNQuestLieChange;
 window.openAddAttachedQuestionModal = openAddAttachedQuestionModal;
+window.onQThematiqueChange = onQThematiqueChange;
+window.onPendingThematiqueChange = onPendingThematiqueChange;
+window.updateQuestionnaireSujetsDropdown = updateQuestionnaireSujetsDropdown;
+window.updatePendingSujetsDropdown = updatePendingSujetsDropdown;
+
 

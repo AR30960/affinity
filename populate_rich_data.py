@@ -74,7 +74,7 @@ def populate():
         # 1. Alexandre (P1)
         if qtype == "G":
             # Goûts : 1 à 5
-            base_g1 = random.choice([3, 4, 5]) if th in ["Gouts", "Divertissements & Loisirs"] else random.choice([2, 3, 4])
+            base_g1 = random.choice([3, 4, 5]) if th in ["Goûts", "Gouts", "Divertissements & Loisirs"] else random.choice([2, 3, 4])
             c.execute("INSERT INTO answers (profile_id, question_id, axis, value) VALUES (1, ?, 'G', ?)", (qid, base_g1))
             
             # Camille (P2) : proche avec légères nuances

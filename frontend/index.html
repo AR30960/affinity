@@ -721,16 +721,49 @@
 
       <!-- TAB 3: QUESTIONNAIRE (SAISIE RAPIDE V-A-D-P & G) -->
       <section id="tab-questionnaire" class="tab-pane">
-        <div class="questionnaire-header-bar">
-          <div class="q-profile-selector">
-            <label for="qSelectProfile">Répondre pour le profil :</label>
+        <!-- 1. En-tête synthétique Profil & Progression -->
+        <div class="questionnaire-meta-bar" id="questionnaireMetaBar">
+          <!-- Profil actif (pour Abonné et Invité) -->
+          <div class="q-active-profile-info" id="qActiveProfileInfo">
+            <div class="ap-avatar" id="qActiveProfileAvatar" style="width: 38px; height: 38px; font-size: 15px; font-weight: 700; background: linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(14, 165, 233, 0.3);">?</div>
+            <div>
+              <div style="font-weight: 700; font-size: 14px; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+                <span id="qActiveProfilePseudo">Mon Profil</span>
+                <span class="role-badge" id="qActiveProfileRole">Abonné</span>
+              </div>
+              <div style="font-size: 12px; color: var(--text-muted);" id="qActiveProfileSub">Répondez aux questionnaires pour révéler vos affinités électives</div>
+            </div>
+          </div>
+
+          <!-- Sélecteur de profil (réservé au superviseur Administrateur en test) -->
+          <div class="q-profile-selector admin-only" id="qProfileSelectorWrap" style="display: none;">
+            <label for="qSelectProfile" style="font-size: 13px; font-weight: 600; color: var(--text-muted); white-space: nowrap;">Répondre pour le profil :</label>
             <select id="qSelectProfile" class="custom-select" onchange="onQProfileChange(this.value)"></select>
           </div>
-          <div class="q-filters">
-            <select id="qFilterThematique" class="custom-select" onchange="renderQuestionsDeck()" title="Thématique">
+
+          <!-- Jauge de Progression -->
+          <div class="q-progress" style="min-width: 220px;">
+            <div class="q-progress-text" style="font-size: 12px; font-weight: 600; color: var(--text-muted); display: flex; justify-content: space-between; margin-bottom: 6px;">
+              <span>Progression globale</span>
+              <span id="qProgressPct" style="color: var(--accent-cyan); font-weight: 700;">0%</span>
+            </div>
+            <div class="q-progress-bar" style="height: 8px; background: rgba(255, 255, 255, 0.08); border-radius: 9999px; overflow: hidden;">
+              <div id="qProgressFill" style="width: 0%; height: 100%; background: var(--accent-gradient); border-radius: 9999px; transition: width 0.3s ease;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. BARRE DE FILTRES SUR UNE SEULE LIGNE (IDENTIQUE À BANQUE ACTIVE) -->
+        <div class="bank-filters-single-row">
+          <!-- 1. Thématique -->
+          <div class="bank-filter-item">
+            <select id="qFilterThematique" class="custom-select" onchange="onQThematiqueChange()" title="Filtrer par Thématique">
               <option value="ALL">Toutes les thématiques</option>
             </select>
-            <select id="qFilterPack" class="custom-select" onchange="renderQuestionsDeck()" title="Jeu / Pack"></select>
+          </div>
+
+          <!-- 2. Classes (0 à 9 harmonisées) -->
+          <div class="bank-filter-item">
             <select id="qFilterClasse" class="custom-select" onchange="renderQuestionsDeck()" title="Classe de question">
               <option value="ALL">Toutes les classes</option>
               <option value="0">0 - Non définies</option>
@@ -739,25 +772,59 @@
               <option value="3">3 - Intimes</option>
               <option value="4">4 - Privées</option>
               <option value="5">5 - A caractère sexuel</option>
-              <option value="9">9 - Interdits / Fantasmes</option>
+              <option value="8">8 - Identité</option>
+              <option value="9">9 - Amorales / Interdits</option>
             </select>
+          </div>
+
+          <!-- 3. Sujets (dynamiques selon la thématique sélectionnée) -->
+          <div class="bank-filter-item">
+            <select id="qFilterSujet" class="custom-select" onchange="renderQuestionsDeck()" title="Filtrer par Sujet">
+              <option value="ALL">Tous les sujets</option>
+            </select>
+          </div>
+
+          <!-- 4. Cible -->
+          <div class="bank-filter-item">
+            <select id="qFilterCible" class="custom-select" onchange="renderQuestionsDeck()" title="Filtrer par Cible">
+              <option value="ALL">Toutes les cibles</option>
+              <option value="0">0 - Mixte (Tous)</option>
+              <option value="1">1 - Hommes</option>
+              <option value="2">2 - Femmes</option>
+            </select>
+          </div>
+
+          <!-- 5. Jeu / Pack -->
+          <div class="bank-filter-item">
+            <select id="qFilterPack" class="custom-select" onchange="renderQuestionsDeck()" title="Jeu / Pack"></select>
+          </div>
+
+          <!-- 6. Statut de réponse -->
+          <div class="bank-filter-item">
             <select id="qFilterStatus" class="custom-select" onchange="renderQuestionsDeck()" title="Filtrer par statut de réponse">
               <option value="ALL">Toutes les questions</option>
               <option value="UNANSWERED">Non répondues uniquement</option>
               <option value="ANSWERED">Répondues uniquement</option>
             </select>
+          </div>
+
+          <!-- 7. Niveau hiérarchique -->
+          <div class="bank-filter-item">
             <select id="qFilterHierarchie" class="custom-select" onchange="renderQuestionsDeck()" title="Filtrer par niveau (Principales / Sous-questions)">
               <option value="ALL">Tous les niveaux</option>
-              <option value="MAIN">Questions principales uniquement</option>
-              <option value="SUB">Sous-questions uniquement</option>
+              <option value="MAIN">Questions principales</option>
+              <option value="SUB">Sous-questions</option>
             </select>
-            <button id="btnResetQFilters" class="btn btn-outline btn-sm" onclick="resetQuestionnaireFilters()" title="Réinitialiser les filtres" style="padding: 7px 12px; font-size: 12px; white-space: nowrap;">
-              🔄 Effacer filtres
-            </button>
           </div>
-          <div class="q-progress">
-            <div class="q-progress-text">Progression : <span id="qProgressPct">0%</span></div>
-            <div class="q-progress-bar"><div id="qProgressFill" style="width: 0%;"></div></div>
+
+          <!-- Réinitialisation rapide des filtres -->
+          <button id="btnResetQFilters" class="btn btn-outline btn-sm" onclick="resetQuestionnaireFilters()" title="Réinitialiser les filtres" style="padding: 7px 11px; font-size: 12px; white-space: nowrap;">
+            🔄 Effacer
+          </button>
+
+          <!-- Compteur & Statut à droite (identique à Banque Active) -->
+          <div style="margin-left: auto; display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
+            <span id="qQuestionsCountBadge" class="badge-soft" style="font-size: 12px; padding: 6px 12px; white-space: nowrap;">0 question</span>
           </div>
         </div>
 
@@ -1086,63 +1153,75 @@
             </div>
           </div>
 
-          <!-- Barre de filtrage des questions en attente -->
-          <div class="section-toolbar" style="flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px;">
-            <div class="search-box" style="min-width: 240px; max-width: 320px;">
-              <span class="search-icon">🔍</span>
-              <input type="text" id="pendingSearchInput" placeholder="Rechercher dans les propositions..." oninput="renderPendingQuestionsTable()">
+          <!-- BARRE DE FILTRES SUR UNE SEULE LIGNE (IDENTIQUE À BANQUE ACTIVE) -->
+          <div class="bank-filters-single-row">
+            <!-- 1. Thématique -->
+            <div class="bank-filter-item">
+              <select id="pendingFilterThematique" class="custom-select" onchange="onPendingThematiqueChange()" title="Filtrer par thématique">
+                <option value="ALL">Toutes les thématiques</option>
+              </select>
             </div>
-            
-            <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-              <select id="pendingFilterClasse" class="custom-select" style="min-width: 190px;" onchange="renderPendingQuestionsTable()">
+
+            <!-- 2. Classes (0 à 9 harmonisées) -->
+            <div class="bank-filter-item">
+              <select id="pendingFilterClasse" class="custom-select" onchange="renderPendingQuestionsTable()" title="Filtrer par classe">
                 <option value="ALL">Toutes les classes</option>
-                <option value="1">Classe 1 - Standards</option>
-                <option value="2">Classe 2 - Personnelles</option>
-                <option value="3">Classe 3 - Intimes</option>
-                <option value="4">Classe 4 - Privées</option>
-                <option value="5">Classe 5 - À caractère sexuel</option>
-                <option value="9">Classe 9 - Interdits / Fantasmes</option>
+                <option value="0">0 - Non définies</option>
+                <option value="1">1 - Standards</option>
+                <option value="2">2 - Personnelles</option>
+                <option value="3">3 - Intimes</option>
+                <option value="4">4 - Privées</option>
+                <option value="5">5 - A caractère sexuel</option>
+                <option value="8">8 - Identité</option>
+                <option value="9">9 - Amorales / Interdits</option>
               </select>
-              <select id="pendingFilterType" class="custom-select" style="min-width: 150px;" onchange="renderPendingQuestionsTable()">
-                <option value="ALL">Tous les types</option>
-                <option value="M">M - Multi-Axes (V, A, D, P)</option>
-                <option value="G">Goût Unique (G)</option>
+            </div>
+
+            <!-- 3. Sujets (dynamiques selon thématique) -->
+            <div class="bank-filter-item">
+              <select id="pendingFilterSujet" class="custom-select" onchange="renderPendingQuestionsTable()" title="Filtrer par sujet">
+                <option value="ALL">Tous les sujets</option>
               </select>
-              <select id="pendingFilterCible" class="custom-select" style="min-width: 150px;" onchange="renderPendingQuestionsTable()">
+            </div>
+
+            <!-- 4. Cible -->
+            <div class="bank-filter-item">
+              <select id="pendingFilterCible" class="custom-select" onchange="renderPendingQuestionsTable()" title="Filtrer par cible">
                 <option value="ALL">Toutes les cibles</option>
                 <option value="0">0 - Mixte (Tous)</option>
                 <option value="1">1 - Hommes</option>
                 <option value="2">2 - Femmes</option>
               </select>
-              <button id="btnResetPendingFilters" class="btn btn-outline btn-sm" onclick="resetPendingFilters()" style="padding: 8px 12px;">
-                🔄 Effacer filtres
-              </button>
             </div>
 
-            <div style="margin-left: auto;">
-              <span id="pendingFilteredCountBadge" class="badge-soft" style="font-size: 12px; padding: 6px 12px; background: rgba(245,158,11,0.15); color: #fbbf24;">Chargement...</span>
+            <!-- 5. Type -->
+            <div class="bank-filter-item">
+              <select id="pendingFilterType" class="custom-select" onchange="renderPendingQuestionsTable()" title="Filtrer par type">
+                <option value="ALL">Tous les types</option>
+                <option value="M">Multi-Axes (V-A-D-P)</option>
+                <option value="G">Goût Unique (G)</option>
+              </select>
+            </div>
+
+            <!-- Réinitialisation rapide des filtres -->
+            <button id="btnResetPendingFilters" class="btn btn-outline btn-sm" onclick="resetPendingFilters()" title="Réinitialiser les filtres" style="padding: 7px 11px; font-size: 12px; white-space: nowrap;">
+              🔄 Effacer
+            </button>
+
+            <!-- Recherche rapide intégrée -->
+            <div class="bank-filter-item" style="min-width: 170px; max-width: 220px;">
+              <input type="text" id="pendingSearchInput" class="custom-select" placeholder="🔍 Rechercher..." oninput="renderPendingQuestionsTable()" style="padding: 7px 10px; font-size: 12.5px; width: 100%;">
+            </div>
+
+            <!-- Compteur & Statut à droite (identique à Banque Active) -->
+            <div style="margin-left: auto; display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
+              <span id="pendingFilteredCountBadge" class="badge-soft" style="font-size: 12px; padding: 6px 12px; white-space: nowrap; background: rgba(245,158,11,0.18); color: #fbbf24; border: 1px solid rgba(245,158,11,0.35);">Chargement...</span>
             </div>
           </div>
 
-          <!-- Table des propositions en attente -->
-          <div class="table-responsive">
-            <table class="custom-table" id="pendingQuestionsTable">
-              <thead>
-                <tr>
-                  <th style="width: 70px;">ID</th>
-                  <th style="width: 140px;">Classe</th>
-                  <th style="width: 110px;">Type</th>
-                  <th style="width: 100px;">Cible</th>
-                  <th style="width: 170px;">Sujet</th>
-                  <th>Intitulé de la Proposition</th>
-                  <th style="width: 110px;">Statut</th>
-                  <th style="text-align:right; width: 220px;">Arbitrage / Actions</th>
-                </tr>
-              </thead>
-              <tbody id="pendingQuestionsTableBody">
-                <!-- Injecté par JS -->
-              </tbody>
-            </table>
+          <!-- PRÉSENTATION EN CARTES (IDENTIQUE À BANQUE ACTIVE) -->
+          <div class="questions-deck" id="pendingQuestionsDeck">
+            <!-- Cartes injectées dynamiquement par JS -->
           </div>
         </div>
       </section>
@@ -1754,7 +1833,7 @@
               <option value="4">4 - Privées</option>
               <option value="5">5 - Hors normes / A caractère sexuel</option>
               <option value="8">8 - Identité</option>
-              <option value="9">9 - Amorales / Interdits / Fantasmes</option>
+              <option value="9">9 - Amorales / Interdits</option>
             </select>
           </div>
           <div class="form-group col">
