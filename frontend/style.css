@@ -5556,4 +5556,285 @@ select.ckp-input option {
   }
 }
 
+/* ==========================================================================
+   BARRE D'ADMINISTRATION DU STATUT DE RÔLE DANS LE COCKPIT
+   ========================================================================== */
+.admin-cockpit-role-bar {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.12) 0%, rgba(56, 189, 248, 0.05) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: var(--radius-md);
+  padding: 12px 18px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+.acrb-icon {
+  font-size: 18px;
+}
+
+/* ==========================================================================
+   GALERIE DES CANDIDATS DE MATCH (PROFILS COMPLÉTÉS ÉLIGIBLES)
+   ========================================================================== */
+.match-candidates-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 24px 28px;
+  margin-bottom: 28px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+.match-candidates-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 22px;
+}
+
+.mch-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.mch-icon {
+  font-size: 28px;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(236, 72, 153, 0.12);
+  border: 1px solid rgba(236, 72, 153, 0.3);
+  border-radius: 12px;
+}
+
+.mch-filters-wrap {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.mch-filter-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+}
+
+.mch-filter-buttons {
+  display: flex;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 4px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  gap: 4px;
+}
+
+.mch-filter-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  padding: 7px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mch-filter-btn:hover {
+  color: var(--text-bright);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.mch-filter-btn.active {
+  background: linear-gradient(135deg, #EC4899 0%, #8B5CF6 100%);
+  color: #FFFFFF;
+  box-shadow: 0 2px 10px rgba(236, 72, 153, 0.35);
+}
+
+.mch-count-badge {
+  background: rgba(14, 165, 233, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  color: #38bdf8;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+/* Grille des profils candidats */
+.match-candidates-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 18px;
+}
+
+.candidate-match-card {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.candidate-match-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(236, 72, 153, 0.45);
+  box-shadow: 0 8px 24px rgba(236, 72, 153, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.cmc-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.cmc-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #EC4899 0%, #8B5CF6 100%);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+  flex-shrink: 0;
+}
+
+.cmc-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.cmc-pseudo-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+
+.cmc-pseudo {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-bright);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cmc-sub-row {
+  font-size: 12px;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.cmc-badge-complete {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(16, 185, 129, 0.14);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #34d399;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 12px;
+  margin-top: 4px;
+}
+
+.cmc-body {
+  font-size: 12.5px;
+  color: var(--text-main);
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--accent-pink);
+  line-height: 1.45;
+  max-height: 70px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cmc-recherche {
+  font-size: 11.5px;
+  color: var(--text-dim);
+}
+
+.cmc-recherche strong {
+  color: #cbd5e1;
+}
+
+.btn-start-match-direct {
+  width: 100%;
+  background: linear-gradient(135deg, #EC4899 0%, #8B5CF6 100%);
+  color: #FFFFFF;
+  border: none;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  box-shadow: 0 3px 12px rgba(236, 72, 153, 0.25);
+}
+
+.btn-start-match-direct:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(236, 72, 153, 0.45);
+  filter: brightness(1.08);
+}
+
+.candidate-empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 35px 20px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-dim);
+}
+
+.candidate-empty-state .ces-icon {
+  font-size: 36px;
+  margin-bottom: 10px;
+}
+
+.candidate-empty-state p {
+  margin: 5px 0 14px 0;
+  font-size: 13.5px;
+}
+
 

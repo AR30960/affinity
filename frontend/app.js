@@ -1393,9 +1393,11 @@ function switchTab(tabName) {
     renderQuestionsDeck();
   } else if (tabName === 'affinity') {
     updateAffinityAccessUi();
-    updateAffinitySelectors();
+    updateProfileDropdowns();
+    updateAffinitySelectorsStatus();
     updateTargetProfilePreview();
     loadMatchRequests();
+    renderMatchCandidates(state.matchGenderFilter || 'opposite');
   } else if (tabName === 'questions-bank') {
     populateBankFilters();
     renderQuestionsTable();
@@ -1820,6 +1822,7 @@ function applyRolePermissionsUi() {
 
   updateQuestionnaireProfileHeader();
   renderQuestionsTable();
+  updateAdminCockpitRoleBar();
 }
 
 function updateQuestionnaireProfileHeader() {
@@ -1901,20 +1904,242 @@ function revertToAdmin() {
 }
 window.revertToAdmin = revertToAdmin;
 
+// ==========================================================================
+// GESTION DU CALCULATEUR D'AFFINITÉ & GALERIE DES PROFILS COMPLÉTÉS
+// ==========================================================================
+
+function isCurrentProfileCompleted() {
+  const curProf = getActiveProfile();
+  if (!curProf) return false;
+  if (curProf.role === 'admin') return true;
+
+  // 1. Complétude des caractéristiques d'identité (Classe 8)
+  const sPct = state.selfCompletionPct ?? curProf.self_completion_pct ?? 0;
+  const pPct = state.partnerCompletionPct ?? curProf.partner_completion_pct ?? 0;
+  if (sPct < 100 || pPct < 100) return false;
+
+  // 2. Fiche de base (sexe, date de naissance, localisation, bio)
+  const hasBasic = Boolean(
+    curProf.has_identity || 
+    (curProf.sexe && (curProf.sexe === 1 || curProf.sexe === 2) && curProf.date_naissance && (curProf.habite_commune || curProf.ville) && curProf.bio)
+  );
+  return hasBasic;
+}
+
 function updateAffinityAccessUi() {
   const role = getActiveRole();
   const guestLock = document.getElementById('affinityGuestLock');
+  const incompleteLock = document.getElementById('affinityIncompleteLock');
   const calcContent = document.getElementById('affinityCalculatorContent');
   
-  if (guestLock && calcContent) {
-    if (role === 'guest') {
-      guestLock.style.display = 'block';
-      calcContent.style.display = 'none';
-    } else {
-      guestLock.style.display = 'none';
-      calcContent.style.display = 'block';
-    }
+  if (!guestLock || !calcContent) return;
+
+  // 1. Rôle Invité : bloqué par le panneau Invité
+  if (role === 'guest') {
+    guestLock.style.display = 'block';
+    if (incompleteLock) incompleteLock.style.display = 'none';
+    calcContent.style.display = 'none';
+    return;
   }
+
+  // 2. Rôle Administrateur : accès direct et supervision
+  if (isCurrentAdmin()) {
+    guestLock.style.display = 'none';
+    if (incompleteLock) incompleteLock.style.display = 'none';
+    calcContent.style.display = 'block';
+    renderMatchCandidates(state.matchGenderFilter || 'opposite');
+    return;
+  }
+
+  // 3. Rôle Abonné : vérifier obligatoirement que son profil est complété à 100%
+  const isComplete = isCurrentProfileCompleted();
+  if (!isComplete) {
+    guestLock.style.display = 'none';
+    if (incompleteLock) {
+      incompleteLock.style.display = 'block';
+      const sPct = state.selfCompletionPct ?? 0;
+      const pPct = state.partnerCompletionPct ?? 0;
+      const elPctSelf = document.getElementById('lockPctSelf');
+      const elPctPartner = document.getElementById('lockPctPartner');
+      if (elPctSelf) elPctSelf.textContent = `${sPct}%`;
+      if (elPctPartner) elPctPartner.textContent = `${pPct}%`;
+    }
+    calcContent.style.display = 'none';
+    return;
+  }
+
+  // 4. Abonné avec profil 100% complété : accès autorisé au matching
+  guestLock.style.display = 'none';
+  if (incompleteLock) incompleteLock.style.display = 'none';
+  calcContent.style.display = 'block';
+  renderMatchCandidates(state.matchGenderFilter || 'opposite');
+}
+
+function setMatchGenderFilter(filterType) {
+  state.matchGenderFilter = filterType || 'opposite';
+  renderMatchCandidates(state.matchGenderFilter);
+}
+
+function renderMatchCandidates(filterType = 'opposite') {
+  const grid = document.getElementById('matchCandidatesGrid');
+  if (!grid) return;
+
+  const curProf = getActiveProfile();
+  const p1Id = parseInt(document.getElementById('affProfile1')?.value, 10) || (curProf ? curProf.id : null);
+  const p1 = (state.profiles || []).find(p => p.id === p1Id) || curProf;
+  const p1Sexe = p1 ? (p1.sexe || 0) : 0; // 1 = Homme, 2 = Femme
+  const oppositeSexe = (p1Sexe === 1) ? 2 : (p1Sexe === 2 ? 1 : 0);
+
+  // Mise à jour de l'apparence des boutons de filtres de sexe
+  const btnOpp = document.getElementById('btnFilterOpposite');
+  const btnSame = document.getElementById('btnFilterSame');
+  const btnAll = document.getElementById('btnFilterAll');
+  const lblOpp = document.getElementById('labelFilterOpposite');
+  const lblSame = document.getElementById('labelFilterSame');
+
+  if (btnOpp) btnOpp.classList.toggle('active', filterType === 'opposite');
+  if (btnSame) btnSame.classList.toggle('active', filterType === 'same');
+  if (btnAll) btnAll.classList.toggle('active', filterType === 'all');
+
+  if (lblOpp) {
+    lblOpp.textContent = (p1Sexe === 1) ? '👩 Femmes (Sexe opposé)' : (p1Sexe === 2 ? '👨 Hommes (Sexe opposé)' : 'Sexe opposé');
+  }
+  if (lblSame) {
+    lblSame.textContent = (p1Sexe === 1) ? '👨 Hommes (Même sexe)' : (p1Sexe === 2 ? '👩 Femmes (Même sexe)' : 'Même sexe');
+  }
+
+  // Candidats éligibles :
+  // - Profils complétés (p.is_completed === true ou (p.has_identity && p.self_completion_pct >= 100 && p.partner_completion_pct >= 100))
+  // - Différents de P1
+  // - Non-admin (l'admin ne participe pas aux questionnaires / matches)
+  const eligibleCompleted = (state.profiles || []).filter(p => {
+    if (p.id === p1Id) return false;
+    if (p.role === 'admin') return false;
+    const isComp = Boolean(p.is_completed || (p.has_identity && (p.self_completion_pct ?? 0) >= 100 && (p.partner_completion_pct ?? 0) >= 100));
+    return isComp;
+  });
+
+  // Application du filtre de sexe
+  let filtered = [];
+  if (filterType === 'opposite' && oppositeSexe !== 0) {
+    filtered = eligibleCompleted.filter(p => p.sexe === oppositeSexe);
+  } else if (filterType === 'same' && p1Sexe !== 0) {
+    filtered = eligibleCompleted.filter(p => p.sexe === p1Sexe);
+  } else {
+    filtered = eligibleCompleted;
+  }
+
+  const countBadge = document.getElementById('matchCandidatesCount');
+  if (countBadge) {
+    countBadge.textContent = `${filtered.length} candidat${filtered.length > 1 ? 's' : ''}`;
+  }
+
+  if (filtered.length === 0) {
+    let emptyHint = '';
+    if (filterType === 'opposite') {
+      emptyHint = `Aucun profil complété du sexe opposé n'est actuellement disponible.<br>Vous pouvez élargir votre recherche à <strong>Tous les sexes</strong> avec le bouton ci-dessus.`;
+    } else {
+      emptyHint = `Aucun autre membre n'a encore complété son profil à 100% dans cette catégorie.`;
+    }
+
+    grid.innerHTML = `
+      <div class="candidate-empty-state">
+        <div class="ces-icon">🔍</div>
+        <strong style="color:var(--text-bright); font-size:15px;">Aucun candidat disponible pour ce filtre</strong>
+        <p>${emptyHint}</p>
+        ${filterType !== 'all' ? `
+          <button type="button" class="btn btn-sm btn-secondary" onclick="setMatchGenderFilter('all')">
+            <span>👥</span> Élargir à tous les profils complétés
+          </button>
+        ` : ''}
+      </div>
+    `;
+    return;
+  }
+
+  grid.innerHTML = filtered.map(p => {
+    const sexeLabel = (p.sexe === 1) ? 'Homme' : (p.sexe === 2 ? 'Femme' : 'Non précisé');
+    const sexeIcon = (p.sexe === 1) ? '👨' : (p.sexe === 2 ? '👩' : '👤');
+    const ageStr = p.age ? `${p.age} ans` : '';
+    const locationStr = p.habite_commune || p.ville || 'Localisation non renseignée';
+    const subDetails = [sexeIcon + ' ' + sexeLabel, ageStr, locationStr].filter(Boolean).join(' &bull; ');
+    const bioSnippet = p.bio ? `"${p.bio}"` : "Présentation non renseignée.";
+    const rechercheSnippet = p.recherche_de ? `Recherche : <strong>${p.recherche_de}</strong>` : '';
+
+    return `
+      <div class="candidate-match-card" id="candidateCard_${p.id}">
+        <div>
+          <div class="cmc-top">
+            <div class="cmc-avatar">${p.pseudo.charAt(0).toUpperCase()}</div>
+            <div class="cmc-info">
+              <div class="cmc-pseudo-row">
+                <span class="cmc-pseudo">${p.pseudo}</span>
+                <span class="uph-id-tag">${formatAffId(p.id)}</span>
+              </div>
+              <div class="cmc-sub-row">${subDetails}</div>
+              <div class="cmc-badge-complete">✓ Profil 100% complété</div>
+            </div>
+          </div>
+          <div class="cmc-body" style="margin-top:12px;">
+            ${bioSnippet}
+          </div>
+          ${rechercheSnippet ? `<div class="cmc-recherche" style="margin-top:8px;">${rechercheSnippet}</div>` : ''}
+        </div>
+        <div>
+          <button type="button" class="btn-start-match-direct" onclick="selectCandidateAndMatch(${p.id})">
+            <span>⚡</span> Lancer le Match avec ${p.pseudo}
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function selectCandidateAndMatch(candidateId) {
+  const aff2 = document.getElementById('affProfile2');
+  if (aff2) {
+    aff2.value = candidateId;
+  }
+  updateAffinitySelectorsStatus();
+  await updateTargetProfilePreview();
+  await computeAffinityAction();
+  
+  // Défilement fluide vers la carte de résultat
+  const resultsCard = document.getElementById('affinityResultsContainer');
+  if (resultsCard) {
+    resultsCard.scrollIntoView({ behavior: 'smooth' });
+  }
+}
+
+// Contrôle administrateur de rôle dans le Cockpit
+function updateAdminCockpitRoleBar() {
+  const bar = document.getElementById('adminCockpitRoleBar');
+  if (!bar) return;
+  const curProf = getActiveProfile();
+  const isReal = isRealAdmin();
+  // Afficher la barre seulement si l'utilisateur est un vrai administrateur et qu'il consulte un profil membre (hors compte admin 1)
+  if (isReal && curProf && curProf.id !== 1) {
+    bar.style.display = 'flex';
+    const badge = document.getElementById('acrbCurrentBadge');
+    const btnSub = document.getElementById('btnAcrbMakeSubscriber');
+    const btnGst = document.getElementById('btnAcrbMakeGuest');
+    if (badge) {
+      badge.className = `role-badge ${curProf.role}`;
+      badge.textContent = (curProf.role === 'subscriber') ? '⭐ Abonné' : '👤 Invité';
+    }
+    if (btnSub) btnSub.style.display = (curProf.role === 'subscriber') ? 'none' : 'inline-flex';
+    if (btnGst) btnGst.style.display = (curProf.role === 'guest') ? 'none' : 'inline-flex';
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+async function acrbSetCurrentRole(newRole) {
+  const curProf = getActiveProfile();
+  if (!curProf) return;
+  await changeProfileRole(curProf.id, newRole);
+  updateAdminCockpitRoleBar();
+  applyRolePermissionsUi();
 }
 
 function openAuthModal() {
@@ -2532,6 +2757,17 @@ function renderProfilesGrid(filter = '') {
               <button class="btn btn-sm btn-outline" onclick="deleteProfileConfirm(${p.id}, '${p.pseudo}')" title="Supprimer ce profil" style="border-color:rgba(239,68,68,0.35); color:#f87171;">
                 <span>🗑️</span> Supprimer
               </button>
+            </div>
+            <div class="profile-actions-row" style="margin-top:4px;">
+              ${p.role === 'guest' ? `
+                <button class="btn btn-xs btn-secondary" onclick="changeProfileRole(${p.id}, 'subscriber')" title="Accorder le statut d'abonné à ${p.pseudo}" style="width:100%;">
+                  <span>⭐</span> Accorder statut Abonné
+                </button>
+              ` : `
+                <button class="btn btn-xs btn-outline" onclick="changeProfileRole(${p.id}, 'guest')" title="Définir ${p.pseudo} en statut invité" style="width:100%;">
+                  <span>👤</span> Définir statut Invité
+                </button>
+              `}
             </div>
           ` : `
             <div class="profile-actions-row">
@@ -3579,9 +3815,9 @@ function renderAdminUsersTable() {
 
     let quickActionBtn = '';
     if (role === 'guest') {
-      quickActionBtn = `<button class="btn btn-sm btn-secondary" onclick="changeProfileRole(${p.id}, 'subscriber')" title="Accorder l'accès au calculateur">⭐ Promouvoir Abonné</button>`;
+      quickActionBtn = `<button class="btn btn-sm btn-secondary" onclick="changeProfileRole(${p.id}, 'subscriber')" title="Accorder le statut d'abonné">⭐ Accorder statut Abonné</button>`;
     } else if (role === 'subscriber') {
-      quickActionBtn = `<button class="btn btn-sm btn-outline" onclick="changeProfileRole(${p.id}, 'guest')" title="Passer en invité">Rétrograder Invité</button>`;
+      quickActionBtn = `<button class="btn btn-sm btn-outline" onclick="changeProfileRole(${p.id}, 'guest')" title="Définir en statut invité">👤 Définir statut Invité</button>`;
     } else {
       quickActionBtn = `<span style="font-size:12px; color:var(--text-dim);">Titulaire Admin</span>`;
     }

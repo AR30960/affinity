@@ -473,11 +473,11 @@ def get_full_profile_data(c, profile_id):
                i.travail_pays, i.travail_region_dept, i.travail_commune,
                i.taille, i.poids, i.pointure, i.tour_poitrine, i.tour_taille, i.tour_hanches, i.mensurations,
                i.origines, i.couleur_cheveux, i.style, i.aime_chez_moi, i.aime_pas_chez_moi,
-               (CASE WHEN i.prenom IS NOT NULL AND i.prenom != '' THEN 1 ELSE 0 END) as has_identity,
+               (CASE WHEN i.sexe IN (1, 2) AND i.date_naissance IS NOT NULL AND (i.habite_commune IS NOT NULL OR i.ville IS NOT NULL) AND i.bio IS NOT NULL AND TRIM(i.bio) != '' THEN 1 ELSE 0 END) as has_identity,
                (SELECT COUNT(DISTINCT question_id) FROM answers WHERE profile_id = p.id) as answers_count,
                (SELECT COUNT(DISTINCT a.question_id) FROM answers a JOIN questions q ON a.question_id = q.id WHERE a.profile_id = p.id AND q.classe = 8) as identity_answers_count,
-               (SELECT COUNT(DISTINCT question_id) FROM identity_answers_self WHERE profile_id = p.id AND (valeur_num IS NOT NULL OR (valeur_text IS NOT NULL AND valeur_text != ''))) as identity_self_count,
-               (SELECT COUNT(DISTINCT question_id) FROM identity_answers_partner WHERE profile_id = p.id AND (indifferent = 1 OR (min_val IS NOT NULL AND max_val IS NOT NULL) OR (options_json IS NOT NULL AND options_json != '[]'))) as identity_partner_count,
+               (SELECT COUNT(DISTINCT question_id) FROM identity_answers_self WHERE profile_id = p.id AND (valeur_num IS NOT NULL OR (valeur_text IS NOT NULL AND TRIM(valeur_text) != ''))) as identity_self_count,
+               (SELECT COUNT(DISTINCT question_id) FROM identity_answers_partner WHERE profile_id = p.id AND (indifferent = 1 OR (min_val IS NOT NULL AND max_val IS NOT NULL) OR (options_json IS NOT NULL AND options_json != '[]' AND options_json != ''))) as identity_partner_count,
                (SELECT COUNT(*) FROM questions WHERE classe = 8) as identity_questions_total,
                pqa.allowed_packs, pqa.allowed_classes, pqa.allowed_types
         FROM profiles p
@@ -504,6 +504,19 @@ def get_full_profile_data(c, profile_id):
         p["age"] = None
     p["identity_self_answers_count"] = max(p.get("identity_answers_count", 0), p.get("identity_self_count", 0))
     p["identity_partner_answers_count"] = p.get("identity_partner_count", 0)
+
+    p_sexe = p.get("sexe") or 0
+    tot_p = 15 if p_sexe in (1, 2) else 16
+    tot_t = 15 if p_sexe in (1, 2) else 16
+    has_card = bool(p_sexe in (1, 2) and p.get("date_naissance") and (p.get("habite_commune") or p.get("ville")) and p.get("bio"))
+    self_cnt = p["identity_self_answers_count"]
+    partner_cnt = p["identity_partner_answers_count"]
+    p_self_pct = round((self_cnt / tot_p) * 100) if tot_p > 0 else 0
+    p_partner_pct = round((partner_cnt / tot_t) * 100) if tot_t > 0 else 0
+    p["has_identity"] = has_card
+    p["self_completion_pct"] = min(100, p_self_pct)
+    p["partner_completion_pct"] = min(100, p_partner_pct)
+    p["is_completed"] = True if p.get("role") == "admin" else bool(has_card and p_self_pct >= 100 and p_partner_pct >= 100)
     return p
 
 def get_session_profile(token: str):
@@ -975,19 +988,21 @@ def calculate_affinity(profile1_id, profile2_id, allowed_classes=None):
     c.execute("SELECT * FROM identity_cards WHERE profile_id = ?", (profile2_id,))
     id2 = c.fetchone()
     
-    def is_card_valid(card):
+    def is_card_valid(card, pid):
         if not card:
             return False
-        # Au moins prénom ou nom, et sexe renseigné
-        return bool(card["prenom"] or card["nom"])
+        p_sexe = card["sexe"] or 0
+        return bool(p_sexe in (1, 2) and card["date_naissance"] and (card["habite_commune"] or card["ville"]))
     
-    if not is_card_valid(id1) or not is_card_valid(id2):
+    p1_valid = is_card_valid(id1, profile1_id)
+    p2_valid = is_card_valid(id2, profile2_id)
+    if not p1_valid or not p2_valid:
         conn.close()
         return {
             "error": "FICHE_MANQUANTE",
-            "message": "Selon les règles d'Affinity, chaque profil doit obligatoirement avoir complété sa fiche d'identité pour débloquer le calcul d'affinités.",
-            "profile1_complete": is_card_valid(id1),
-            "profile2_complete": is_card_valid(id2)
+            "message": "Selon les règles d'Affinity, chaque profil doit obligatoirement avoir complété sa fiche d'identité (sexe, date de naissance, ville) pour débloquer le calcul d'affinités.",
+            "profile1_complete": p1_valid,
+            "profile2_complete": p2_valid
         }
     
     # 3. Récupérer toutes les réponses des deux profils
@@ -1294,11 +1309,11 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                            i.travail_pays, i.travail_region_dept, i.travail_commune,
                            i.taille, i.poids, i.pointure, i.tour_poitrine, i.tour_taille, i.tour_hanches, i.mensurations,
                            i.origines, i.couleur_cheveux, i.style, i.aime_chez_moi, i.aime_pas_chez_moi,
-                           (CASE WHEN i.prenom IS NOT NULL AND i.prenom != '' THEN 1 ELSE 0 END) as has_identity,
+                           (CASE WHEN i.sexe IN (1, 2) AND i.date_naissance IS NOT NULL AND (i.habite_commune IS NOT NULL OR i.ville IS NOT NULL) AND i.bio IS NOT NULL AND TRIM(i.bio) != '' THEN 1 ELSE 0 END) as has_identity,
                            (SELECT COUNT(DISTINCT question_id) FROM answers WHERE profile_id = p.id) as answers_count,
                            (SELECT COUNT(DISTINCT a.question_id) FROM answers a JOIN questions q ON a.question_id = q.id WHERE a.profile_id = p.id AND q.classe = 8) as identity_answers_count,
-                           (SELECT COUNT(DISTINCT question_id) FROM identity_answers_self WHERE profile_id = p.id AND (valeur_num IS NOT NULL OR (valeur_text IS NOT NULL AND valeur_text != ''))) as identity_self_count,
-                           (SELECT COUNT(DISTINCT question_id) FROM identity_answers_partner WHERE profile_id = p.id AND (indifferent = 1 OR (min_val IS NOT NULL AND max_val IS NOT NULL) OR (options_json IS NOT NULL AND options_json != '[]'))) as identity_partner_count,
+                           (SELECT COUNT(DISTINCT question_id) FROM identity_answers_self WHERE profile_id = p.id AND (valeur_num IS NOT NULL OR (valeur_text IS NOT NULL AND TRIM(valeur_text) != ''))) as identity_self_count,
+                           (SELECT COUNT(DISTINCT question_id) FROM identity_answers_partner WHERE profile_id = p.id AND (indifferent = 1 OR (min_val IS NOT NULL AND max_val IS NOT NULL) OR (options_json IS NOT NULL AND options_json != '[]' AND options_json != ''))) as identity_partner_count,
                            (SELECT COUNT(*) FROM questions WHERE classe = 8) as identity_questions_total,
                            pqa.allowed_packs, pqa.allowed_classes, pqa.allowed_types
                     FROM profiles p
@@ -1324,6 +1339,19 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                         p["age"] = None
                     p["identity_self_answers_count"] = max(p.get("identity_answers_count", 0), p.get("identity_self_count", 0))
                     p["identity_partner_answers_count"] = p.get("identity_partner_count", 0)
+
+                    p_sexe = p.get("sexe") or 0
+                    tot_p = 15 if p_sexe in (1, 2) else 16
+                    tot_t = 15 if p_sexe in (1, 2) else 16
+                    has_card = bool(p_sexe in (1, 2) and p.get("date_naissance") and (p.get("habite_commune") or p.get("ville")) and p.get("bio"))
+                    self_cnt = p["identity_self_answers_count"]
+                    partner_cnt = p["identity_partner_answers_count"]
+                    p_self_pct = round((self_cnt / tot_p) * 100) if tot_p > 0 else 0
+                    p_partner_pct = round((partner_cnt / tot_t) * 100) if tot_t > 0 else 0
+                    p["has_identity"] = has_card
+                    p["self_completion_pct"] = min(100, p_self_pct)
+                    p["partner_completion_pct"] = min(100, p_partner_pct)
+                    p["is_completed"] = True if p.get("role") == "admin" else bool(has_card and p_self_pct >= 100 and p_partner_pct >= 100)
                     profiles.append(p)
                 conn.close()
                 return self._send_json({"profiles": profiles})

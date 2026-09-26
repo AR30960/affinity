@@ -282,6 +282,24 @@
             </button>
           </div>
 
+          <!-- Barre d'administration de rôle (visible pour l'administrateur) -->
+          <div id="adminCockpitRoleBar" class="admin-cockpit-role-bar" style="display:none;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span class="acrb-icon">👑</span>
+              <strong>Gestion Administrateur :</strong>
+              <span>Statut de ce profil :</span>
+              <span class="role-badge" id="acrbCurrentBadge">👤 Invité</span>
+            </div>
+            <div class="acrb-buttons" style="display:flex; gap:8px;">
+              <button type="button" class="btn btn-xs btn-secondary" id="btnAcrbMakeSubscriber" onclick="acrbSetCurrentRole('subscriber')">
+                <span>⭐</span> Accorder statut Abonné
+              </button>
+              <button type="button" class="btn btn-xs btn-outline" id="btnAcrbMakeGuest" onclick="acrbSetCurrentRole('guest')">
+                <span>👤</span> Définir comme Invité
+              </button>
+            </div>
+          </div>
+
           <div class="profile-cockpit-grid">
             
             <!-- COLONNE GAUCHE : Mon Profil ÉDITABLE DIRECTEMENT -->
@@ -883,10 +901,92 @@
           </div>
         </div>
 
-        <!-- Contenu Actif du Calculateur (Abonnés & Admins) -->
+        <!-- Écran de restriction si le profil abonné n'est pas encore complété -->
+        <div id="affinityIncompleteLock" class="guest-lock-panel" style="display: none;">
+          <div class="lock-shield-icon" style="background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.4); color: #fbbf24;">⚠️</div>
+          <div class="lock-badge-tag" style="background: rgba(245, 158, 11, 0.15); border-color: #f59e0b; color: #fbbf24;">Profil à Compléter &bull; Requis pour Matcher</div>
+          <h2>Complétez votre profil à 100% pour lancer un Match</h2>
+          <p class="lock-intro">
+            En tant qu'<strong>Abonné</strong>, vous bénéficiez de l'accès au moteur d'affinités électives.<br>
+            Conformément aux règles d'Affinity, les projections de compatibilité nécessitent que votre profil soit <strong>intégralement complété</strong> (vos coordonnées ainsi que vos réponses dans <strong>+ sur moi</strong> et <strong>+ sur l'autre</strong>).
+          </p>
+
+          <div class="lock-perks-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+            <div class="lock-perk-item">
+              <span class="perk-icon">📋</span>
+              <div>
+                <strong>Fiche signalétique</strong>
+                <p id="lockStatusCard">Coordonnées, sexe, date de naissance et présentation.</p>
+              </div>
+            </div>
+            <div class="lock-perk-item">
+              <span class="perk-icon">👤</span>
+              <div>
+                <strong>+ sur moi</strong>
+                <p id="lockStatusSelf">Caractéristiques personnelles : <strong id="lockPctSelf" style="color:var(--accent-teal);">0%</strong></p>
+              </div>
+            </div>
+            <div class="lock-perk-item">
+              <span class="perk-icon">👥</span>
+              <div>
+                <strong>+ sur l'autre</strong>
+                <p id="lockStatusPartner">Tolérances partenaire : <strong id="lockPctPartner" style="color:var(--accent-purple);">0%</strong></p>
+              </div>
+            </div>
+          </div>
+
+          <div class="lock-action-banner">
+            <p>💡 <em>Une fois votre profil complété à 100%, vous pourrez immédiatement matcher avec les membres du sexe opposé ou élargir votre recherche !</em></p>
+            <div class="lock-buttons-row">
+              <button class="btn btn-primary" onclick="openIdentityDeck('self')"><span>💎</span> Répondre à + sur moi</button>
+              <button class="btn btn-secondary" onclick="openIdentityDeck('partner')"><span>👥</span> Répondre à + sur l'autre</button>
+              <button class="btn btn-outline" onclick="switchTab('profiles')"><span>👤</span> Modifier mes coordonnées</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Contenu Actif du Calculateur (Abonnés avec profil complété & Administrateurs) -->
         <div id="affinityCalculatorContent">
-          <!-- Panneau de sélection pour la Demande de Match -->
-          <div class="affinity-selector-panel">
+
+          <!-- Section Galerie des Profils Complétés pour le Match -->
+          <div class="match-candidates-section" id="matchCandidatesSection">
+            <div class="match-candidates-header">
+              <div class="mch-title-wrap">
+                <span class="mch-icon">🎯</span>
+                <div>
+                  <h3 style="margin:0; font-size:18px; color:var(--text-bright);">Profils complétés disponibles pour un match</h3>
+                  <p class="mch-subtitle" style="margin:3px 0 0 0; font-size:13px; color:var(--text-dim);">
+                    Sélectionnez un membre complété pour calculer instantanément votre affinité élective et révéler vos points de fusion.
+                  </p>
+                </div>
+              </div>
+
+              <!-- Filtres de sexe interactifs (Sexe opposé par défaut, Même sexe, Tous les sexes) -->
+              <div class="mch-filters-wrap">
+                <span class="mch-filter-label">Recherche :</span>
+                <div class="mch-filter-buttons">
+                  <button type="button" class="mch-filter-btn active" id="btnFilterOpposite" onclick="setMatchGenderFilter('opposite')">
+                    <span id="labelFilterOpposite">👩 Sexe opposé</span>
+                  </button>
+                  <button type="button" class="mch-filter-btn" id="btnFilterSame" onclick="setMatchGenderFilter('same')">
+                    <span id="labelFilterSame">👨 Même sexe</span>
+                  </button>
+                  <button type="button" class="mch-filter-btn" id="btnFilterAll" onclick="setMatchGenderFilter('all')">
+                    <span>👥 Tous les sexes</span>
+                  </button>
+                </div>
+                <span class="mch-count-badge" id="matchCandidatesCount">0 candidat(s)</span>
+              </div>
+            </div>
+
+            <!-- Grille des profils candidats complétés injectée dynamiquement -->
+            <div id="matchCandidatesGrid" class="match-candidates-grid">
+              <!-- Rempli par JavaScript -->
+            </div>
+          </div>
+
+          <!-- Panneau classique de sélection (Pour ajustement manuel ou administration) -->
+          <div class="affinity-selector-panel" id="affinitySelectorPanel">
             <div class="selector-column">
               <label for="affProfile1">Profil demandeur (Vous) :</label>
               <select id="affProfile1" class="custom-select select-lg"></select>
