@@ -723,7 +723,7 @@ function renderIdentityDeckQuestions() {
 
   if (summaryEl) {
     const total = questions.length;
-    const pct = total > 0 ? Math.round((answeredCount / total) * 100) : 0;
+    const pct = mode === 'self' ? (state.selfCompletionPct ?? (total > 0 ? Math.round((answeredCount / total) * 100) : 0)) : (state.partnerCompletionPct ?? (total > 0 ? Math.round((answeredCount / total) * 100) : 0));
     summaryEl.innerHTML = `<strong>${answeredCount} / ${total}</strong> questions renseignées (${pct}%) dans cet onglet`;
   }
 }
@@ -769,6 +769,12 @@ async function handleSelfAnswerChange(qid, kind) {
           badge.className = `id-card-status-badge ${hasAnswer ? 'answered' : 'empty'}`;
           badge.textContent = hasAnswer ? '✓ Renseigné' : 'À renseigner';
         }
+      }
+      const summaryEl = document.getElementById('deckIntroBanner');
+      if (summaryEl && state.identityDeckMode === 'self') {
+        const total = (state.identityQuestionsSelf || []).length;
+        const answered = data.answered !== undefined ? data.answered : Math.round(((data.self_completion_pct || 0) / 100) * total);
+        summaryEl.innerHTML = `<strong>${answered} / ${total}</strong> questions renseignées (${data.self_completion_pct}%) dans cet onglet`;
       }
       showToast('Enregistré');
     }
@@ -859,6 +865,12 @@ async function savePartnerAnswer(qid, minVal, maxVal, options, indifferent) {
           badge.className = `id-card-status-badge ${hasAnswer ? 'answered' : 'empty'}`;
           badge.textContent = hasAnswer ? (indifferent ? '✓ Indifférent' : '✓ Tolérances définies') : 'Non défini';
         }
+      }
+      const summaryEl = document.getElementById('deckIntroBanner');
+      if (summaryEl && state.identityDeckMode === 'partner') {
+        const total = (state.identityQuestionsPartner || []).length;
+        const answered = data.answered !== undefined ? data.answered : Math.round(((data.partner_completion_pct || 0) / 100) * total);
+        summaryEl.innerHTML = `<strong>${answered} / ${total}</strong> questions renseignées (${data.partner_completion_pct}%) dans cet onglet`;
       }
       showToast('Tolérances enregistrées');
     }

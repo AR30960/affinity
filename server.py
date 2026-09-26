@@ -1529,12 +1529,17 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                 elif len(parts) == 5 and parts[4] == "identity-answers":
                     c.execute("SELECT * FROM identity_answers_self WHERE profile_id = ?", (pid,))
                     self_rows = [dict(r) for r in c.fetchall()]
-                    self_dict = {r["question_id"]: {"valeur_num": r["valeur_num"], "valeur_text": r["valeur_text"]} for r in self_rows}
+                    self_dict = {
+                        str(r["question_id"]): {
+                            "valeur_num": r["valeur_num"],
+                            "valeur_text": r["valeur_text"]
+                        } for r in self_rows
+                    }
 
                     c.execute("SELECT * FROM identity_answers_partner WHERE profile_id = ?", (pid,))
                     partner_rows = [dict(r) for r in c.fetchall()]
                     partner_dict = {
-                        r["question_id"]: {
+                        str(r["question_id"]): {
                             "min_val": r["min_val"],
                             "max_val": r["max_val"],
                             "options": json.loads(r["options_json"]) if r["options_json"] else [],
@@ -1602,7 +1607,7 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                     for q in questions_self:
                         qid_str = str(q["id"])
                         v = self_dict.get(qid_str)
-                        if v and (v.get("valeur_num") is not None or (v.get("valeur_text") and str(v.get("valeur_text")).strip())):
+                        if v and (v.get("valeur_num") is not None or (v.get("valeur_text") is not None and str(v.get("valeur_text")).strip() != "")):
                             answered_self += 1
 
                     # Comptage des réponses 'partner'
@@ -1610,8 +1615,12 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                     for q in questions_partner:
                         qid_str = str(q["id"])
                         v = partner_dict.get(qid_str)
-                        if v and (v.get("indifferent") or (v.get("min_val") is not None and v.get("max_val") is not None) or (v.get("options") and len(v.get("options")) > 0)):
-                            answered_partner += 1
+                        if v:
+                            is_indiff = bool(v.get("indifferent"))
+                            has_range = (v.get("min_val") is not None and v.get("max_val") is not None)
+                            has_opts = bool(v.get("options") and len(v.get("options")) > 0)
+                            if is_indiff or has_range or has_opts:
+                                answered_partner += 1
 
                     pct_self = round((answered_self / total_features_self) * 100) if total_features_self > 0 else 100
                     pct_partner = round((answered_partner / total_features_partner) * 100) if total_features_partner > 0 else 100
@@ -2262,16 +2271,33 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                     """, (pid, qid, float(v_num) if v_num not in (None, "") else None, str(v_txt).strip() if v_txt else None))
             conn.commit()
 
-            # Calcul du pourcentage de complétude mis à jour (sur les 14 caractéristiques de classe 8)
-            c.execute("SELECT COUNT(*) as total FROM questions WHERE classe = 8 AND type = 'P'")
-            tot_q = c.fetchone()["total"] or 14
-            c.execute("""
-                SELECT COUNT(DISTINCT q.sujet) as cnt 
-                FROM identity_answers_self a
-                JOIN questions q ON a.question_id = q.id
-                WHERE a.profile_id = ? AND (a.valeur_num IS NOT NULL OR (a.valeur_text IS NOT NULL AND a.valeur_text != ''))
-            """, (pid,))
-            ans_count = c.fetchone()["cnt"]
+            # Sexe du profil pour déterminer exactement les questions éligibles (identique au GET)
+            c.execute("SELECT sexe FROM identity_cards WHERE profile_id = ?", (pid,))
+            ic_row = c.fetchone()
+            prof_sexe = ic_row["sexe"] if ic_row and ic_row["sexe"] is not None else 0
+
+            if prof_sexe == 1:
+                c.execute("SELECT id FROM questions WHERE classe = 8 AND type = 'P' AND cible IN (0, 1)")
+            elif prof_sexe == 2:
+                c.execute("SELECT id FROM questions WHERE classe = 8 AND type = 'P' AND cible IN (0, 2)")
+            else:
+                c.execute("SELECT id FROM questions WHERE classe = 8 AND type = 'P'")
+            eligible_qids = [row["id"] for row in c.fetchall()]
+            tot_q = len(eligible_qids)
+
+            if tot_q > 0:
+                placeholders = ",".join("?" for _ in eligible_qids)
+                c.execute(f"""
+                    SELECT COUNT(DISTINCT question_id) as cnt 
+                    FROM identity_answers_self
+                    WHERE profile_id = ? 
+                      AND question_id IN ({placeholders})
+                      AND (valeur_num IS NOT NULL OR (valeur_text IS NOT NULL AND TRIM(valeur_text) != ''))
+                """, [pid] + eligible_qids)
+                ans_count = c.fetchone()["cnt"]
+            else:
+                ans_count = 0
+
             pct = round((ans_count / tot_q) * 100) if tot_q > 0 else 100
 
             conn.close()
@@ -2321,16 +2347,33 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                     """, (pid, qid, float(min_v) if min_v not in (None, "") else None, float(max_v) if max_v not in (None, "") else None, opts_json, indiff))
             conn.commit()
 
-            # Calcul du pourcentage de complétude partenaire mis à jour (sur les 14 caractéristiques de classe 8)
-            c.execute("SELECT COUNT(*) as total FROM questions WHERE classe = 8 AND type = 'T'")
-            tot_q = c.fetchone()["total"] or 14
-            c.execute("""
-                SELECT COUNT(DISTINCT q.sujet) as cnt 
-                FROM identity_answers_partner a
-                JOIN questions q ON a.question_id = q.id
-                WHERE a.profile_id = ? AND (a.indifferent = 1 OR (a.min_val IS NOT NULL AND a.max_val IS NOT NULL) OR (a.options_json IS NOT NULL AND a.options_json != '[]'))
-            """, (pid,))
-            ans_count = c.fetchone()["cnt"]
+            # Sexe du profil pour déterminer exactement les questions éligibles partenaire (identique au GET)
+            c.execute("SELECT sexe FROM identity_cards WHERE profile_id = ?", (pid,))
+            ic_row = c.fetchone()
+            prof_sexe = ic_row["sexe"] if ic_row and ic_row["sexe"] is not None else 0
+
+            if prof_sexe == 1:
+                c.execute("SELECT id FROM questions WHERE classe = 8 AND type = 'T' AND cible IN (0, 2)")
+            elif prof_sexe == 2:
+                c.execute("SELECT id FROM questions WHERE classe = 8 AND type = 'T' AND cible IN (0, 1)")
+            else:
+                c.execute("SELECT id FROM questions WHERE classe = 8 AND type = 'T'")
+            eligible_qids = [row["id"] for row in c.fetchall()]
+            tot_q = len(eligible_qids)
+
+            if tot_q > 0:
+                placeholders = ",".join("?" for _ in eligible_qids)
+                c.execute(f"""
+                    SELECT COUNT(DISTINCT question_id) as cnt 
+                    FROM identity_answers_partner
+                    WHERE profile_id = ?
+                      AND question_id IN ({placeholders})
+                      AND (indifferent = 1 OR (min_val IS NOT NULL AND max_val IS NOT NULL) OR (options_json IS NOT NULL AND options_json != '[]' AND options_json != ''))
+                """, [pid] + eligible_qids)
+                ans_count = c.fetchone()["cnt"]
+            else:
+                ans_count = 0
+
             pct = round((ans_count / tot_q) * 100) if tot_q > 0 else 100
 
             conn.close()
