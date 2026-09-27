@@ -135,6 +135,13 @@ L'application **Affinity** est un moteur de calcul d'affinités électives basé
   - Définition intégrale de la langue Word en Français (`fr-FR`) pour éliminer tout avertissement orthographique.
   - Documentation exhaustive en 10 chapitres : Architecture générale, Modèle de base de données relationnelle SQLite, Système de rôles & Permissions, Gestion de la Fiche d'Identité & Géolocalisation, Banque de Questions & Classes de sensibilité (0 à 9), Types d'évaluation (G, M, P, T), Moteur de calcul d'affinité bilatéral, Diagnostic préalable de compatibilité d'identité (Classe 8), Sauvegarde et persistance des données locales, et Procédures de déploiement (Local et Render Cloud).
 
+- **Fait - 27/09/2026** : ~~Pour l'administrateur je ne comprends pas ce bandeau. Conserve uniquement l'historique réel que j'ai demandé et me permettre de supprimer le résultat d'une demande. Me lister également les demandes entre abonné, leurs statuts (En attente, validés ou refusés et le résultat si le match a été effectué.~~
+  - Masquage complet du bandeau d'aperçu personnel (`targetProfilePreviewCard`) lorsque l'administrateur est connecté : l'administrateur n'est plus pollué par une fiche de prévisualisation personnelle inappropriée à son rôle de superviseur.
+  - Création de la table SQLite `admin_match_history` pour enregistrer l'historique réel de chaque calcul demandé par l'administrateur (Date/Heure, Profils comparés, Score global, Diagnostic identité, Questions communes, résultat JSON complet).
+  - Intégration de la suppression d'une demande d'historique (`DELETE /api/admin/match-history/<id>`) avec bouton dédié 🗑️ pour purger n'importe quel calcul d'affinité archivé.
+  - Possibilité de revoir instantanément n'importe quel rapport de match archivé en un clic sur le bouton 👁️ (rechargement interactif de la jauge, des axes et du radar).
+  - Cockpit Superviseur des demandes entre abonnés (`GET /api/admin/subscriber-match-requests`) : tableau complet listant l'émetteur, le destinataire, les statuts précis (`⏳ En attente`, `✅ Validé`, `❌ Refusé`), le score et rapport d'affinité si validé, et action de suppression (`DELETE /api/admin/subscriber-match-requests/<id>`).
+
 ---
 
 ## 4. NOUVELLES DEMANDES

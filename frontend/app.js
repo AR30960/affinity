@@ -4917,6 +4917,19 @@ function updateAffinitySelectors() {
   updateProfileDropdowns();
   updateAffinitySelectorsStatus();
   updateTargetProfilePreview();
+
+  const subSec = document.getElementById('subscriberMatchSection');
+  const admHub = document.getElementById('adminMatchHub');
+  if (isRealAdmin()) {
+    if (subSec) subSec.style.display = 'none';
+    if (admHub) {
+      admHub.style.display = 'block';
+      loadAdminMatchHubData();
+    }
+  } else {
+    if (subSec) subSec.style.display = 'block';
+    if (admHub) admHub.style.display = 'none';
+  }
 }
 
 function updateAffinitySelectorsStatus() {
@@ -4949,6 +4962,12 @@ async function updateTargetProfilePreview() {
   const p2Id = parseInt(document.getElementById('affProfile2')?.value, 10);
   const previewCard = document.getElementById('targetProfilePreviewCard');
   if (!previewCard) return;
+
+  // L'administrateur supervise le système et ne souhaite pas voir ce bandeau d'aperçu personnel
+  if (isRealAdmin() || !p2 || p1Id === p2Id) {
+    previewCard.style.display = 'none';
+    return;
+  }
 
   const p1 = state.profiles.find(p => p.id === p1Id);
   const p2 = state.profiles.find(p => p.id === p2Id);
@@ -5419,6 +5438,255 @@ function viewAcceptedMatchResult(affinityResult) {
   resultsCard.scrollIntoView({ behavior: 'smooth' });
 }
 
+// ==========================================================================
+// COCKPIT SUPERVISEUR DES MATCHS & HISTORIQUE RÉEL (ADMINISTRATEUR)
+// ==========================================================================
+function switchAdminMatchTab(tab) {
+  const btnHist = document.getElementById('btnTabAdminHistory');
+  const btnSub = document.getElementById('btnTabAdminSubscriberRequests');
+  const paneHist = document.getElementById('paneAdminHistory');
+  const paneSub = document.getElementById('paneAdminSubscriberRequests');
+
+  if (tab === 'history') {
+    btnHist?.classList.add('active');
+    btnSub?.classList.remove('active');
+    if (paneHist) paneHist.style.display = 'block';
+    if (paneSub) paneSub.style.display = 'none';
+  } else {
+    btnSub?.classList.add('active');
+    btnHist?.classList.remove('active');
+    if (paneSub) paneSub.style.display = 'block';
+    if (paneHist) paneHist.style.display = 'none';
+  }
+}
+
+async function loadAdminMatchHubData() {
+  if (!isRealAdmin()) return;
+
+  try {
+    const [resHist, resSub] = await Promise.all([
+      fetch(`${API_BASE}/api/admin/match-history`),
+      fetch(`${API_BASE}/api/admin/subscriber-match-requests`)
+    ]);
+
+    if (resHist.ok) {
+      const dataHist = await resHist.json();
+      state.adminMatchHistory = dataHist.history || [];
+      const badgeH = document.getElementById('badgeAdminHistoryCount');
+      if (badgeH) badgeH.textContent = `${state.adminMatchHistory.length}`;
+      renderAdminHistoryTable(state.adminMatchHistory);
+    }
+
+    if (resSub.ok) {
+      const dataSub = await resSub.json();
+      state.adminSubscriberRequests = dataSub.requests || [];
+      const badgeS = document.getElementById('badgeAdminSubscriberReqsCount');
+      if (badgeS) badgeS.textContent = `${state.adminSubscriberRequests.length}`;
+      renderAdminSubscriberRequestsTable(state.adminSubscriberRequests);
+    }
+  } catch (err) {
+    console.error("Erreur chargement Admin Match Hub:", err);
+  }
+}
+
+function renderAdminHistoryTable(historyList) {
+  const tbody = document.getElementById('adminHistoryTableBody');
+  if (!tbody) return;
+
+  if (!historyList || historyList.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="padding:25px; text-align:center; color:var(--text-dim);">Aucun calcul enregistré dans l'historique pour le moment. Lancez une comparaison ci-dessus pour la consigner.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = historyList.map(h => {
+    const dStr = h.created_at ? new Date(h.created_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : 'Date inconnue';
+    
+    // Badge diagnostic identité
+    let compatBadge = '<span class="status-badge" style="background:rgba(255,255,255,0.06); color:var(--text-dim);">Non évalué</span>';
+    if (h.identity_compat_level === 'COMPATIBLE') {
+      compatBadge = '<span class="status-badge" style="background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); font-weight:700;">✅ Compatible</span>';
+    } else if (h.identity_compat_level === 'PARTIEL') {
+      compatBadge = `<span class="status-badge" style="background:rgba(245,158,11,0.15); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); font-weight:700;">⚠️ Partiel (${h.identity_compat_score || 0}%)</span>`;
+    } else if (h.identity_compat_level === 'INCOMPATIBLE') {
+      compatBadge = '<span class="status-badge" style="background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3); font-weight:700;">❌ Incompatible</span>';
+    }
+
+    const distInfo = h.distance_km !== null && h.distance_km !== undefined ? ` &bull; 🚗 ${h.distance_km} km` : '';
+
+    return `
+      <tr style="border-bottom:1px solid var(--border-color); transition: background 0.15s ease;">
+        <td style="padding:10px 12px; color:var(--text-dim); white-space:nowrap;">${dStr}</td>
+        <td style="padding:10px 12px;">
+          <strong style="color:var(--text-bright);">${h.p1_pseudo}</strong>
+          <span style="color:var(--accent-cyan); font-weight:bold; margin:0 6px;">⇄</span>
+          <strong style="color:var(--text-bright);">${h.p2_pseudo}</strong>
+          <div style="font-size:11px; color:var(--text-dim); margin-top:2px;">${formatAffId(h.profile1_id)} ⇄ ${formatAffId(h.profile2_id)}${distInfo}</div>
+        </td>
+        <td style="padding:10px 12px; text-align:center;">
+          <span style="font-size:15px; font-weight:800; color:var(--accent-cyan);">${h.score_global ?? 0}%</span>
+        </td>
+        <td style="padding:10px 12px; text-align:center;">${compatBadge}</td>
+        <td style="padding:10px 12px; text-align:center;">
+          <span class="badge-soft" style="font-size:12px; font-weight:600;">${h.total_questions_communes ?? 0} commune(s)</span>
+        </td>
+        <td style="padding:10px 12px; text-align:right; white-space:nowrap;">
+          <button class="btn btn-xs btn-primary" onclick="viewAdminHistoryResult(${h.id})" title="Afficher le rapport complet de ce match" style="margin-right:6px;">
+            👁️ Voir
+          </button>
+          <button class="btn btn-xs btn-outline" onclick="deleteAdminHistoryEntry(${h.id})" title="Supprimer ce résultat de l'historique" style="color:#ef4444; border-color:rgba(239,68,68,0.4);">
+            🗑️ Supprimer
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function renderAdminSubscriberRequestsTable(requestsList) {
+  const tbody = document.getElementById('adminSubscriberRequestsTableBody');
+  if (!tbody) return;
+
+  if (!requestsList || requestsList.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="padding:25px; text-align:center; color:var(--text-dim);">Aucune demande de match entre abonnés enregistrée pour le moment.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = requestsList.map(req => {
+    const dStr = req.created_at ? new Date(req.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'Date inconnue';
+
+    let statusBadge = '<span class="status-badge" style="background:rgba(245,158,11,0.15); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); font-weight:700;">⏳ En attente</span>';
+    if (req.status === 'accepted') {
+      statusBadge = '<span class="status-badge" style="background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); font-weight:700;">✅ Validé</span>';
+    } else if (req.status === 'declined') {
+      statusBadge = '<span class="status-badge" style="background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3); font-weight:700;">❌ Refusé</span>';
+    }
+
+    let matchResHtml = '<span style="color:var(--text-dim); font-size:12px;">En attente d\'accord</span>';
+    if (req.status === 'accepted') {
+      if (req.score_global !== null && req.score_global !== undefined) {
+        matchResHtml = `
+          <div style="display:flex; align-items:center; justify-content:center; gap:8px;">
+            <strong style="color:var(--accent-cyan); font-size:14px;">${req.score_global}%</strong>
+            <button class="btn btn-xs btn-outline" onclick="viewSubscriberMatchResult(${req.id})" title="Voir le rapport">👁️ Rapport</button>
+          </div>
+        `;
+      } else {
+        matchResHtml = `<span style="color:var(--accent-emerald); font-size:12px;">Validé (calcul prêt)</span>`;
+      }
+    } else if (req.status === 'declined') {
+      matchResHtml = '<span style="color:#ef4444; font-size:12px;">Non calculé (refusé)</span>';
+    }
+
+    return `
+      <tr style="border-bottom:1px solid var(--border-color); transition: background 0.15s ease;">
+        <td style="padding:10px 12px; color:var(--text-dim); white-space:nowrap;">${dStr}</td>
+        <td style="padding:10px 12px;">
+          <strong style="color:var(--text-bright);">${req.sender_pseudo}</strong>
+          <span style="font-size:11px; color:var(--text-dim); margin-left:4px;">(${formatAffId(req.sender_id)})</span>
+        </td>
+        <td style="padding:10px 12px;">
+          <strong style="color:var(--text-bright);">${req.receiver_pseudo}</strong>
+          <span style="font-size:11px; color:var(--text-dim); margin-left:4px;">(${formatAffId(req.receiver_id)})</span>
+        </td>
+        <td style="padding:10px 12px; text-align:center;">${statusBadge}</td>
+        <td style="padding:10px 12px; text-align:center;">${matchResHtml}</td>
+        <td style="padding:10px 12px; text-align:right;">
+          <button class="btn btn-xs btn-outline" onclick="deleteAdminSubscriberRequest(${req.id})" title="Supprimer cette demande" style="color:#ef4444; border-color:rgba(239,68,68,0.4);">
+            🗑️ Supprimer
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function viewAdminHistoryResult(historyId) {
+  const item = (state.adminMatchHistory || []).find(h => h.id === historyId);
+  if (!item || !item.result_json) {
+    alert("Données du résultat indisponibles pour cette entrée.");
+    return;
+  }
+  try {
+    const result = JSON.parse(item.result_json);
+    const resultsCard = document.getElementById('affinityResultsContainer');
+    const alertBox = document.getElementById('affinityRuleAlert');
+    if (alertBox) alertBox.style.display = 'none';
+    if (resultsCard) resultsCard.style.display = 'flex';
+    state.lastAffinityResult = result;
+    renderAffinityResults(result);
+
+    // Ajuster sélecteurs
+    const aff1 = document.getElementById('affProfile1');
+    const aff2 = document.getElementById('affProfile2');
+    if (aff1 && result.profile1?.id) aff1.value = result.profile1.id;
+    if (aff2 && result.profile2?.id) aff2.value = result.profile2.id;
+    updateAffinitySelectorsStatus();
+
+    resultsCard.scrollIntoView({ behavior: 'smooth' });
+    showToast(`Rapport de match affiché : ${item.p1_pseudo} ⇄ ${item.p2_pseudo}`);
+  } catch (err) {
+    alert("Erreur lors de la lecture du rapport archivé : " + err.message);
+  }
+}
+
+async function viewSubscriberMatchResult(requestId) {
+  const req = (state.adminSubscriberRequests || []).find(r => r.id === requestId);
+  if (!req) return;
+  if (req.affinity_result) {
+    viewAcceptedMatchResult(req.affinity_result);
+  } else {
+    try {
+      const res = await fetch(`${API_BASE}/api/affinity/calculate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          profile1_id: req.sender_id,
+          profile2_id: req.receiver_id,
+          requester_id: state.realAdminId || 1
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        viewAcceptedMatchResult(data);
+      } else {
+        alert("Impossible de calculer le match : " + (data.message || data.error));
+      }
+    } catch (err) {
+      alert("Erreur : " + err.message);
+    }
+  }
+}
+
+async function deleteAdminHistoryEntry(historyId) {
+  if (!confirm("Voulez-vous vraiment supprimer ce résultat de calcul de votre historique ?")) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/match-history/${historyId}`, {
+      method: 'DELETE'
+    });
+    if (!res.ok) throw new Error("Erreur suppression");
+    showToast("Résultat supprimé de votre historique.");
+    await loadAdminMatchHubData();
+  } catch (err) {
+    alert("Erreur lors de la suppression : " + err.message);
+  }
+}
+
+async function deleteAdminSubscriberRequest(requestId) {
+  if (!confirm("Voulez-vous vraiment supprimer cette demande de match entre abonnés ?")) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/subscriber-match-requests/${requestId}`, {
+      method: 'DELETE'
+    });
+    if (!res.ok) throw new Error("Erreur suppression");
+    showToast("Demande de match supprimée.");
+    await loadAdminMatchHubData();
+  } catch (err) {
+    alert("Erreur lors de la suppression : " + err.message);
+  }
+}
+
 async function computeAffinityAction() {
   const p1Id = parseInt(document.getElementById('affProfile1')?.value, 10);
   const p2Id = parseInt(document.getElementById('affProfile2')?.value, 10);
@@ -5511,6 +5779,11 @@ async function computeAffinityAction() {
     document.getElementById('watchScore').textContent = `${data.score_global ?? 0}%`;
     const watchMatchDesc = document.getElementById('watchMatchDesc');
     if (watchMatchDesc) watchMatchDesc.textContent = `Match ${p1Pseudo} & ${p2Pseudo}`;
+
+    // Rafraîchir l'historique du cockpit superviseur
+    if (isRealAdmin()) {
+      await loadAdminMatchHubData();
+    }
   } catch (err) {
     alert('Erreur lors du calcul : ' + err.message);
   }

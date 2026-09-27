@@ -1169,8 +1169,8 @@
             </div>
           </div>
 
-          <!-- Module Bilatéral : Mes Demandes de Match (Placé en bas pour une ergonomie optimale) -->
-          <div class="match-requests-wrapper" style="margin-top: 35px; border-top: 1px solid var(--border-color); padding-top: 25px;">
+          <!-- Module Bilatéral : Mes Demandes de Match (Réservé aux Abonnés non-admin) -->
+          <div id="subscriberMatchSection" class="match-requests-wrapper" style="margin-top: 35px; border-top: 1px solid var(--border-color); padding-top: 25px;">
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:15px;">
               <h3 style="font-size:16px; margin:0; color:var(--text-bright); display:flex; align-items:center; gap:8px;">
                 <span>📬</span> Mes Demandes de Match &amp; Mises en Relation
@@ -1199,83 +1199,75 @@
               </div>
             </div>
           </div>
-                  <span class="mipc-icon">💎</span>
-                  <div>
-                    <h4>Diagnostic Préalable d'Identité : Critères Moi &amp; L'Autre</h4>
-                    <p id="matchIdentityPreCheckSub">Concordance des caractéristiques physiques et styles avec les tolérances attendues</p>
-                  </div>
-                </div>
-                <div id="matchIdentityPreCheckBadge" class="mipc-badge">Compatible ✅</div>
-              </div>
-              <div class="mipc-body" id="matchIdentityPreCheckBody"></div>
-            </div>
-            <div class="result-hero-row">
-              <div class="gauge-column">
-                <div class="gauge-wrapper">
-                  <svg viewBox="0 0 200 200" class="gauge-svg">
-                    <circle class="gauge-bg" cx="100" cy="100" r="85"></circle>
-                    <circle id="gaugeScoreCircle" class="gauge-bar" cx="100" cy="100" r="85"></circle>
-                  </svg>
-                  <div class="gauge-center-text">
-                    <span id="gaugeValue" class="gauge-score">0%</span>
-                    <span class="gauge-subtitle">Affinité Globale</span>
-                  </div>
-                </div>
-                <div class="match-summary-text" id="matchVerdict">Calcul en cours...</div>
-              </div>
 
-              <!-- Radar Chart Interactive SVG -->
-              <div class="radar-column">
-                <div class="radar-header">
-                  <h4>Concordance par Thématiques</h4>
-                  <span class="radar-legend">Projection multidimensionnelle</span>
+          <!-- Module Administrateur : Supervision des Matchs & Historique Réel -->
+          <div id="adminMatchHub" class="admin-match-hub" style="display:none; margin-top: 35px; border-top: 1px solid rgba(56, 189, 248, 0.25); padding-top: 25px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; flex-wrap:wrap; gap:12px;">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:22px;">🛡️</span>
+                <div>
+                  <h3 style="margin:0; font-size:17px; color:var(--text-bright);">Cockpit Superviseur des Matchs &amp; Affinités</h3>
+                  <p style="margin:3px 0 0 0; font-size:12.5px; color:var(--text-dim);">Gestion de l'historique réel de vos calculs et supervision des échanges entre abonnés.</p>
                 </div>
-                <div class="radar-canvas-container" id="radarContainer">
-                  <!-- SVG Radar injecté par JS -->
-                </div>
+              </div>
+              <div style="display:flex; gap:8px;">
+                <button class="btn btn-xs btn-outline" onclick="loadAdminMatchHubData()">🔄 Rafraîchir</button>
               </div>
             </div>
 
-            <!-- Breakdown per Axis (G, V, A, Synergie Découverte-Partage) -->
-            <div class="axes-breakdown-row">
-              <div class="axis-stat-box">
-                <div class="as-title">Goûts Partagés (G)</div>
-                <div class="as-val" id="scoreG">--%</div>
-                <div class="as-bar"><div id="barG" style="width:0%"></div></div>
-              </div>
-              <div class="axis-stat-box">
-                <div class="as-title">Vécu Passé (V)</div>
-                <div class="as-val" id="scoreV">--%</div>
-                <div class="as-bar"><div id="barV" style="width:0%"></div></div>
-              </div>
-              <div class="axis-stat-box">
-                <div class="as-title">Habitudes Actuelles (A)</div>
-                <div class="as-val" id="scoreA">--%</div>
-                <div class="as-bar"><div id="barA" style="width:0%"></div></div>
-              </div>
-              <div class="axis-stat-box highlight-box">
-                <div class="as-title">Synergie Découverte &harr; Partage (D &times; P)</div>
-                <div class="as-val" id="scoreDP">--%</div>
-                <div class="as-bar"><div id="barDP" style="width:0%"></div></div>
+            <!-- Onglets Superviseur -->
+            <div class="mrw-tabs" style="margin-bottom:18px;">
+              <button class="mrw-tab-btn active" id="btnTabAdminHistory" onclick="switchAdminMatchTab('history')">
+                <span>📜</span> Historique Réel de vos Calculs <span class="badge-count" id="badgeAdminHistoryCount">0</span>
+              </button>
+              <button class="mrw-tab-btn" id="btnTabAdminSubscriberRequests" onclick="switchAdminMatchTab('subscribers')">
+                <span>👥</span> Demandes de Match entre Abonnés <span class="badge-count" id="badgeAdminSubscriberReqsCount">0</span>
+              </button>
+            </div>
+
+            <!-- Vue 1: Historique Réel Administrateur -->
+            <div id="paneAdminHistory" class="mrw-pane active">
+              <div style="overflow-x:auto;">
+                <table class="custom-table" style="width:100%; border-collapse:collapse; font-size:13px;">
+                  <thead>
+                    <tr style="background:rgba(255,255,255,0.03); border-bottom:1px solid var(--border-color); text-align:left;">
+                      <th style="padding:10px 12px;">Date &amp; Heure</th>
+                      <th style="padding:10px 12px;">Profils Comparés</th>
+                      <th style="padding:10px 12px; text-align:center;">Score Affinité</th>
+                      <th style="padding:10px 12px; text-align:center;">Diagnostic Identité (+ sur moi &amp; l'autre)</th>
+                      <th style="padding:10px 12px; text-align:center;">Questions Communes</th>
+                      <th style="padding:10px 12px; text-align:right;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="adminHistoryTableBody">
+                    <tr>
+                      <td colspan="6" style="padding:25px; text-align:center; color:var(--text-dim);">Aucun calcul enregistré dans l'historique pour le moment.</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
 
-            <!-- Fusion & Vigilance Points -->
-            <div class="points-comparison-grid">
-              <div class="points-card fusion">
-                <div class="points-header">
-                  <span class="points-icon">🔥</span>
-                  <h4>Points de Fusion (Harmonie &ge; 85%)</h4>
-                </div>
-                <div id="fusionList" class="points-list"></div>
-              </div>
-
-              <div class="points-card vigilance">
-                <div class="points-header">
-                  <span class="points-icon">⚡</span>
-                  <h4>Zones de Vigilance (Divergences &le; 35%)</h4>
-                </div>
-                <div id="vigilanceList" class="points-list"></div>
+            <!-- Vue 2: Supervision des Demandes entre Abonnés -->
+            <div id="paneAdminSubscriberRequests" class="mrw-pane" style="display:none;">
+              <div style="overflow-x:auto;">
+                <table class="custom-table" style="width:100%; border-collapse:collapse; font-size:13px;">
+                  <thead>
+                    <tr style="background:rgba(255,255,255,0.03); border-bottom:1px solid var(--border-color); text-align:left;">
+                      <th style="padding:10px 12px;">Date</th>
+                      <th style="padding:10px 12px;">Demandeur (Émetteur)</th>
+                      <th style="padding:10px 12px;">Destinataire</th>
+                      <th style="padding:10px 12px; text-align:center;">Statut</th>
+                      <th style="padding:10px 12px; text-align:center;">Résultat du Match</th>
+                      <th style="padding:10px 12px; text-align:right;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="adminSubscriberRequestsTableBody">
+                    <tr>
+                      <td colspan="6" style="padding:25px; text-align:center; color:var(--text-dim);">Aucune demande de match entre abonnés enregistrée.</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>

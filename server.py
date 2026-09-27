@@ -842,6 +842,27 @@ def init_db():
             FOREIGN KEY (receiver_id) REFERENCES profiles(id) ON DELETE CASCADE
         )
     ''')
+
+    # Table d'historique des calculs d'affinités de l'administrateur
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS admin_match_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            requester_id INTEGER,
+            profile1_id INTEGER NOT NULL,
+            profile2_id INTEGER NOT NULL,
+            p1_pseudo TEXT,
+            p2_pseudo TEXT,
+            score_global INTEGER DEFAULT 0,
+            total_questions_communes INTEGER DEFAULT 0,
+            identity_compat_level TEXT,
+            identity_compat_score INTEGER DEFAULT 0,
+            distance_km REAL,
+            result_json TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (profile1_id) REFERENCES profiles(id) ON DELETE CASCADE,
+            FOREIGN KEY (profile2_id) REFERENCES profiles(id) ON DELETE CASCADE
+        )
+    ''')
     
     # Table des jeux de questions (Packs / Domaines d'application)
     c.execute('''
@@ -2129,6 +2150,59 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                             })
                 return self._send_json({"backups": backups, "total": len(backups)})
 
+            # --- Historique réel des calculs d'affinités demandés par l'administrateur ---
+            elif path == "/api/admin/match-history":
+                c.execute("""
+                    SELECT h.id, h.requester_id, h.profile1_id, h.profile2_id,
+                           h.p1_pseudo, h.p2_pseudo, h.score_global, h.total_questions_communes,
+                           h.identity_compat_level, h.identity_compat_score, h.distance_km,
+                           h.created_at, h.result_json,
+                           p1.avatar as p1_avatar, p1.code_profil as p1_code, p1.role as p1_role,
+                           p2.avatar as p2_avatar, p2.code_profil as p2_code, p2.role as p2_role
+                    FROM admin_match_history h
+                    LEFT JOIN profiles p1 ON h.profile1_id = p1.id
+                    LEFT JOIN profiles p2 ON h.profile2_id = p2.id
+                    ORDER BY h.created_at DESC
+                """)
+                history_rows = []
+                for row in c.fetchall():
+                    item = dict(row)
+                    history_rows.append(item)
+                conn.close()
+                return self._send_json({"history": history_rows, "total": len(history_rows)})
+
+            # --- Supervision des demandes de match entre abonnés ---
+            elif path == "/api/admin/subscriber-match-requests":
+                c.execute("""
+                    SELECT mr.*, 
+                           p1.pseudo as sender_pseudo, p1.avatar as sender_avatar, p1.role as sender_role, p1.code_profil as sender_code,
+                           p2.pseudo as receiver_pseudo, p2.avatar as receiver_avatar, p2.role as receiver_role, p2.code_profil as receiver_code,
+                           i1.ville as sender_ville, i2.ville as receiver_ville
+                    FROM match_requests mr
+                    JOIN profiles p1 ON mr.sender_id = p1.id
+                    JOIN profiles p2 ON mr.receiver_id = p2.id
+                    LEFT JOIN identity_cards i1 ON mr.sender_id = i1.profile_id
+                    LEFT JOIN identity_cards i2 ON mr.receiver_id = i2.profile_id
+                    ORDER BY mr.created_at DESC
+                """)
+                raw_reqs = [dict(row) for row in c.fetchall()]
+                requests_list = []
+                for req in raw_reqs:
+                    dist = calculate_distance_km(req.get("sender_ville") or "", req.get("receiver_ville") or "")
+                    req["distance_km"] = dist
+                    if req["status"] == "accepted":
+                        try:
+                            aff = calculate_affinity(req["sender_id"], req["receiver_id"], req["validated_classes"])
+                            req["score_global"] = aff.get("score_global", 0)
+                            req["affinity_result"] = aff
+                        except Exception:
+                            req["score_global"] = None
+                    else:
+                        req["score_global"] = None
+                    requests_list.append(req)
+                conn.close()
+                return self._send_json({"requests": requests_list, "total": len(requests_list)})
+
             # --- Questions et sous-questions liées ---
             elif path.startswith("/api/questions/") and path.endswith("/subquestions"):
                 qid = int(path.split("/")[3])
@@ -2870,7 +2944,36 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
             conn.close()
             allowed_classes = data.get("allowed_classes", None)
             result = calculate_affinity(p1_id, p2_id, allowed_classes)
-            status = 400 if "error" in result and result.get("error") == "FICHE_MANQUANTE" else 200
+            status = 200
+            if "error" in result and result.get("error") == "FICHE_MANQUANTE":
+                status = 400
+            
+            # Enregistrement dans l'historique réel d'administration
+            if status == 200 and user_role == "admin":
+                try:
+                    conn_h = get_db()
+                    c_h = conn_h.cursor()
+                    p1_p = result.get("profile1", {}).get("pseudo") or f"Profil {p1_id}"
+                    p2_p = result.get("profile2", {}).get("pseudo") or f"Profil {p2_id}"
+                    score_glob = result.get("score_global", 0)
+                    nb_communes = result.get("total_questions_communes", 0)
+                    ident_c = result.get("identity_compatibility") or {}
+                    lvl_c = ident_c.get("compatibility_level", "NON_EVALUE")
+                    score_c = ident_c.get("compatibility_score", 0)
+                    dist_km = result.get("distance_km")
+                    res_json = json.dumps(result, ensure_ascii=False)
+                    c_h.execute("""
+                        INSERT INTO admin_match_history 
+                        (requester_id, profile1_id, profile2_id, p1_pseudo, p2_pseudo, score_global, total_questions_communes, identity_compat_level, identity_compat_score, distance_km, result_json)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (requester_id or (current_user.get("id") if current_user else 1), p1_id, p2_id, p1_p, p2_p, score_glob, nb_communes, lvl_c, score_c, dist_km, res_json))
+                    conn_h.commit()
+                    new_hist_id = c_h.lastrowid
+                    conn_h.close()
+                    result["history_id"] = new_hist_id
+                except Exception as ex:
+                    print(f"[HISTORIQUE] Erreur sauvegarde historique : {ex}")
+
             return self._send_json(result, status)
 
         # Création d'une demande de match bilatérale
@@ -3291,6 +3394,22 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
             conn.commit()
             conn.close()
             return self._send_json({"success": True, "deleted_id": qid})
+        elif path.startswith("/api/admin/match-history/"):
+            hid = int(path.split("/")[4])
+            conn = get_db()
+            c = conn.cursor()
+            c.execute("DELETE FROM admin_match_history WHERE id = ?", (hid,))
+            conn.commit()
+            conn.close()
+            return self._send_json({"success": True, "deleted_id": hid, "message": "Calcul supprimé de l'historique."})
+        elif path.startswith("/api/admin/subscriber-match-requests/"):
+            mrid = int(path.split("/")[4])
+            conn = get_db()
+            c = conn.cursor()
+            c.execute("DELETE FROM match_requests WHERE id = ?", (mrid,))
+            conn.commit()
+            conn.close()
+            return self._send_json({"success": True, "deleted_id": mrid, "message": "Demande de match supprimée."})
         return self._send_json({"error": "Non supporté"}, 404)
 
 def backup_local_db():
