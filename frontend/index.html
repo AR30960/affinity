@@ -1061,8 +1061,121 @@
             </div>
           </div>
 
-          <!-- Module Bilatéral : Mes Demandes de Match -->
-          <div class="match-requests-wrapper">
+          <!-- Block Alert si profil non complété ou questions communes manquantes -->
+          <div id="affinityRuleAlert" class="affinity-alert-box" style="display:none;">
+            <div class="alert-icon" id="affinityRuleAlertIcon">⚠️</div>
+            <div class="alert-content">
+              <h4 id="affinityRuleAlertTitle">Profil obligatoire pour activer le calcul</h4>
+              <p id="affinityRuleAlertText">Conformément aux règles d'Affinity, les calculs d'affinité ne sont autorisés que si le profil des deux membres est complété.</p>
+              <button class="btn btn-sm btn-outline" id="btnFixCards">Compléter mon profil maintenant &rarr;</button>
+            </div>
+          </div>
+
+          <!-- Result Container -->
+          <div id="affinityResultsContainer" class="affinity-results-card" style="display:none;">
+            <!-- Section Préalable : Diagnostic de Compatibilité Identité (Moi & L'Autre) -->
+            <div id="matchIdentityPreCheckCard" class="match-identity-precheck-card">
+              <div class="mipc-header">
+                <div class="mipc-title-group">
+                  <span class="mipc-icon">💎</span>
+                  <div>
+                    <h4>Diagnostic Préalable d'Identité : Critères Moi &amp; L'Autre</h4>
+                    <p id="matchIdentityPreCheckSub">Concordance des caractéristiques physiques et styles avec les tolérances attendues</p>
+                  </div>
+                </div>
+                <div id="matchIdentityPreCheckBadge" class="mipc-badge">Compatible ✅</div>
+              </div>
+              <div class="mipc-body" id="matchIdentityPreCheckBody"></div>
+            </div>
+            <div class="result-hero-row">
+              <div class="gauge-column">
+                <div class="gauge-wrapper">
+                  <svg viewBox="0 0 200 200" class="gauge-svg">
+                    <circle class="gauge-bg" cx="100" cy="100" r="85"></circle>
+                    <circle id="gaugeScoreCircle" class="gauge-bar" cx="100" cy="100" r="85"></circle>
+                  </svg>
+                  <div class="gauge-center-text">
+                    <span id="gaugeValue" class="gauge-score">0%</span>
+                    <span class="gauge-subtitle">Affinité Globale</span>
+                  </div>
+                </div>
+                <div class="match-summary-text" id="matchVerdict">Calcul en cours...</div>
+              </div>
+
+              <div class="details-column">
+                <div class="detail-block">
+                  <div class="detail-header">
+                    <span>(G) Goûts Généraux</span>
+                    <span id="scoreG" class="detail-score">--%</span>
+                  </div>
+                  <div class="progress-bar-bg"><div id="barG" class="progress-bar-fill"></div></div>
+                </div>
+
+                <div class="detail-block">
+                  <div class="detail-header">
+                    <span>(V) Le Vécu (Passé)</span>
+                    <span id="scoreV" class="detail-score">--%</span>
+                  </div>
+                  <div class="progress-bar-bg"><div id="barV" class="progress-bar-fill"></div></div>
+                </div>
+
+                <div class="detail-block">
+                  <div class="detail-header">
+                    <span>(A) Actuel (Présent)</span>
+                    <span id="scoreA" class="detail-score">--%</span>
+                  </div>
+                  <div class="progress-bar-bg"><div id="barA" class="progress-bar-fill"></div></div>
+                </div>
+
+                <div class="detail-block">
+                  <div class="detail-header">
+                    <span>(D ⇄ P) Synergie Découverte &amp; Partage</span>
+                    <span id="scoreDP" class="detail-score">--%</span>
+                  </div>
+                  <div class="progress-bar-bg"><div id="barDP" class="progress-bar-fill"></div></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Radar Chart Container -->
+            <div class="radar-section">
+              <h3>Profil Radar par Thématique</h3>
+              <div class="radar-container" id="radarContainer">
+                <svg id="radarSvg" viewBox="0 0 400 400" width="100%" height="320"></svg>
+              </div>
+            </div>
+
+            <!-- Points de Fusion & Zones de Vigilance -->
+            <div class="fusion-vigilance-grid">
+              <div class="fusion-card">
+                <div class="fv-header">
+                  <span class="fv-icon">🔥</span>
+                  <h4>Points de Fusion (Synergies Fortes)</h4>
+                </div>
+                <div id="fusionList" class="fv-list">
+                  <!-- Rempli en JS -->
+                </div>
+              </div>
+
+              <div class="vigilance-card">
+                <div class="fv-header">
+                  <span class="fv-icon">⚠️</span>
+                  <h4>Zones de Vigilance (Divergences)</h4>
+                </div>
+                <div id="vigilanceList" class="fv-list">
+                  <!-- Rempli en JS -->
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Module Bilatéral : Mes Demandes de Match (Placé en bas pour une ergonomie optimale) -->
+          <div class="match-requests-wrapper" style="margin-top: 35px; border-top: 1px solid var(--border-color); padding-top: 25px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:15px;">
+              <h3 style="font-size:16px; margin:0; color:var(--text-bright); display:flex; align-items:center; gap:8px;">
+                <span>📬</span> Mes Demandes de Match &amp; Mises en Relation
+              </h3>
+            </div>
             <div class="mrw-tabs">
               <button class="mrw-tab-btn active" id="btnTabReceivedMatches" onclick="switchMatchSubTab('received')">
                 <span>📥</span> Demandes Reçues <span class="badge-count" id="badgeCountReceived">0</span>
@@ -1086,23 +1199,6 @@
               </div>
             </div>
           </div>
-
-          <!-- Block Alert si profil non complété -->
-          <div id="affinityRuleAlert" class="affinity-alert-box" style="display:none;">
-            <div class="alert-icon">⚠️</div>
-            <div class="alert-content">
-              <h4>Profil obligatoire pour activer le calcul</h4>
-              <p id="affinityRuleAlertText">Conformément aux règles d'Affinity, les calculs d'affinité ne sont autorisés que si le profil des deux membres est complété.</p>
-              <button class="btn btn-sm btn-outline" id="btnFixCards">Compléter mon profil maintenant &rarr;</button>
-            </div>
-          </div>
-
-          <!-- Result Container -->
-          <div id="affinityResultsContainer" class="affinity-results-card" style="display:none;">
-            <!-- Section Préalable : Diagnostic de Compatibilité Identité (Moi & L'Autre) -->
-            <div id="matchIdentityPreCheckCard" class="match-identity-precheck-card">
-              <div class="mipc-header">
-                <div class="mipc-title-group">
                   <span class="mipc-icon">💎</span>
                   <div>
                     <h4>Diagnostic Préalable d'Identité : Critères Moi &amp; L'Autre</h4>

@@ -5461,6 +5461,15 @@ async function computeAffinityAction() {
       if (data.error === 'FICHE_MANQUANTE') {
         alertBox.style.display = 'flex';
         resultsCard.style.display = 'none';
+        const elTitle = document.getElementById('affinityRuleAlertTitle');
+        const elIcon = document.getElementById('affinityRuleAlertIcon');
+        const elBtn = document.getElementById('btnFixCards');
+        if (elTitle) elTitle.textContent = "Profil à compléter pour débloquer les calculs";
+        if (elIcon) elIcon.textContent = "⚠️";
+        if (elBtn) {
+          elBtn.textContent = "Compléter le profil maintenant →";
+          elBtn.onclick = () => switchTab('profiles');
+        }
         document.getElementById('affinityRuleAlertText').textContent = data.message;
         return;
       }
@@ -5476,7 +5485,16 @@ async function computeAffinityAction() {
     // Cas où les deux profils n'ont pas encore de questions communes répondues
     if (data.total_questions_communes === 0 || data.questions_evaluees === 0) {
       alertBox.style.display = 'flex';
-      document.getElementById('affinityRuleAlertText').textContent = data.message || "Aucune question de questionnaire commune répondue pour le moment. Le diagnostic préalable d'identité physique ci-dessous a néanmoins été analysé avec succès.";
+      const elTitle = document.getElementById('affinityRuleAlertTitle');
+      const elIcon = document.getElementById('affinityRuleAlertIcon');
+      const elBtn = document.getElementById('btnFixCards');
+      if (elTitle) elTitle.textContent = "Questionnaire : Aucune réponse commune pour le moment";
+      if (elIcon) elIcon.textContent = "ℹ️";
+      if (elBtn) {
+        elBtn.textContent = "Répondre aux questionnaires →";
+        elBtn.onclick = () => switchTab('questionnaire');
+      }
+      document.getElementById('affinityRuleAlertText').textContent = data.message || "Ces deux membres n'ont pas encore répondu à des questions de questionnaire en commun. Le diagnostic préalable d'identité physique (+ sur vous / + sur l'autre) ci-dessous est cependant d'ores et déjà calculé et disponible.";
     } else {
       alertBox.style.display = 'none';
     }
