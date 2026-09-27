@@ -1353,7 +1353,7 @@ def calculate_affinity(profile1_id, profile2_id, allowed_classes=None):
     c1 = (id1["habite_commune"] or id1["ville"] or "") if id1 else ""
     c2 = (id2["habite_commune"] or id2["ville"] or "") if id2 else ""
     dist = calculate_distance_km(c1, c2)
-    identity_compat = evaluate_identity_compatibility(profile1_id, profile2_id, conn)
+    identity_compat = evaluate_identity_compatibility(profile1_id, profile2_id)
 
     if not common_questions:
         return {
@@ -2834,13 +2834,28 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                 conn.close()
                 return self._send_json({"error": "profile1_id et profile2_id requis."}, 400)
             
-            c.execute("SELECT role FROM profiles WHERE id = ?", (p1_id,))
-            prof_row = c.fetchone()
-            if not prof_row:
-                conn.close()
-                return self._send_json({"error": "Profil demandeur introuvable."}, 404)
+            # Identifier qui effectue la demande de calcul
+            current_user = self.get_current_user()
+            user_role = None
+            if current_user:
+                user_role = current_user.get("role")
             
-            user_role = prof_row["role"] if "role" in prof_row.keys() and prof_row["role"] else "guest"
+            # Requester explicite envoyé par le client si session non détectée
+            requester_id = data.get("requester_id")
+            if not user_role and requester_id:
+                c.execute("SELECT role FROM profiles WHERE id = ?", (requester_id,))
+                req_row = c.fetchone()
+                if req_row and "role" in req_row.keys():
+                    user_role = req_row["role"]
+
+            # Fallback sur le premier profil sélectionné
+            if not user_role:
+                c.execute("SELECT role FROM profiles WHERE id = ?", (p1_id,))
+                prof_row = c.fetchone()
+                if prof_row and "role" in prof_row.keys():
+                    user_role = prof_row["role"]
+            
+            user_role = user_role or "guest"
             simulated_role = data.get("simulated_role")
             if user_role == "admin" and simulated_role in ["subscriber", "guest"]:
                 user_role = simulated_role

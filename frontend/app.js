@@ -5444,12 +5444,14 @@ async function computeAffinityAction() {
   const resultsCard = document.getElementById('affinityResultsContainer');
 
   try {
+    const requesterId = state.realAdminId || (state.currentUser ? state.currentUser.id : state.activeProfileId);
     const res = await fetch(`${API_BASE}/api/affinity/calculate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         profile1_id: p1Id, 
         profile2_id: p2Id,
+        requester_id: requesterId,
         simulated_role: state.simulatedRole 
       })
     });
@@ -5471,16 +5473,15 @@ async function computeAffinityAction() {
       throw new Error(data.message || data.error);
     }
 
-    // Cas où les deux profils n'ont aucune question commune répondue
+    // Cas où les deux profils n'ont pas encore de questions communes répondues
     if (data.total_questions_communes === 0 || data.questions_evaluees === 0) {
       alertBox.style.display = 'flex';
-      resultsCard.style.display = 'none';
-      document.getElementById('affinityRuleAlertText').textContent = data.message || "Aucune question commune dans le périmètre retenu. Les deux profils doivent répondre à des questionnaires communs pour évaluer leur affinité.";
-      return;
+      document.getElementById('affinityRuleAlertText').textContent = data.message || "Aucune question de questionnaire commune répondue pour le moment. Le diagnostic préalable d'identité physique ci-dessous a néanmoins été analysé avec succès.";
+    } else {
+      alertBox.style.display = 'none';
     }
 
-    // Succès : Afficher le rapport d'affinité
-    alertBox.style.display = 'none';
+    // Afficher le rapport d'affinité et le diagnostic d'identité préalable
     resultsCard.style.display = 'flex';
     state.lastAffinityResult = data;
     renderAffinityResults(data);
