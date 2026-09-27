@@ -1052,13 +1052,33 @@ def calculate_affinity(profile1_id, profile2_id, allowed_classes=None):
         except Exception:
             pass
     
+    c1 = (id1["habite_commune"] or id1["ville"] or "") if id1 else ""
+    c2 = (id2["habite_commune"] or id2["ville"] or "") if id2 else ""
+    dist = calculate_distance_km(c1, c2)
+
     if not common_questions:
-        dist = calculate_distance_km(id1["ville"] if id1 else "", id2["ville"] if id2 else "")
         return {
+            "profile1": {
+                "id": p1["id"],
+                "pseudo": p1["pseudo"],
+                "ville": c1,
+                "identite": dict(id1) if id1 else {}
+            },
+            "profile2": {
+                "id": p2["id"],
+                "pseudo": p2["pseudo"],
+                "ville": c2,
+                "identite": dict(id2) if id2 else {}
+            },
             "score_global": 0,
             "total_questions_communes": 0,
+            "questions_evaluees": 0,
             "distance_km": dist,
-            "message": "Aucune question commune dans le périmètre retenu. Remplissez des questionnaires similaires pour calculer l'affinité."
+            "axes": {"G": None, "V": None, "A": None, "DP_synergy": None},
+            "thematiques": {},
+            "points_de_fusion": [],
+            "zones_de_vigilance": [],
+            "message": "Aucune question commune dans le périmètre retenu. Les deux profils doivent répondre à des questionnaires communs pour évaluer leur affinité."
         }
         
     score_details_thematique = {}
@@ -1208,8 +1228,8 @@ def calculate_affinity(profile1_id, profile2_id, allowed_classes=None):
     dist = calculate_distance_km(c1, c2)
 
     return {
-        "profile1": {"id": p1["id"], "pseudo": p1["pseudo"], "identite": dict(id1)},
-        "profile2": {"id": p2["id"], "pseudo": p2["pseudo"], "identite": dict(id2)},
+        "profile1": {"id": p1["id"], "pseudo": p1["pseudo"], "ville": c1, "identite": dict(id1) if id1 else {}},
+        "profile2": {"id": p2["id"], "pseudo": p2["pseudo"], "ville": c2, "identite": dict(id2) if id2 else {}},
         "score_global": global_score_percent,
         "distance_km": dist,
         "questions_evaluees": len(common_questions),

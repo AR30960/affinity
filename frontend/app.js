@@ -5369,6 +5369,14 @@ async function computeAffinityAction() {
       throw new Error(data.message || data.error);
     }
 
+    // Cas où les deux profils n'ont aucune question commune répondue
+    if (data.total_questions_communes === 0 || data.questions_evaluees === 0) {
+      alertBox.style.display = 'flex';
+      resultsCard.style.display = 'none';
+      document.getElementById('affinityRuleAlertText').textContent = data.message || "Aucune question commune dans le périmètre retenu. Les deux profils doivent répondre à des questionnaires communs pour évaluer leur affinité.";
+      return;
+    }
+
     // Succès : Afficher le rapport d'affinité
     alertBox.style.display = 'none';
     resultsCard.style.display = 'flex';
@@ -5376,9 +5384,12 @@ async function computeAffinityAction() {
     renderAffinityResults(data);
 
     // Mettre à jour le Hero et la Smartwatch
-    document.getElementById('heroMatchRate').textContent = `${data.score_global}%`;
-    document.getElementById('watchScore').textContent = `${data.score_global}%`;
-    document.getElementById('watchMatchDesc').textContent = `Match ${data.profile1.pseudo} & ${data.profile2.pseudo}`;
+    const p1Pseudo = data.profile1?.pseudo || 'Profil 1';
+    const p2Pseudo = data.profile2?.pseudo || 'Profil 2';
+    document.getElementById('heroMatchRate').textContent = `${data.score_global ?? 0}%`;
+    document.getElementById('watchScore').textContent = `${data.score_global ?? 0}%`;
+    const watchMatchDesc = document.getElementById('watchMatchDesc');
+    if (watchMatchDesc) watchMatchDesc.textContent = `Match ${p1Pseudo} & ${p2Pseudo}`;
   } catch (err) {
     alert('Erreur lors du calcul : ' + err.message);
   }
@@ -5386,7 +5397,7 @@ async function computeAffinityAction() {
 
 function renderAffinityResults(data) {
   // 1. Jauge Circulaire
-  const score = data.score_global;
+  const score = data.score_global ?? 0;
   const circle = document.getElementById('gaugeScoreCircle');
   const valText = document.getElementById('gaugeValue');
   const verdict = document.getElementById('matchVerdict');
@@ -5396,7 +5407,7 @@ function renderAffinityResults(data) {
   // Animation périmètre SVG (circonférence = 2 * PI * 85 ~= 534)
   const offset = 534 - (534 * (score / 100));
   setTimeout(() => {
-    circle.style.strokeDashoffset = offset;
+    if (circle) circle.style.strokeDashoffset = offset;
   }, 50);
 
   let verdictText = '';
@@ -5410,7 +5421,9 @@ function renderAffinityResults(data) {
 
   // Ajout de la distance kilométrique si disponible
   if (data.distance_km !== undefined && data.distance_km !== null) {
-    verdictText += `<div style="margin-top:10px; font-size:13px; color:var(--accent-cyan); font-weight:600;">🚗 Distance entre les deux profils : <strong>${data.distance_km} km</strong> (${data.profile1.ville || '?'} ⇄ ${data.profile2.ville || '?'})</div>`;
+    const v1 = data.profile1?.ville || data.profile1?.identite?.habite_commune || data.profile1?.identite?.ville || '?';
+    const v2 = data.profile2?.ville || data.profile2?.identite?.habite_commune || data.profile2?.identite?.ville || '?';
+    verdictText += `<div style="margin-top:10px; font-size:13px; color:var(--accent-cyan); font-weight:600;">🚗 Distance entre les deux profils : <strong>${data.distance_km} km</strong> (${v1} ⇄ ${v2})</div>`;
   }
 
   verdict.innerHTML = verdictText;
@@ -5419,6 +5432,7 @@ function renderAffinityResults(data) {
   const setBar = (scoreVal, valId, barId) => {
     const elVal = document.getElementById(valId);
     const elBar = document.getElementById(barId);
+    if (!elVal || !elBar) return;
     if (scoreVal !== null && scoreVal !== undefined) {
       elVal.textContent = `${scoreVal}%`;
       setTimeout(() => { elBar.style.width = `${scoreVal}%`; }, 100);
@@ -5428,10 +5442,17 @@ function renderAffinityResults(data) {
     }
   };
 
-  setBar(data.axes.G, 'scoreG', 'barG');
-  setBar(data.axes.V, 'scoreV', 'barV');
-  setBar(data.axes.A, 'scoreA', 'barA');
-  setBar(data.axes.DP_synergy, 'scoreDP', 'barDP');
+  if (data.axes) {
+    setBar(data.axes.G, 'scoreG', 'barG');
+    setBar(data.axes.V, 'scoreV', 'barV');
+    setBar(data.axes.A, 'scoreA', 'barA');
+    setBar(data.axes.DP_synergy, 'scoreDP', 'barDP');
+  } else {
+    setBar(null, 'scoreG', 'barG');
+    setBar(null, 'scoreV', 'barV');
+    setBar(null, 'scoreA', 'barA');
+    setBar(null, 'scoreDP', 'barDP');
+  }
 
   // 3. Graphique Radar SVG interactif
   renderRadarChart(data.thematiques);
@@ -5468,7 +5489,7 @@ function renderRadarChart(thematiques) {
   const container = document.getElementById('radarContainer');
   if (!container) return;
 
-  const entries = Object.entries(thematiques);
+  const entries = Object.entries(thematiques || {});
   if (entries.length < 3) {
     container.innerHTML = `<p style="font-size:13px; color:var(--text-dim); text-align:center;">Répondez à au moins 3 thématiques communes pour visualiser le radar complet.</p>`;
     return;
