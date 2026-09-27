@@ -25,3 +25,5 @@ test_affinity_temp.db
 
 # Sauvegardes volumineuses
 Affinity-Full_BACKUP_*.mdb
+backups/*.db
+

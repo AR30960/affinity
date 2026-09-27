@@ -1408,6 +1408,7 @@ function switchTab(tabName) {
   } else if (tabName === 'admin') {
     renderAdminUsersTable();
     loadAdminAccessRequests();
+    loadAdminBackupStatus();
   }
 }
 
@@ -6868,5 +6869,48 @@ window.onQThematiqueChange = onQThematiqueChange;
 window.onPendingThematiqueChange = onPendingThematiqueChange;
 window.updateQuestionnaireSujetsDropdown = updateQuestionnaireSujetsDropdown;
 window.updatePendingSujetsDropdown = updatePendingSujetsDropdown;
+
+// Sauvegardes de sécurité locales
+async function triggerManualLocalBackup() {
+  const btn = event?.currentTarget;
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/backup`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      showToast("💾 " + (data.message || "Sauvegarde créée !"));
+      await loadAdminBackupStatus();
+    } else {
+      alert("Erreur : " + (data.error || "Impossible d'effectuer la sauvegarde."));
+    }
+  } catch (err) {
+    alert("Erreur lors de la sauvegarde : " + err.message);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function loadAdminBackupStatus() {
+  const infoEl = document.getElementById('adminBackupStatusInfo');
+  if (!infoEl) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/backups`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const list = data.backups || [];
+    if (list.length > 0) {
+      const latest = list[0];
+      const sizeKo = Math.round(latest.size_bytes / 1024);
+      infoEl.innerHTML = `Dernière sauvegarde locale sécurisée : <strong>${latest.filename}</strong> (${sizeKo} Ko, le ${latest.created_at}) &bull; Total en réserve : <strong>${list.length}</strong> copie(s)`;
+    } else {
+      infoEl.innerHTML = `Aucune copie horodatée trouvée dans le dossier <code>backups/</code>. Cliquez sur le bouton pour créer votre première copie de sécurité.`;
+    }
+  } catch (err) {
+    console.warn("Impossible de charger le statut des sauvegardes :", err);
+  }
+}
+
+window.triggerManualLocalBackup = triggerManualLocalBackup;
+window.loadAdminBackupStatus = loadAdminBackupStatus;
 
 

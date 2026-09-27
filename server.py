@@ -2113,6 +2113,22 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                 conn.close()
                 return self._send_json({"packs": packs})
 
+            # --- Sauvegardes de sécurité locales ---
+            elif path == "/api/admin/backups":
+                conn.close()
+                backup_dir = os.path.join(BASE_DIR, "backups")
+                backups = []
+                if os.path.exists(backup_dir):
+                    for f in sorted(os.listdir(backup_dir), reverse=True):
+                        if f.startswith("affinity_backup_") and f.endswith(".db"):
+                            fp = os.path.join(backup_dir, f)
+                            backups.append({
+                                "filename": f,
+                                "size_bytes": os.path.getsize(fp),
+                                "created_at": datetime.fromtimestamp(os.path.getctime(fp)).strftime("%Y-%m-%d %H:%M:%S")
+                            })
+                return self._send_json({"backups": backups, "total": len(backups)})
+
             # --- Questions et sous-questions liées ---
             elif path.startswith("/api/questions/") and path.endswith("/subquestions"):
                 qid = int(path.split("/")[3])
@@ -3222,6 +3238,14 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
             conn.commit()
             conn.close()
             return self._send_json({"success": True, "message": "Question modifiée avec succès."})
+
+        # Sauvegarde manuelle de la base locale
+        elif path == "/api/admin/backup":
+            conn.close()
+            bkp = backup_local_db()
+            if bkp:
+                return self._send_json({"success": True, "message": "Sauvegarde de sécurité créée avec succès.", "file": os.path.basename(bkp)})
+            return self._send_json({"error": "Échec lors de la création de la sauvegarde locale."}, 500)
             
         conn.close()
         return self._send_json({"error": "Endpoint non trouvé"}, 404)
@@ -3254,12 +3278,45 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
             return self._send_json({"success": True, "deleted_id": qid})
         return self._send_json({"error": "Non supporté"}, 404)
 
+def backup_local_db():
+    """
+    Crée une copie de sauvegarde horodatée de la base de données dans le dossier backups/
+    Conserve les 15 sauvegardes les plus récentes pour préserver durablement les profils,
+    les questions et les réponses saisies en local.
+    """
+    if not os.path.exists(DB_PATH):
+        return None
+    try:
+        backup_dir = os.path.join(BASE_DIR, "backups")
+        os.makedirs(backup_dir, exist_ok=True)
+        now_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_file = os.path.join(backup_dir, f"affinity_backup_{now_str}.db")
+        shutil.copy2(DB_PATH, backup_file)
+
+        # Rotation : conserver les 15 sauvegardes les plus récentes
+        backups = sorted([
+            os.path.join(backup_dir, f) for f in os.listdir(backup_dir)
+            if f.startswith("affinity_backup_") and f.endswith(".db")
+        ])
+        if len(backups) > 15:
+            for old_b in backups[:-15]:
+                try:
+                    os.remove(old_b)
+                except Exception:
+                    pass
+        print(f"[BACKUP] Sauvegarde locale sécurisée : {os.path.basename(backup_file)}")
+        return backup_file
+    except Exception as err:
+        print(f"[BACKUP] Erreur sauvegarde automatique : {err}")
+        return None
+
 class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     daemon_threads = True
     allow_reuse_address = True
 
 def run():
     init_db()
+    backup_local_db()
     print(f"=== AFFINITY SERVEUR PRÊT ===")
     print(f"Écoute sur http://localhost:{PORT}")
     server = ThreadedTCPServer(("", PORT), AffinityHandler)
