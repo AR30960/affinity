@@ -953,6 +953,304 @@ def init_db():
     conn.commit()
     conn.close()
 
+# ==========================================================================
+# DIAGNOSTIC PRÉALABLE : COMPATIBILITÉ IDENTITÉ ("+ SUR MOI" vs "+ SUR L'AUTRE")
+# ==========================================================================
+def evaluate_identity_compatibility(profile1_id, profile2_id, conn=None):
+    """
+    Compare l'identité et les caractéristiques physiques/style entre Profil 1 ("Moi") et Profil 2 ("L'autre") :
+    - Est-ce que Profil 2 satisfait les critères tolérés de Profil 1 ? (+ sur l'autre de P1 vs + sur moi de P2)
+    - Est-ce que Profil 1 satisfait les critères tolérés de Profil 2 ? (+ sur l'autre de P2 vs + sur moi de P1)
+    Renvoie un diagnostic complet : compatible ou non, score %, badges et détail des critères.
+    """
+    should_close = False
+    if conn is None:
+        conn = get_db()
+        should_close = True
+    c = conn.cursor()
+
+    try:
+        c.execute("SELECT id, pseudo, role FROM profiles WHERE id = ?", (profile1_id,))
+        p1 = c.fetchone()
+        c.execute("SELECT id, pseudo, role FROM profiles WHERE id = ?", (profile2_id,))
+        p2 = c.fetchone()
+        if not p1 or not p2:
+            return {"error": "L'un des profils n'existe pas."}
+
+        # Fiches d'identité
+        c.execute("SELECT * FROM identity_cards WHERE profile_id = ?", (profile1_id,))
+        id1 = c.fetchone()
+        c.execute("SELECT * FROM identity_cards WHERE profile_id = ?", (profile2_id,))
+        id2 = c.fetchone()
+
+        # Réponses '+ sur moi'
+        c.execute("SELECT question_id, valeur_num, valeur_text FROM identity_answers_self WHERE profile_id = ?", (profile1_id,))
+        self1 = {r["question_id"]: dict(r) for r in c.fetchall()}
+        c.execute("SELECT question_id, valeur_num, valeur_text FROM identity_answers_self WHERE profile_id = ?", (profile2_id,))
+        self2 = {r["question_id"]: dict(r) for r in c.fetchall()}
+
+        # Tolérances '+ sur l'autre'
+        c.execute("SELECT question_id, min_val, max_val, options_json, indifferent FROM identity_answers_partner WHERE profile_id = ?", (profile1_id,))
+        part1 = {}
+        for r in c.fetchall():
+            opts = []
+            if r["options_json"]:
+                try:
+                    opts = json.loads(r["options_json"])
+                except Exception:
+                    pass
+            part1[r["question_id"]] = {
+                "min_val": r["min_val"],
+                "max_val": r["max_val"],
+                "options": opts,
+                "indifferent": bool(r["indifferent"])
+            }
+
+        c.execute("SELECT question_id, min_val, max_val, options_json, indifferent FROM identity_answers_partner WHERE profile_id = ?", (profile2_id,))
+        part2 = {}
+        for r in c.fetchall():
+            opts = []
+            if r["options_json"]:
+                try:
+                    opts = json.loads(r["options_json"])
+                except Exception:
+                    pass
+            part2[r["question_id"]] = {
+                "min_val": r["min_val"],
+                "max_val": r["max_val"],
+                "options": opts,
+                "indifferent": bool(r["indifferent"])
+            }
+
+        # Paires de questions classe 8
+        c.execute("""
+            SELECT qp.id as p_id, qp.cible as p_cible, qp.texte as p_texte, qp.sujet as p_sujet, qp.config_reponses as p_cfg,
+                   qt.id as t_id, qt.cible as t_cible, qt.texte as t_texte, qt.sujet as t_sujet, qt.config_reponses as t_cfg
+            FROM questions qp
+            JOIN questions qt ON qp.n_quest_lie = qt.id
+            WHERE qp.classe = 8 AND qp.type = 'P'
+            ORDER BY qp.id
+        """)
+        pairs = c.fetchall()
+
+        # Fallbacks avec les colonnes de identity_cards
+        def get_card_fallback(card, label):
+            if not card:
+                return None, None
+            lbl = label.lower()
+            if "taille" in lbl or "stature" in lbl:
+                return card["taille"], None
+            elif "poids" in lbl or "corpulence" in lbl:
+                return card["poids"], None
+            elif "pointure" in lbl:
+                return card["pointure"], None
+            elif "poitrine" in lbl and "tour" in lbl:
+                return card["tour_poitrine"], None
+            elif "taille" in lbl and "tour" in lbl:
+                return card["tour_taille"], None
+            elif "hanche" in lbl:
+                return card["tour_hanches"], None
+            elif "cheveux" in lbl and "couleur" in lbl:
+                return None, card["couleur_cheveux"]
+            elif "origine" in lbl:
+                return None, card["origines"]
+            elif "style" in lbl:
+                return None, card["style"]
+            return None, None
+
+        def evaluate_one_direction(evaluator_pseudo, target_pseudo, part_dict, self_target_dict, target_card):
+            details = []
+            for pair in pairs:
+                p_id = pair["p_id"]
+                t_id = pair["t_id"]
+                dim_name = pair["p_texte"]
+
+                cfg = {}
+                if pair["p_cfg"]:
+                    try:
+                        cfg = json.loads(pair["p_cfg"])
+                    except Exception:
+                        pass
+                kind = cfg.get("mode", "select")
+                unit = cfg.get("unit", "")
+                dim_short = cfg.get("dimension") or cfg.get("label") or dim_name
+
+                # Critère recherché par l'évaluateur (sur t_id ou p_id)
+                criterion = part_dict.get(t_id) or part_dict.get(p_id)
+                if not criterion:
+                    continue
+
+                # Réponse effective de la cible (sur p_id)
+                target_ans = self_target_dict.get(p_id)
+                v_num = target_ans.get("valeur_num") if target_ans else None
+                v_txt = target_ans.get("valeur_text") if target_ans else None
+
+                # Fallback carte d'identité si non renseigné
+                if v_num is None and (v_txt is None or not str(v_txt).strip()):
+                    fb_num, fb_txt = get_card_fallback(target_card, dim_name)
+                    if fb_num is not None:
+                        v_num = fb_num
+                    if fb_txt is not None:
+                        v_txt = fb_txt
+
+                # 1. Indifférent
+                if criterion.get("indifferent"):
+                    val_display = f"{v_num} {unit}" if v_num is not None else (v_txt or "Non précisé")
+                    details.append({
+                        "dimension": dim_short,
+                        "kind": kind,
+                        "unit": unit,
+                        "status": "compatible",
+                        "badge": "✅ Indifférent",
+                        "is_indifferent": True,
+                        "valeur_cible": val_display,
+                        "detail": "Aucune exigence particulière (Tolérance ouverte / Indifférent)"
+                    })
+                    continue
+
+                # 2. Critère numérique (plage Min / Max)
+                if kind == "numeric":
+                    min_v = criterion.get("min_val")
+                    max_v = criterion.get("max_val")
+                    if min_v is None and max_v is None:
+                        continue
+
+                    if v_num is None:
+                        details.append({
+                            "dimension": dim_short,
+                            "kind": kind,
+                            "unit": unit,
+                            "status": "inconnu",
+                            "badge": "⚪ Non renseigné",
+                            "is_indifferent": False,
+                            "valeur_cible": "Non précisé",
+                            "detail": f"Attendu : [{min_v or 0} à {max_v or '∞'} {unit}] (Non renseigné par {target_pseudo})"
+                        })
+                    else:
+                        low = min_v if min_v is not None else -999999
+                        high = max_v if max_v is not None else 999999
+                        if low <= v_num <= high:
+                            details.append({
+                                "dimension": dim_short,
+                                "kind": kind,
+                                "unit": unit,
+                                "status": "compatible",
+                                "badge": "✅ Compatible",
+                                "is_indifferent": False,
+                                "valeur_cible": f"{v_num} {unit}",
+                                "detail": f"{v_num} {unit} (Plage tolérée : {min_v or 0} à {max_v or '∞'} {unit})"
+                            })
+                        else:
+                            details.append({
+                                "dimension": dim_short,
+                                "kind": kind,
+                                "unit": unit,
+                                "status": "incompatible",
+                                "badge": "❌ Hors tolérances",
+                                "is_indifferent": False,
+                                "valeur_cible": f"{v_num} {unit}",
+                                "detail": f"{v_num} {unit} hors de la plage tolérée [{min_v or 0} à {max_v or '∞'} {unit}]"
+                            })
+                else: # 3. Critère liste d'options
+                    options = criterion.get("options") or []
+                    if not options:
+                        continue
+
+                    if not v_txt or not str(v_txt).strip():
+                        details.append({
+                            "dimension": dim_short,
+                            "kind": kind,
+                            "unit": "",
+                            "status": "inconnu",
+                            "badge": "⚪ Non renseigné",
+                            "is_indifferent": False,
+                            "valeur_cible": "Non précisé",
+                            "detail": f"Options acceptées : {', '.join(options)} (Non précisé par {target_pseudo})"
+                        })
+                    else:
+                        val_str = str(v_txt).strip().lower()
+                        opts_lower = [str(o).strip().lower() for o in options]
+                        match = any(o in val_str or val_str in o for o in opts_lower)
+                        if match:
+                            details.append({
+                                "dimension": dim_short,
+                                "kind": kind,
+                                "unit": "",
+                                "status": "compatible",
+                                "badge": "✅ Compatible",
+                                "is_indifferent": False,
+                                "valeur_cible": v_txt,
+                                "detail": f"« {v_txt} » correspond aux préférences acceptées"
+                            })
+                        else:
+                            details.append({
+                                "dimension": dim_short,
+                                "kind": kind,
+                                "unit": "",
+                                "status": "incompatible",
+                                "badge": "❌ Non souhaité",
+                                "is_indifferent": False,
+                                "valeur_cible": v_txt,
+                                "detail": f"« {v_txt} » ne fait pas partie des options acceptées ({', '.join(options)})"
+                            })
+            return details
+
+        p1_pseudo = p1["pseudo"] or "Profil 1"
+        p2_pseudo = p2["pseudo"] or "Profil 2"
+
+        dir1_details = evaluate_one_direction(p1_pseudo, p2_pseudo, part1, self2, id2)
+        dir2_details = evaluate_one_direction(p2_pseudo, p1_pseudo, part2, self1, id1)
+
+        all_tests = dir1_details + dir2_details
+        compatibles = [t for t in all_tests if t["status"] == "compatible"]
+        incompatibles = [t for t in all_tests if t["status"] == "incompatible"]
+        inconnus = [t for t in all_tests if t["status"] == "inconnu"]
+
+        total_checked = len(compatibles) + len(incompatibles)
+        is_compatible = (len(incompatibles) == 0)
+
+        if total_checked == 0:
+            compat_level = "NON_EVALUE"
+            compat_score = 100
+            summary_badge = "ℹ️ Tolérances non définies"
+            summary_text = "Aucune exigence particulière n'a été définie pour le moment par les profils. Pas d'incompatibilité identifiée."
+        elif is_compatible:
+            compat_level = "COMPATIBLE"
+            compat_score = 100
+            summary_badge = f"✅ Profils Compatibles ({len(compatibles)}/{total_checked})"
+            summary_text = f"Tous les critères mutuels définis ({len(compatibles)} validé(s)) sont respectés !"
+        else:
+            compat_score = round((len(compatibles) / total_checked) * 100) if total_checked > 0 else 0
+            compat_level = "PARTIEL" if compat_score >= 60 else "INCOMPATIBLE"
+            summary_badge = f"⚠️ {len(incompatibles)} divergence(s) ({compat_score}%)"
+            summary_text = f"{len(incompatibles)} critère(s) sur {total_checked} vérifié(s) se situent hors des tolérances réciproques."
+
+        return {
+            "is_compatible": is_compatible,
+            "compatibility_level": compat_level,
+            "compatibility_score": compat_score,
+            "summary_badge": summary_badge,
+            "summary_text": summary_text,
+            "total_criteria_defined": len(all_tests),
+            "total_checked": total_checked,
+            "compatible_count": len(compatibles),
+            "incompatible_count": len(incompatibles),
+            "unknown_count": len(inconnus),
+            "p1_towards_p2": {
+                "evaluator": p1_pseudo,
+                "target": p2_pseudo,
+                "criteria": dir1_details
+            },
+            "p2_towards_p1": {
+                "evaluator": p2_pseudo,
+                "target": p1_pseudo,
+                "criteria": dir2_details
+            }
+        }
+    finally:
+        if should_close:
+            conn.close()
+
 # ==========================================
 # ALGORITHME DE CALCUL D'AFFINITÉ (MOTEUR)
 # ==========================================
@@ -1055,6 +1353,7 @@ def calculate_affinity(profile1_id, profile2_id, allowed_classes=None):
     c1 = (id1["habite_commune"] or id1["ville"] or "") if id1 else ""
     c2 = (id2["habite_commune"] or id2["ville"] or "") if id2 else ""
     dist = calculate_distance_km(c1, c2)
+    identity_compat = evaluate_identity_compatibility(profile1_id, profile2_id, conn)
 
     if not common_questions:
         return {
@@ -1078,6 +1377,7 @@ def calculate_affinity(profile1_id, profile2_id, allowed_classes=None):
             "thematiques": {},
             "points_de_fusion": [],
             "zones_de_vigilance": [],
+            "identity_compatibility": identity_compat,
             "message": "Aucune question commune dans le périmètre retenu. Les deux profils doivent répondre à des questionnaires communs pour évaluer leur affinité."
         }
         
@@ -1226,6 +1526,7 @@ def calculate_affinity(profile1_id, profile2_id, allowed_classes=None):
     c1 = (id1["habite_commune"] or id1["ville"] or "") if id1 else ""
     c2 = (id2["habite_commune"] or id2["ville"] or "") if id2 else ""
     dist = calculate_distance_km(c1, c2)
+    identity_compat = evaluate_identity_compatibility(profile1_id, profile2_id, conn)
 
     return {
         "profile1": {"id": p1["id"], "pseudo": p1["pseudo"], "ville": c1, "identite": dict(id1) if id1 else {}},
@@ -1236,7 +1537,8 @@ def calculate_affinity(profile1_id, profile2_id, allowed_classes=None):
         "thematiques": thematiques_report,
         "axes": axis_report,
         "points_de_fusion": sorted(points_de_fusion, key=lambda x: x["score"], reverse=True)[:5],
-        "zones_de_vigilance": sorted(zones_de_vigilance, key=lambda x: x["score"])[:5]
+        "zones_de_vigilance": sorted(zones_de_vigilance, key=lambda x: x["score"])[:5],
+        "identity_compatibility": identity_compat
     }
 
 # ==========================================
@@ -1784,6 +2086,25 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                 dist = calculate_distance_km(c1, c2)
                 conn.close()
                 return self._send_json({"ville1": c1, "ville2": c2, "distance_km": dist})
+
+            # --- Diagnostic Préalable : Compatibilité Identité (Moi & L'Autre) ---
+            elif path == "/api/affinity/identity-compatibility":
+                query_params = urllib.parse.parse_qs(parsed.query)
+                p1_param = query_params.get("p1", [None])[0]
+                p2_param = query_params.get("p2", [None])[0]
+                if not p1_param or not p2_param:
+                    conn.close()
+                    return self._send_json({"error": "Paramètres p1 et p2 requis"}, 400)
+                try:
+                    p1_id = int(p1_param)
+                    p2_id = int(p2_param)
+                except ValueError:
+                    conn.close()
+                    return self._send_json({"error": "Paramètres p1 et p2 doivent être des entiers"}, 400)
+
+                compat_res = evaluate_identity_compatibility(p1_id, p2_id, conn)
+                conn.close()
+                return self._send_json(compat_res)
 
             # --- Jeux / Packs ---
             elif path == "/api/packs":

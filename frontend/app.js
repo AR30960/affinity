@@ -5002,6 +5002,107 @@ async function updateTargetProfilePreview() {
       elDist.innerHTML = `📍 Ville non renseignée dans le profil`;
     }
   }
+
+  // Diagnostic préalable de compatibilité identité (+ sur moi & + sur l'autre)
+  await loadAndRenderIdentityCompatibilityPreview(p1Id, p2Id, p1, p2);
+}
+
+async function loadAndRenderIdentityCompatibilityPreview(p1Id, p2Id, p1, p2) {
+  const container = document.getElementById('tpcIdentityCompatContainer');
+  if (!container) return;
+
+  const badgeEl = document.getElementById('tpcCompatStatusBadge');
+  const summaryEl = document.getElementById('tpcCompatSummaryText');
+  const dir1Title = document.getElementById('tpcDir1Title');
+  const dir2Title = document.getElementById('tpcDir2Title');
+  const dir1List = document.getElementById('tpcDir1List');
+  const dir2List = document.getElementById('tpcDir2List');
+
+  if (badgeEl) {
+    badgeEl.className = 'tic-status-badge status-neutral';
+    badgeEl.textContent = '⏳ Analyse...';
+  }
+  if (summaryEl) summaryEl.textContent = 'Évaluation des tolérances réciproques en cours...';
+
+  try {
+    const res = await fetch(`${API_BASE}/api/affinity/identity-compatibility?p1=${p1Id}&p2=${p2Id}`);
+    if (!res.ok) return;
+    const compat = await res.json();
+
+    state.lastTargetIdentityCompat = compat;
+
+    let badgeCls = 'status-neutral';
+    let badgeTxt = 'ℹ️ Non défini';
+    if (compat.compatibility_level === 'COMPATIBLE') {
+      badgeCls = 'status-compatible';
+      badgeTxt = 'Compatible ✅';
+    } else if (compat.compatibility_level === 'PARTIEL') {
+      badgeCls = 'status-partial';
+      badgeTxt = `Partiel (${compat.compatibility_score}%) ⚠️`;
+    } else if (compat.compatibility_level === 'INCOMPATIBLE') {
+      badgeCls = 'status-incompatible';
+      badgeTxt = `Non compatible (${compat.incompatible_count} divergent(s)) ❌`;
+    }
+
+    if (badgeEl) {
+      badgeEl.className = `tic-status-badge ${badgeCls}`;
+      badgeEl.textContent = badgeTxt;
+    }
+    if (summaryEl) {
+      summaryEl.textContent = compat.summary_text;
+    }
+
+    const p1Pseudo = p1?.pseudo || 'Vous';
+    const p2Pseudo = p2?.pseudo || 'L\'autre';
+
+    if (dir1Title) dir1Title.textContent = `👤 Vos critères envers ${p2Pseudo}`;
+    if (dir2Title) dir2Title.textContent = `👥 Critères de ${p2Pseudo} envers vous`;
+
+    const renderCritHtml = (critList) => {
+      if (!critList || critList.length === 0) {
+        return `<div style="font-size:12px; color:var(--text-dim); padding:6px; font-style:italic;">Aucune tolérance restrictive définie</div>`;
+      }
+      return critList.map(c => {
+        let cardCls = 'crit-inconnu';
+        let bCls = 'b-neutral';
+        if (c.status === 'compatible') {
+          cardCls = 'crit-compatible';
+          bCls = 'b-compat';
+        } else if (c.status === 'incompatible') {
+          cardCls = 'crit-incompatible';
+          bCls = 'b-incompat';
+        }
+        return `
+          <div class="tic-crit-card ${cardCls}">
+            <div class="tic-crit-top">
+              <span class="tic-crit-name">${c.dimension}</span>
+              <span class="tic-crit-badge ${bCls}">${c.badge}</span>
+            </div>
+            <div class="tic-crit-detail">${c.detail}</div>
+          </div>
+        `;
+      }).join('');
+    };
+
+    if (dir1List) dir1List.innerHTML = renderCritHtml(compat.p1_towards_p2?.criteria);
+    if (dir2List) dir2List.innerHTML = renderCritHtml(compat.p2_towards_p1?.criteria);
+
+  } catch (err) {
+    console.warn("Erreur chargement compatibilité identité :", err);
+    if (badgeEl) {
+      badgeEl.className = 'tic-status-badge status-neutral';
+      badgeEl.textContent = 'Non évalué';
+    }
+  }
+}
+
+function toggleIdentityCompatDetails() {
+  const pane = document.getElementById('tpcCompatDetailsPane');
+  const icon = document.getElementById('tpcCompatToggleIcon');
+  if (!pane) return;
+  const isHidden = (pane.style.display === 'none' || pane.style.display === '');
+  pane.style.display = isHidden ? 'block' : 'none';
+  if (icon) icon.classList.toggle('open', isHidden);
 }
 
 // ==========================================================================
@@ -5396,6 +5497,9 @@ async function computeAffinityAction() {
 }
 
 function renderAffinityResults(data) {
+  // 0. Diagnostic Préalable : Compatibilité Identité (Moi & L'Autre)
+  renderIdentityPreCheckResults(data.identity_compatibility);
+
   // 1. Jauge Circulaire
   const score = data.score_global ?? 0;
   const circle = document.getElementById('gaugeScoreCircle');
@@ -5481,6 +5585,94 @@ function renderAffinityResults(data) {
     `).join('');
   } else {
     vigilanceList.innerHTML = `<div class="empty-state-mini"><p>Aucune divergence majeure &le; 35% constatée.</p></div>`;
+  }
+}
+
+// Rendu du diagnostic préalable de compatibilité identité
+function renderIdentityPreCheckResults(compat) {
+  const card = document.getElementById('matchIdentityPreCheckCard');
+  if (!card) return;
+  if (!compat) {
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = 'block';
+
+  const badgeEl = document.getElementById('matchIdentityPreCheckBadge');
+  const subEl = document.getElementById('matchIdentityPreCheckSub');
+  const bodyEl = document.getElementById('matchIdentityPreCheckBody');
+
+  let badgeCls = 'compat-info';
+  let badgeTxt = 'ℹ️ Non évalué';
+  if (compat.compatibility_level === 'COMPATIBLE') {
+    badgeCls = 'compat-ok';
+    badgeTxt = 'Compatible ✅';
+  } else if (compat.compatibility_level === 'PARTIEL') {
+    badgeCls = 'compat-warn';
+    badgeTxt = `Partiellement Compatible (${compat.compatibility_score}%) ⚠️`;
+  } else if (compat.compatibility_level === 'INCOMPATIBLE') {
+    badgeCls = 'compat-ko';
+    badgeTxt = `Non Compatible (${compat.incompatible_count} divergence(s)) ❌`;
+  }
+
+  if (badgeEl) {
+    badgeEl.className = `mipc-badge ${badgeCls}`;
+    badgeEl.textContent = badgeTxt;
+  }
+  if (subEl) {
+    subEl.textContent = compat.summary_text || "Concordance des caractéristiques déclarées avec les tolérances attendues";
+  }
+
+  if (bodyEl) {
+    const p1Dir = compat.p1_towards_p2 || { evaluator: 'Vous', target: 'L\'autre', criteria: [] };
+    const p2Dir = compat.p2_towards_p1 || { evaluator: 'L\'autre', target: 'Vous', criteria: [] };
+
+    const renderCritHtml = (critList) => {
+      if (!critList || critList.length === 0) {
+        return `<div style="font-size:12px; color:var(--text-dim); padding:10px; font-style:italic;">Aucune tolérance restrictive définie</div>`;
+      }
+      return critList.map(c => {
+        let cardCls = 'crit-inconnu';
+        let bCls = 'b-neutral';
+        if (c.status === 'compatible') {
+          cardCls = 'crit-compatible';
+          bCls = 'b-compat';
+        } else if (c.status === 'incompatible') {
+          cardCls = 'crit-incompatible';
+          bCls = 'b-incompat';
+        }
+        return `
+          <div class="tic-crit-card ${cardCls}">
+            <div class="tic-crit-top">
+              <span class="tic-crit-name">${c.dimension}</span>
+              <span class="tic-crit-badge ${bCls}">${c.badge}</span>
+            </div>
+            <div class="tic-crit-detail">${c.detail}</div>
+          </div>
+        `;
+      }).join('');
+    };
+
+    bodyEl.innerHTML = `
+      <div class="mipc-summary-row">
+        <div class="mipc-summary-text">${compat.summary_text}</div>
+        <div class="mipc-counts">
+          <span class="mipc-stat-pill pill-ok">✓ ${compat.compatible_count || 0} compatible(s)</span>
+          ${(compat.incompatible_count || 0) > 0 ? `<span class="mipc-stat-pill pill-ko">✗ ${compat.incompatible_count} hors tolérance</span>` : ''}
+          ${(compat.unknown_count || 0) > 0 ? `<span class="mipc-stat-pill pill-neutral">? ${compat.unknown_count} non précisé(s)</span>` : ''}
+        </div>
+      </div>
+      <div class="tic-columns-grid">
+        <div class="tic-col">
+          <div class="tic-col-title">👤 Attentes de ${p1Dir.evaluator} envers ${p1Dir.target}</div>
+          <div class="tic-criteria-list">${renderCritHtml(p1Dir.criteria)}</div>
+        </div>
+        <div class="tic-col">
+          <div class="tic-col-title">👥 Attentes de ${p2Dir.evaluator} envers ${p2Dir.target}</div>
+          <div class="tic-criteria-list">${renderCritHtml(p2Dir.criteria)}</div>
+        </div>
+      </div>
+    `;
   }
 }
 

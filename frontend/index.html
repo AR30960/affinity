@@ -1029,6 +1029,36 @@
               <span class="uph-label">Présentation :</span>
               <p id="tpcBioText" style="margin:2px 0 0 0; font-size:12.5px; color:var(--text-main); font-style:italic;">Présentation du profil...</p>
             </div>
+
+            <!-- Bloc Préalable : Diagnostic de Compatibilité Identité (Moi & L'Autre) -->
+            <div id="tpcIdentityCompatContainer" class="tpc-identity-compat-container">
+              <div class="tic-header" onclick="toggleIdentityCompatDetails()">
+                <div class="tic-badge-row">
+                  <span class="tic-icon">💎</span>
+                  <div class="tic-title-group">
+                    <span class="tic-title">Compatibilité Identité &amp; Critères <em>(+ sur moi &amp; + sur l'autre)</em></span>
+                    <span id="tpcCompatSummaryText" class="tic-summary-sub">Évaluation des tolérances réciproques...</span>
+                  </div>
+                </div>
+                <div class="tic-action">
+                  <span id="tpcCompatStatusBadge" class="tic-status-badge">Calcul...</span>
+                  <span class="tic-toggle-icon" id="tpcCompatToggleIcon">▼</span>
+                </div>
+              </div>
+              <!-- Panneau détaillé rétractable des critères -->
+              <div id="tpcCompatDetailsPane" class="tic-details-pane" style="display:none;">
+                <div class="tic-columns-grid">
+                  <div class="tic-col">
+                    <div class="tic-col-title" id="tpcDir1Title">👤 Vos critères envers l'autre</div>
+                    <div class="tic-criteria-list" id="tpcDir1List"></div>
+                  </div>
+                  <div class="tic-col">
+                    <div class="tic-col-title" id="tpcDir2Title">👥 Ses critères envers vous</div>
+                    <div class="tic-criteria-list" id="tpcDir2List"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Module Bilatéral : Mes Demandes de Match -->
@@ -1069,6 +1099,20 @@
 
           <!-- Result Container -->
           <div id="affinityResultsContainer" class="affinity-results-card" style="display:none;">
+            <!-- Section Préalable : Diagnostic de Compatibilité Identité (Moi & L'Autre) -->
+            <div id="matchIdentityPreCheckCard" class="match-identity-precheck-card">
+              <div class="mipc-header">
+                <div class="mipc-title-group">
+                  <span class="mipc-icon">💎</span>
+                  <div>
+                    <h4>Diagnostic Préalable d'Identité : Critères Moi &amp; L'Autre</h4>
+                    <p id="matchIdentityPreCheckSub">Concordance des caractéristiques physiques et styles avec les tolérances attendues</p>
+                  </div>
+                </div>
+                <div id="matchIdentityPreCheckBadge" class="mipc-badge">Compatible ✅</div>
+              </div>
+              <div class="mipc-body" id="matchIdentityPreCheckBody"></div>
+            </div>
             <div class="result-hero-row">
               <div class="gauge-column">
                 <div class="gauge-wrapper">
