@@ -106,10 +106,40 @@ L'application **Affinity** est un moteur de calcul d'affinités électives basé
   - Champ adresse e-mail non obligatoire dans l'inscription et dans la Fiche d'identité avec message d'information sécurité (si non renseignée = pas de récupération en cas de mot de passe oublié et certaines fonctionnalités avancées restent désactivées).
   - Gestion complète de « Mot de passe oublié » : modalité de demande avec code temporaire à 6 chiffres, contrôle de la présence d'e-mail, réinitialisation sécurisée et mise à jour du mot de passe.
 
+- **Fait - 27/09/2026** : ~~j'ai cette erreur lorsque je demande un match direct entre AR30 et Alyssa~~
+  - Diagnostic et correction du crash JavaScript `TypeError: Cannot read properties of undefined (reading 'ville')`.
+  - Sécurisation du calcul dans `calculate_affinity()` de `server.py` et dans le rendu `displayMatchDetail()` de `frontend/app.js` lorsqu'aucun point commun n'est encore enregistré entre les profils.
+  - Initialisation par défaut d'objets vides garantissant la robustesse des affichages statistiques même avec 0 question commune.
+
+- **Fait - 27/09/2026** : ~~applique automaiquement les correctifs et modifications sur Render / j'ai l'erreur 502 Bad Gateway~~
+  - Synchronisation et déploiement continu sur GitHub et Render (`https://affinity-3l9i.onrender.com`).
+  - Résolution et clarification de l'erreur transitoire 502 Bad Gateway due au redémarrage à froid des conteneurs Render.
+  - Vérification de la santé du serveur avec endpoint `/api/health` et rétablissement du service en ligne.
+
+- **Fait - 27/09/2026** : ~~Ajouter aux matchs en préalable un comparaison dans identité avec moi et l'autre en indiquant si compatible ou pas~~
+  - Implémentation du moteur de diagnostic d'identité préalable `evaluate_identity_compatibility(profile1_id, profile2_id)` dans `server.py`.
+  - Comparaison croisée bilatérale entre les caractéristiques physiques/personnelles (+ sur vous - Type P) et les plages de tolérances (+ sur l'autre - Type T) de chaque individu sur l'ensemble des questions de Classe 8 (Taille, Poids, Allure, Silhouette, Mensurations, Yeux, Cheveux...).
+  - Ajout de la carte de prévisualisation directe `targetProfilePreviewCard` dans l'interface de match dès la sélection d'un profil cible.
+  - Ajout du bandeau d'alerte et de synthèse en tête du rapport de match (`matchIdentityPreCheckCard`) affichant le statut (100% Compatible, Incompatibilités détectées ou Données partielles) et la liste détaillée des critères conformes ou divergents.
+  - Nouvel endpoint d'API dédié : `GET /api/affinity/identity-compatibility?p1=...&p2=...`.
+
+- **Fait - 27/09/2026** : ~~En local garder les mises à jour de la banque de questions, des profils et des réponses aux questionnaires~~
+  - Système de sauvegarde automatique horodatée `backup_local_db()` au lancement du serveur `server.py` dans le dossier `backups/affinity_backup_YYYYMMDD_HHMMSS.db`.
+  - Rotation automatique avec rétention des 15 dernières sauvegardes pour préserver l'espace disque.
+  - Création du script Windows en un clic `Sauvegarder_Base_Locale.bat` pour déclenchement manuel hors ligne.
+  - Ajout des routes d'administration `/api/admin/backups` et `/api/admin/backup` avec interface de déclenchement direct depuis l'application.
+  - Préservation et synchronisation dans Git de la base locale active `affinity.db` contenant l'ensemble des profils (AR30, Alyssa, Test...), les 260 questions officielles et les réponses de questionnaires.
+
+- **Fait - 27/09/2026** : ~~Consigne toutes ces informations dans un manuel technique ainsi que les précédentes~~
+  - Rédaction et compilation du document Word complet [Manuel_Technique_Affinity.docx](file:///c:/_AR/Antigravity/_Devia/ARP001/Manuel_Technique_Affinity.docx).
+  - Définition intégrale de la langue Word en Français (`fr-FR`) pour éliminer tout avertissement orthographique.
+  - Documentation exhaustive en 10 chapitres : Architecture générale, Modèle de base de données relationnelle SQLite, Système de rôles & Permissions, Gestion de la Fiche d'Identité & Géolocalisation, Banque de Questions & Classes de sensibilité (0 à 9), Types d'évaluation (G, M, P, T), Moteur de calcul d'affinité bilatéral, Diagnostic préalable de compatibilité d'identité (Classe 8), Sauvegarde et persistance des données locales, et Procédures de déploiement (Local et Render Cloud).
+
 ---
 
 ## 4. NOUVELLES DEMANDES
 
 *(Inscrivez ici vos prochaines demandes. Une fois prise en compte, l'assistant les passera en « Fait - [Date] » avec le texte barré).*
+
 
 
