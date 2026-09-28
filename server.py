@@ -1333,7 +1333,6 @@ def calculate_affinity(profile1_id, profile2_id, allowed_classes=None):
         WHERE a.profile_id IN (?, ?)
     """, (profile1_id, profile2_id))
     rows = c.fetchall()
-    conn.close()
     
     # Indexer les réponses par (question_id, axis)
     p1_answers = {}
@@ -1374,9 +1373,10 @@ def calculate_affinity(profile1_id, profile2_id, allowed_classes=None):
     c1 = (id1["habite_commune"] or id1["ville"] or "") if id1 else ""
     c2 = (id2["habite_commune"] or id2["ville"] or "") if id2 else ""
     dist = calculate_distance_km(c1, c2)
-    identity_compat = evaluate_identity_compatibility(profile1_id, profile2_id)
+    identity_compat = evaluate_identity_compatibility(profile1_id, profile2_id, conn)
 
     if not common_questions:
+        conn.close()
         return {
             "profile1": {
                 "id": p1["id"],
@@ -1547,7 +1547,7 @@ def calculate_affinity(profile1_id, profile2_id, allowed_classes=None):
     c1 = (id1["habite_commune"] or id1["ville"] or "") if id1 else ""
     c2 = (id2["habite_commune"] or id2["ville"] or "") if id2 else ""
     dist = calculate_distance_km(c1, c2)
-    identity_compat = evaluate_identity_compatibility(profile1_id, profile2_id, conn)
+    conn.close()
 
     return {
         "profile1": {"id": p1["id"], "pseudo": p1["pseudo"], "ville": c1, "identite": dict(id1) if id1 else {}},
@@ -1563,7 +1563,6 @@ def calculate_affinity(profile1_id, profile2_id, allowed_classes=None):
     }
 
 # ==========================================
-# GESTIONNAIRE DE REQUÊTES HTTP / API REST
 # ==========================================
 class AffinityHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
@@ -3218,7 +3217,11 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                         val_cl = json.loads(validated_classes) if validated_classes != "ALL" else None
                     except:
                         pass
-                    aff_result = calculate_affinity(s_id, r_id, allowed_classes=val_cl)
+                    try:
+                        aff_result = calculate_affinity(s_id, r_id, allowed_classes=val_cl)
+                    except Exception as calc_err:
+                        print(f"[ERREUR MATCH] Échec du calcul d'affinité lors de la réponse au match {req_id}: {calc_err}")
+                        aff_result = None
 
             conn.close()
             val_cl_parsed = json.loads(validated_classes) if validated_classes != "ALL" else "ALL"

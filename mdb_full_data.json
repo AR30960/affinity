@@ -7,6 +7,10 @@
                   {
                       "N_JEU":  2,
                       "LB_JEU":  "Jeu 2"
+                  },
+                  {
+                      "N_JEU":  3,
+                      "LB_JEU":  "Jeu 3"
                   }
               ],
     "M_REP":  [
@@ -3915,6 +3919,11 @@
                         "LB_SUJET":  "Lire",
                         "N_THEMA":  4,
                         "N_SUJET":  7
+                    },
+                    {
+                        "LB_SUJET":  "IdentitÃ©",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1
                     }
                 ],
     "T_REPG":  [
@@ -3953,7 +3962,7 @@
                ],
     "T_QUEST":  [
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  41200,
                         "DT_CRE":  null,
@@ -3965,7 +3974,7 @@
                         "LB_QUEST":  "Faire la fête"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  41100,
                         "DT_CRE":  null,
@@ -3977,7 +3986,7 @@
                         "LB_QUEST":  "Sortir"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  42100,
                         "DT_CRE":  null,
@@ -3989,7 +3998,7 @@
                         "LB_QUEST":  "Regarder la télévision"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  23100,
                         "DT_CRE":  null,
@@ -4001,7 +4010,7 @@
                         "LB_QUEST":  "Manger"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  22500,
                         "DT_CRE":  null,
@@ -4013,7 +4022,7 @@
                         "LB_QUEST":  "Fumer"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  22100,
                         "DT_CRE":  null,
@@ -4025,7 +4034,7 @@
                         "LB_QUEST":  "Boire du vin"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  22300,
                         "DT_CRE":  null,
@@ -4073,7 +4082,7 @@
                         "LB_QUEST":  "Boire du vin rosé"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  11001,
                         "DT_CRE":  null,
@@ -4085,7 +4094,7 @@
                         "LB_QUEST":  "Rouge"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  11002,
                         "DT_CRE":  null,
@@ -4097,7 +4106,7 @@
                         "LB_QUEST":  "Vert"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  11003,
                         "DT_CRE":  null,
@@ -4109,7 +4118,7 @@
                         "LB_QUEST":  "Bleu"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  11004,
                         "DT_CRE":  null,
@@ -4193,7 +4202,7 @@
                         "LB_QUEST":  "Manger de la viande de mouton"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  23700,
                         "DT_CRE":  null,
@@ -4241,7 +4250,7 @@
                         "LB_QUEST":  "Manger du canard"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  23800,
                         "DT_CRE":  null,
@@ -4253,7 +4262,7 @@
                         "LB_QUEST":  "Manger des abats"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  23900,
                         "DT_CRE":  null,
@@ -4385,7 +4394,7 @@
                         "LB_QUEST":  "Se baigner dans une piscine publique"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  3,
                         "N_QUEST":  92110,
                         "DT_CRE":  null,
@@ -4397,7 +4406,7 @@
                         "LB_QUEST":  "Un partenaire plus jeune (Diff. \u003e 5ans)"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  3,
                         "N_QUEST":  92120,
                         "DT_CRE":  null,
@@ -4409,7 +4418,7 @@
                         "LB_QUEST":  "Un pertenaire plus agé (Diff. \u003e 5ans)"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  45200,
                         "DT_CRE":  null,
@@ -4577,7 +4586,7 @@
                         "LB_QUEST":  "Porter un string sous une jupe courte"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  4,
                         "N_QUEST":  91110,
                         "DT_CRE":  null,
@@ -4587,6 +4596,18 @@
                         "N_SUJET":  1,
                         "N_QUEST_LIE":  0,
                         "LB_QUEST":  "La masturbation"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  1,
+                        "N_QUEST":  11000,
+                        "DT_CRE":  null,
+                        "N_CIBLE":  0,
+                        "AUTOR":  null,
+                        "N_THEMA":  1,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  0,
+                        "LB_QUEST":  "Couleur préférée"
                     },
                     {
                         "N_JEU":  2,
@@ -4613,7 +4634,7 @@
                         "LB_QUEST":  "Fumer de la drogue"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  22200,
                         "DT_CRE":  null,
@@ -4625,7 +4646,7 @@
                         "LB_QUEST":  "Boire de l\u0027alcool"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  23200,
                         "DT_CRE":  null,
@@ -4637,7 +4658,7 @@
                         "LB_QUEST":  "Manger du fromage"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  23300,
                         "DT_CRE":  null,
@@ -4649,7 +4670,7 @@
                         "LB_QUEST":  "Manger de la viande"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  23400,
                         "DT_CRE":  null,
@@ -4661,7 +4682,7 @@
                         "LB_QUEST":  "Manger des légumes"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  23500,
                         "DT_CRE":  null,
@@ -4673,7 +4694,7 @@
                         "LB_QUEST":  "Manger du poisson ou des crustacés"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  23600,
                         "DT_CRE":  null,
@@ -4685,7 +4706,7 @@
                         "LB_QUEST":  "Manger des fruits"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  3,
                         "N_QUEST":  91120,
                         "DT_CRE":  null,
@@ -4697,7 +4718,7 @@
                         "LB_QUEST":  "Rapports hétérosexuels"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  4,
                         "N_QUEST":  91130,
                         "DT_CRE":  null,
@@ -4709,7 +4730,7 @@
                         "LB_QUEST":  "Rapports homosexuels"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  5,
                         "N_QUEST":  91160,
                         "DT_CRE":  null,
@@ -4721,7 +4742,7 @@
                         "LB_QUEST":  "SM"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  5,
                         "N_QUEST":  91170,
                         "DT_CRE":  null,
@@ -4733,7 +4754,7 @@
                         "LB_QUEST":  "Candaulisme"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  3,
                         "N_QUEST":  92001,
                         "DT_CRE":  null,
@@ -4781,7 +4802,7 @@
                         "LB_QUEST":  "Relation avec un partenaire plus jeune de + de 20 ans"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  0,
                         "DT_CRE":  null,
@@ -4793,7 +4814,7 @@
                         "LB_QUEST":  "Pas de questions liées"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  43100,
                         "DT_CRE":  null,
@@ -4817,7 +4838,7 @@
                         "LB_QUEST":  "Regarder des series télévisées"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  44100,
                         "DT_CRE":  null,
@@ -4901,7 +4922,7 @@
                         "LB_QUEST":  "Se baigner sans vétement avec une personne de même sexe"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  45100,
                         "DT_CRE":  null,
@@ -5117,7 +5138,7 @@
                         "LB_QUEST":  "Faire la fête avec des collègues de travail"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  31100,
                         "DT_CRE":  null,
@@ -5129,7 +5150,7 @@
                         "LB_QUEST":  "Faire la cuisine"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  31200,
                         "DT_CRE":  null,
@@ -5141,7 +5162,7 @@
                         "LB_QUEST":  "Faire le ménage"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  31300,
                         "DT_CRE":  null,
@@ -5153,7 +5174,7 @@
                         "LB_QUEST":  "Faire le repassage"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  31400,
                         "DT_CRE":  null,
@@ -5201,7 +5222,7 @@
                         "LB_QUEST":  "Téléphoner plus d\u0027une heure"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  22400,
                         "DT_CRE":  null,
@@ -5213,7 +5234,7 @@
                         "LB_QUEST":  "Téléphoner"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  24001,
                         "DT_CRE":  null,
@@ -5225,7 +5246,7 @@
                         "LB_QUEST":  "Porter une jupe"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  24002,
                         "DT_CRE":  null,
@@ -5237,7 +5258,7 @@
                         "LB_QUEST":  "Porter une jupe courte"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  2,
                         "N_QUEST":  24100,
                         "DT_CRE":  null,
@@ -5249,7 +5270,7 @@
                         "LB_QUEST":  "Porter de la lingerie"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  3,
                         "N_QUEST":  24110,
                         "DT_CRE":  null,
@@ -5261,7 +5282,7 @@
                         "LB_QUEST":  "Porter un string"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  24200,
                         "DT_CRE":  null,
@@ -5273,7 +5294,7 @@
                         "LB_QUEST":  "Porter un slip"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  24201,
                         "DT_CRE":  null,
@@ -5285,7 +5306,7 @@
                         "LB_QUEST":  "Porter un caleçon"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  24300,
                         "DT_CRE":  null,
@@ -5297,7 +5318,7 @@
                         "LB_QUEST":  "Porter un costume"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  2,
                         "N_QUEST":  21100,
                         "DT_CRE":  null,
@@ -5309,7 +5330,7 @@
                         "LB_QUEST":  "Jalousie"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  2,
                         "N_QUEST":  21200,
                         "DT_CRE":  null,
@@ -5321,7 +5342,7 @@
                         "LB_QUEST":  "Possessivité"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  2,
                         "N_QUEST":  25100,
                         "DT_CRE":  null,
@@ -5573,7 +5594,7 @@
                         "LB_QUEST":  "Rapports homosexuels à plus de trois"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  4,
                         "N_QUEST":  92130,
                         "DT_CRE":  null,
@@ -5669,7 +5690,7 @@
                         "LB_QUEST":  "Coucher avec un(e) enfant de son partenaire"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  61100,
                         "DT_CRE":  null,
@@ -5681,7 +5702,7 @@
                         "LB_QUEST":  "Vacances à la mer"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  61101,
                         "DT_CRE":  null,
@@ -5693,7 +5714,7 @@
                         "LB_QUEST":  "Vacances à la montagne"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  61102,
                         "DT_CRE":  null,
@@ -5705,7 +5726,7 @@
                         "LB_QUEST":  "Vacances à la campagne"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  61103,
                         "DT_CRE":  null,
@@ -5717,7 +5738,7 @@
                         "LB_QUEST":  "Vacances en ville"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  61104,
                         "DT_CRE":  null,
@@ -5729,7 +5750,7 @@
                         "LB_QUEST":  "Vacances en famille"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  61105,
                         "DT_CRE":  null,
@@ -5741,7 +5762,7 @@
                         "LB_QUEST":  "Vacances avec des amis"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  61110,
                         "DT_CRE":  null,
@@ -5753,7 +5774,7 @@
                         "LB_QUEST":  "Vacances en France"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  61120,
                         "DT_CRE":  null,
@@ -5765,7 +5786,7 @@
                         "LB_QUEST":  "Vacances en Europe"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  61130,
                         "DT_CRE":  null,
@@ -5777,7 +5798,7 @@
                         "LB_QUEST":  "Vacances en Asie"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  61140,
                         "DT_CRE":  null,
@@ -5789,7 +5810,7 @@
                         "LB_QUEST":  "Vacances en Afrique"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  61150,
                         "DT_CRE":  null,
@@ -5801,7 +5822,7 @@
                         "LB_QUEST":  "Vacances en Amérique"
                     },
                     {
-                        "N_JEU":  2,
+                        "N_JEU":  1,
                         "N_CLASSE":  1,
                         "N_QUEST":  61160,
                         "DT_CRE":  null,
@@ -6015,6 +6036,390 @@
                         "N_SUJET":  6,
                         "N_QUEST_LIE":  61110,
                         "LB_QUEST":  "Vacances dans les Alpes"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  8,
+                        "N_QUEST":  80001,
+                        "DT_CRE":  "\/Date(1788619849000)\/",
+                        "N_CIBLE":  0,
+                        "AUTOR":  "ADM",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  85001,
+                        "LB_QUEST":  "Quelle est votre stature et taille exacte en centimètres ?"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  8,
+                        "N_QUEST":  80002,
+                        "DT_CRE":  "\/Date(1788619849000)\/",
+                        "N_CIBLE":  0,
+                        "AUTOR":  "ADM",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  85002,
+                        "LB_QUEST":  "Quel est votre poids de forme actuel en kilogrammes ?"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  8,
+                        "N_QUEST":  80003,
+                        "DT_CRE":  "\/Date(1788619849000)\/",
+                        "N_CIBLE":  0,
+                        "AUTOR":  "ADM",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  85003,
+                        "LB_QUEST":  "Comment décrivez-vous votre morphologie et silhouette générale ?"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  8,
+                        "N_QUEST":  80004,
+                        "DT_CRE":  "\/Date(1788619849000)\/",
+                        "N_CIBLE":  0,
+                        "AUTOR":  "ADM",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  85004,
+                        "LB_QUEST":  "Quel est votre tour de poitrine (mensuration) en centimètres ?"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  8,
+                        "N_QUEST":  80005,
+                        "DT_CRE":  "\/Date(1788619849000)\/",
+                        "N_CIBLE":  2,
+                        "AUTOR":  "ADM",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  85005,
+                        "LB_QUEST":  "Quelle est la taille de votre bonnet de poitrine ?"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  8,
+                        "N_QUEST":  80006,
+                        "DT_CRE":  "\/Date(1788619849000)\/",
+                        "N_CIBLE":  0,
+                        "AUTOR":  "ADM",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  85006,
+                        "LB_QUEST":  "Quel est votre tour de taille (mensuration) en centimètres ?"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  8,
+                        "N_QUEST":  80007,
+                        "DT_CRE":  "\/Date(1788619849000)\/",
+                        "N_CIBLE":  0,
+                        "AUTOR":  "ADM",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  85007,
+                        "LB_QUEST":  "Quel est votre tour de hanches (mensuration) en centimètres ?"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  8,
+                        "N_QUEST":  80008,
+                        "DT_CRE":  "\/Date(1788619849000)\/",
+                        "N_CIBLE":  0,
+                        "AUTOR":  "ADM",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  85008,
+                        "LB_QUEST":  "Quelle est votre pointure de chaussures habituelle ?"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  8,
+                        "N_QUEST":  80009,
+                        "DT_CRE":  "\/Date(1788619849000)\/",
+                        "N_CIBLE":  0,
+                        "AUTOR":  "ADM",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  85009,
+                        "LB_QUEST":  "Quelle est la couleur naturelle dominante de vos yeux ?"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  8,
+                        "N_QUEST":  80010,
+                        "DT_CRE":  "\/Date(1788619849000)\/",
+                        "N_CIBLE":  0,
+                        "AUTOR":  "ADM",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  85010,
+                        "LB_QUEST":  "Quelle est votre couleur de cheveux actuelle ?"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  8,
+                        "N_QUEST":  80011,
+                        "DT_CRE":  "\/Date(1788619849000)\/",
+                        "N_CIBLE":  0,
+                        "AUTOR":  "ADM",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  85011,
+                        "LB_QUEST":  "Quelle est la longueur habituelle de votre chevelure ?"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  8,
+                        "N_QUEST":  80012,
+                        "DT_CRE":  "\/Date(1788619849000)\/",
+                        "N_CIBLE":  1,
+                        "AUTOR":  "ADM",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  85012,
+                        "LB_QUEST":  "Quel est votre style de pilosité faciale habituel (barbe/moustache) ?"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  8,
+                        "N_QUEST":  80013,
+                        "DT_CRE":  "\/Date(1788619849000)\/",
+                        "N_CIBLE":  0,
+                        "AUTOR":  "ADM",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  85013,
+                        "LB_QUEST":  "Quel style vestimentaire et allure définissent le mieux votre quotidien ?"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  8,
+                        "N_QUEST":  80014,
+                        "DT_CRE":  "\/Date(1788619849000)\/",
+                        "N_CIBLE":  0,
+                        "AUTOR":  "ADM",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  85014,
+                        "LB_QUEST":  "Quelles sont vos principales origines culturelles et géographiques ?"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  8,
+                        "N_QUEST":  80015,
+                        "DT_CRE":  "\/Date(1788619849000)\/",
+                        "N_CIBLE":  0,
+                        "AUTOR":  "ADM",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  85015,
+                        "LB_QUEST":  "Quel est votre rythme de vie prédominant au quotidien ?"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  8,
+                        "N_QUEST":  80016,
+                        "DT_CRE":  "\/Date(1788619849000)\/",
+                        "N_CIBLE":  0,
+                        "AUTOR":  "ADM",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  85016,
+                        "LB_QUEST":  "Dans quel cadre de vie vous épanouissez-vous le plus ?"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  8,
+                        "N_QUEST":  85001,
+                        "DT_CRE":  "\/Date(1788619849000)\/",
+                        "N_CIBLE":  0,
+                        "AUTOR":  "ADM",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  80001,
+                        "LB_QUEST":  "Quelles sont vos tolérances de taille (stature) chez l\u0027autre ?"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  8,
+                        "N_QUEST":  85002,
+                        "DT_CRE":  "\/Date(1788619849000)\/",
+                        "N_CIBLE":  0,
+                        "AUTOR":  "ADM",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  80002,
+                        "LB_QUEST":  "Quelles sont vos limites de poids de forme acceptées chez l\u0027autre ?"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  8,
+                        "N_QUEST":  85003,
+                        "DT_CRE":  "\/Date(1788619849000)\/",
+                        "N_CIBLE":  0,
+                        "AUTOR":  "ADM",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  80003,
+                        "LB_QUEST":  "Quelles silhouettes appréciez-vous ou tolérez-vous chez l\u0027autre ?"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  8,
+                        "N_QUEST":  85004,
+                        "DT_CRE":  "\/Date(1788619849000)\/",
+                        "N_CIBLE":  0,
+                        "AUTOR":  "ADM",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  80004,
+                        "LB_QUEST":  "Quelles sont vos tolérances de tour de poitrine chez l\u0027autre ?"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  8,
+                        "N_QUEST":  85005,
+                        "DT_CRE":  "\/Date(1788619849000)\/",
+                        "N_CIBLE":  2,
+                        "AUTOR":  "ADM",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  80005,
+                        "LB_QUEST":  "Quels bonnets de poitrine appréciez-vous ou tolérez-vous chez une partenaire ?"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  8,
+                        "N_QUEST":  85006,
+                        "DT_CRE":  "\/Date(1788619849000)\/",
+                        "N_CIBLE":  0,
+                        "AUTOR":  "ADM",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  80006,
+                        "LB_QUEST":  "Quelles sont vos tolérances de tour de taille chez l\u0027autre ?"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  8,
+                        "N_QUEST":  85007,
+                        "DT_CRE":  "\/Date(1788619849000)\/",
+                        "N_CIBLE":  0,
+                        "AUTOR":  "ADM",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  80007,
+                        "LB_QUEST":  "Quelles sont vos tolérances de tour de hanches chez l\u0027autre ?"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  8,
+                        "N_QUEST":  85008,
+                        "DT_CRE":  "\/Date(1788619849000)\/",
+                        "N_CIBLE":  0,
+                        "AUTOR":  "ADM",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  80008,
+                        "LB_QUEST":  "Quelle plage de pointure tolérez-vous chez l\u0027autre ?"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  8,
+                        "N_QUEST":  85009,
+                        "DT_CRE":  "\/Date(1788619849000)\/",
+                        "N_CIBLE":  0,
+                        "AUTOR":  "ADM",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  80009,
+                        "LB_QUEST":  "Quelles couleurs d\u0027yeux appréciez-vous particulièrement chez l\u0027autre ?"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  8,
+                        "N_QUEST":  85010,
+                        "DT_CRE":  "\/Date(1788619849000)\/",
+                        "N_CIBLE":  0,
+                        "AUTOR":  "ADM",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  80010,
+                        "LB_QUEST":  "Quelles teintes de cheveux préférez-vous ou acceptez-vous chez l\u0027autre ?"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  8,
+                        "N_QUEST":  85011,
+                        "DT_CRE":  "\/Date(1788619849000)\/",
+                        "N_CIBLE":  0,
+                        "AUTOR":  "ADM",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  80011,
+                        "LB_QUEST":  "Quelles longueurs de cheveux préférez-vous chez l\u0027autre ?"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  8,
+                        "N_QUEST":  85012,
+                        "DT_CRE":  "\/Date(1788619849000)\/",
+                        "N_CIBLE":  1,
+                        "AUTOR":  "ADM",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  80012,
+                        "LB_QUEST":  "Quel type de barbe ou pilosité faciale préférez-vous chez un homme ?"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  8,
+                        "N_QUEST":  85013,
+                        "DT_CRE":  "\/Date(1788619849000)\/",
+                        "N_CIBLE":  0,
+                        "AUTOR":  "ADM",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  80013,
+                        "LB_QUEST":  "Quels styles vestimentaires appréciez-vous chez votre partenaire ?"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  8,
+                        "N_QUEST":  85014,
+                        "DT_CRE":  "\/Date(1788619849000)\/",
+                        "N_CIBLE":  0,
+                        "AUTOR":  "ADM",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  80014,
+                        "LB_QUEST":  "Quelles origines culturelles êtes-vous prêt(e) à découvrir chez l\u0027autre ?"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  8,
+                        "N_QUEST":  85015,
+                        "DT_CRE":  "\/Date(1788619849000)\/",
+                        "N_CIBLE":  0,
+                        "AUTOR":  "ADM",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  80015,
+                        "LB_QUEST":  "Quel rythme de vie recherchez-vous ou tolérez-vous chez l\u0027autre ?"
+                    },
+                    {
+                        "N_JEU":  1,
+                        "N_CLASSE":  8,
+                        "N_QUEST":  85016,
+                        "DT_CRE":  "\/Date(1788619849000)\/",
+                        "N_CIBLE":  0,
+                        "AUTOR":  "ADM",
+                        "N_THEMA":  8,
+                        "N_SUJET":  1,
+                        "N_QUEST_LIE":  80016,
+                        "LB_QUEST":  "Quel cadre de vie partagé envisagez-vous avec l\u0027autre ?"
                     }
                 ],
     "T_THEMA":  [
@@ -6041,6 +6446,10 @@
                     {
                         "N_THEMA":  2,
                         "LB_THEMA":  "Comportement"
+                    },
+                    {
+                        "N_THEMA":  8,
+                        "LB_THEMA":  "IdentitÃ©"
                     }
                 ],
     "T_CLASSE":  [
@@ -6070,7 +6479,11 @@
                      },
                      {
                          "N_CLASSE":  5,
-                         "LB_CLASSE":  "A caractère sexuel"
+                         "LB_CLASSE":  "A caractÃ¨re sexuel"
+                     },
+                     {
+                         "N_CLASSE":  8,
+                         "LB_CLASSE":  "IdentitÃ©"
                      }
                  ],
     "T_REPP":  [

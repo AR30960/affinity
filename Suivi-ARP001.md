@@ -153,11 +153,27 @@ L'application **Affinity** est un moteur de calcul d'affinités électives basé
     5. *Répertoire complet des Sujets & Volumes* : tableau détaillé des 34 sujets avec part du catalogue (%), barre de progression et recherche textuelle en temps réel.
   - **Navigation croisée en un clic** : Clic sur n'importe quelle barre de statistique ou bouton « 🔍 Filtrer » pour basculer instantanément sur la banque de questions active avec le filtre pré-sélectionné.
 
+- **Fait - 28/09/2026** : ~~Basule toutes les questions sauf les sous questions dans le jeu 1. Mettre toutes les sous questions dans le jeu 2~~
+  - **Réorganisation intégrale de la hiérarchie des Jeux** :
+    - **Jeu 1 (Questions Principales / Mères)** : 144 questions (100% de questions d'origine, incluant les classes 1 à 9 et le module Identité de classe 8 sans sous-questions rattachées).
+    - **Jeu 2 (Sous-Questions / Questions de précision)** : 112 sous-questions (100% des questions liées par `n_quest_lie` pointant vers une question parente).
+  - **Synchronisation multi-supports validée** :
+    - **Base SQLite (`affinity.db`)** : mise à jour des `pack_id` (Jeu 1: 144 Qs, Jeu 2: 112 Qs).
+    - **Base Microsoft Access de référence (`Affinity-Full.mdb`)** : mise à jour de `N_JEU = 1` (94 Qs) et `N_JEU = 2` (111 Qs).
+    - **Base Microsoft Access locale (`Affinity.mdb`)** : mise à jour de `N_JEU = 1` (51 Qs) et `N_JEU = 2` (57 Qs) avec complétion de la table `T_JEU`.
+    - **Cache d'export (`mdb_full_data.json`)** : régénéré automatiquement via PowerShell.
+  - **Prise en compte instantanée dans l'application Web** : filtres par jeu, statistiques dynamiques et hiérarchie du questionnaire alignés en temps réel.
+
+- **Fait - 28/09/2026** : ~~quand AR30 accepte la demande de match de Alyssa j'ai ce message d'erreur (Erreur : Failed to fetch)~~
+  - **Diagnostic** : Détection d'une fermeture prématurée de la connexion SQLite (`conn.close()`) dans la fonction `calculate_affinity()` de [`server.py`](file:///c:/_AR/Antigravity/_Devia/ARP001/server.py). Lorsque deux profils avaient des réponses communes (comme AR30 et Alyssa sur la classe 1), le calcul appelait ensuite `evaluate_identity_compatibility(profile1_id, profile2_id, conn)` sur une base déjà fermée (`Cannot operate on a closed database`), provoquant un crash interne et l'interruption brutale de la réponse HTTP (`Failed to fetch`).
+  - **Correctif appliqué** :
+    - Restructuration du cycle de vie de la connexion SQLite dans `calculate_affinity()` pour garantir qu'elle reste active durant toute l'évaluation de compatibilité d'identité et qu'elle ne soit fermée qu'à la restitution finale des résultats.
+    - Sécurisation de l'endpoint `PUT /api/match-requests/<id>/respond` avec gestion d'exception pour garantir une réponse HTTP 200 JSON résiliente en toutes circonstances.
+    - Réinitialisation de la demande #6 à l'état `pending` pour validation immédiate par l'utilisateur.
+
 ---
 
 ## 4. NOUVELLES DEMANDES
 
 *(Inscrivez ici vos prochaines demandes. Une fois prise en compte, l'assistant les passera en « Fait - [Date] » avec le texte barré).*
-
-
 
