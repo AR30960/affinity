@@ -142,6 +142,17 @@ L'application **Affinity** est un moteur de calcul d'affinités électives basé
   - Possibilité de revoir instantanément n'importe quel rapport de match archivé en un clic sur le bouton 👁️ (rechargement interactif de la jauge, des axes et du radar).
   - Cockpit Superviseur des demandes entre abonnés (`GET /api/admin/subscriber-match-requests`) : tableau complet listant l'émetteur, le destinataire, les statuts précis (`⏳ En attente`, `✅ Validé`, `❌ Refusé`), le score et rapport d'affinité si validé, et action de suppression (`DELETE /api/admin/subscriber-match-requests/<id>`).
 
+- **Fait - 28/09/2026** : ~~Dans la banque de questions ajouter un filtre par jeu de question. Conserver les filtres sur une seule ligne en reduisant le nom des filtres (Retirer Toutes les ou tous les et ne garder que le nom). Ajouter un espace intitulé "Statistiques" dans lequel on peut voir pour chaque thématique, classe, sujets, cible, jeu le nombre de questions présents dans la banque.~~
+  - **Filtre par Jeu de question** : Ajout du sélecteur `bankFilterPack` (« Jeux ») dans la barre de filtrage de la Banque de Questions active, avec prise en compte dynamique du `pack_id` (Jeu 1: 31 Qs, Jeu 2: 165 Qs, Jeu 3: 60 Qs).
+  - **Barre de filtres ultra compacte sur une seule ligne** : Épuration des libellés (`Jeux`, `Thématiques`, `Classes`, `Sujets`, `Cibles`) supprimant les préfixes redondants (« Toutes les... », « Tous les... »), alignement horizontal fluide sans retour à la ligne (`overflow-x: auto; flex-wrap: nowrap;`).
+  - **Nouvel Espace « 📊 Statistiques » dédié** : Intégration d'un sous-onglet interactif dans la banque de questions avec indicateurs clés (256 Questions au total, 3 Jeux, 7 Thématiques, 34 Sujets) et 5 blocs analytiques détaillés :
+    1. *Répartition par Jeu de Question* : volumes, pourcentages et jauges colorées pour Jeu 1, Jeu 2 et Jeu 3.
+    2. *Répartition par Classe de Sensibilité* : décompte exhaustif des classes actives (1 Standards: 107, 2 Personnelles: 17, 3 Intimes: 43, 4 Privées: 26, 5 Sexuel: 23, 8 Identité: 28, 9 Interdits: 12).
+    3. *Répartition par Cible* : Mixte (240 questions), Femmes (11), Hommes (5).
+    4. *Répartition par Thématique* : volumes et nombre de sous-sujets par thème (Relations, Sexualité, Valeurs, Goûts, Identité, Vision de Vie, Famille).
+    5. *Répertoire complet des Sujets & Volumes* : tableau détaillé des 34 sujets avec part du catalogue (%), barre de progression et recherche textuelle en temps réel.
+  - **Navigation croisée en un clic** : Clic sur n'importe quelle barre de statistique ou bouton « 🔍 Filtrer » pour basculer instantanément sur la banque de questions active avec le filtre pré-sélectionné.
+
 ---
 
 ## 4. NOUVELLES DEMANDES

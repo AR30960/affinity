@@ -1215,7 +1215,8 @@ function initEventListeners() {
     btnAddQ.addEventListener('click', openAddQuestionModal);
   }
 
-  // Filtres de la banque de questions (sur une seule ligne : Thématique, Classes, Sujets, Cible)
+  // Filtres de la banque de questions (sur une seule ligne : Jeu, Thématique, Classes, Sujets, Cible)
+  document.getElementById('bankFilterPack')?.addEventListener('change', () => renderQuestionsTable());
   document.getElementById('bankFilterThematique')?.addEventListener('change', () => onBankThematiqueChange());
   document.getElementById('bankFilterClasse')?.addEventListener('change', () => renderQuestionsTable());
   document.getElementById('bankFilterSujet')?.addEventListener('change', () => renderQuestionsTable());
@@ -6040,13 +6041,35 @@ function renderRadarChart(thematiques) {
 // ============================================================================
 
 function populateBankFilters() {
-  // 1. Remplissage des Thématiques (avec normalisation anti-doublon Goûts)
+  // 0. Remplissage des Jeux (Packs)
+  const packSelect = document.getElementById('bankFilterPack');
+  if (packSelect) {
+    const prevPack = packSelect.value || 'ALL';
+    const packsList = (state.packs && state.packs.length > 0)
+      ? state.packs
+      : [
+          { id: 1, nom: 'Jeu 1 (Questionnaire initial)' },
+          { id: 2, nom: 'Jeu 2 (Approfondissement)' },
+          { id: 3, nom: 'Jeu 3 (Questions abonnés)' }
+        ];
+
+    packSelect.innerHTML = `<option value="ALL">Jeux</option>` +
+      packsList.map(pk => `<option value="${pk.id}">${escapeHtml(pk.nom)}</option>`).join('');
+
+    if (prevPack === 'ALL' || packsList.some(p => String(p.id) === String(prevPack))) {
+      packSelect.value = prevPack;
+    } else {
+      packSelect.value = 'ALL';
+    }
+  }
+
+  // 1. Remplissage des Thématiques (nom court : "Thématiques")
   const themaSelect = document.getElementById('bankFilterThematique');
   if (themaSelect) {
     const prevThema = themaSelect.value || 'ALL';
     const thematiques = Array.from(new Set(state.questions.map(q => normalizeThematique(q.thematique)).filter(Boolean))).sort();
 
-    themaSelect.innerHTML = `<option value="ALL">Toutes les thématiques (${thematiques.length})</option>` +
+    themaSelect.innerHTML = `<option value="ALL">Thématiques</option>` +
       thematiques.map(th => `<option value="${escapeHtml(th)}">${escapeHtml(th)}</option>`).join('');
 
     if (prevThema === 'ALL' || thematiques.includes(prevThema)) {
@@ -6056,7 +6079,7 @@ function populateBankFilters() {
     }
   }
 
-  // 2. Remplissage des Sujets (filtrés par thématique ou tous)
+  // 2. Remplissage des Sujets (nom court : "Sujets")
   updateBankSujetsDropdown();
 }
 
@@ -6075,7 +6098,7 @@ function updateBankSujetsDropdown() {
     : state.questions.filter(q => normalizeThematique(q.thematique) === String(currentThema));
 
   const sujets = Array.from(new Set(filteredQuestions.map(q => q.sujet).filter(Boolean))).sort();
-  sujetSelect.innerHTML = `<option value="ALL">Tous les sujets (${sujets.length})</option>` +
+  sujetSelect.innerHTML = `<option value="ALL">Sujets</option>` +
     sujets.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
 
   if (prevSujet === 'ALL' || sujets.includes(prevSujet)) {
@@ -6166,7 +6189,8 @@ function renderBankDeck() {
   if (!deck) return;
 
   try {
-    // 4 Filtres sur une seule ligne : Thématique -> Classes -> Sujets -> Cible
+    // 5 Filtres sur une seule ligne : Jeu -> Thématique -> Classes -> Sujets -> Cible
+    const filterPack = document.getElementById('bankFilterPack')?.value || 'ALL';
     const filterThema = document.getElementById('bankFilterThematique')?.value || 'ALL';
     const filterClasse = document.getElementById('bankFilterClasse')?.value || 'ALL';
     const filterSujet = document.getElementById('bankFilterSujet')?.value || 'ALL';
@@ -6175,6 +6199,8 @@ function renderBankDeck() {
     const questionsList = Array.isArray(state.questions) ? state.questions : [];
 
     const filtered = questionsList.filter(q => {
+      // 0. Jeu / Pack
+      if (filterPack !== 'ALL' && String(q.pack_id) !== String(filterPack)) return false;
       // 1. Thématique
       if (filterThema !== 'ALL' && normalizeThematique(q.thematique) !== String(filterThema)) return false;
       // 2. Classe
@@ -6316,6 +6342,8 @@ window.renderBankDeck = renderBankDeck;
 window.renderQuestionsTable = renderQuestionsTable;
 
 function resetBankFilters() {
+  const packSel = document.getElementById('bankFilterPack');
+  if (packSel) packSel.value = 'ALL';
   const themaSel = document.getElementById('bankFilterThematique');
   if (themaSel) themaSel.value = 'ALL';
   updateBankSujetsDropdown();
@@ -6751,12 +6779,25 @@ function showToast(message) {
 async function switchBankView(view) {
   const activeContainer = document.getElementById('bankViewActiveContainer');
   const arbitrageContainer = document.getElementById('bankViewArbitrageContainer');
+  const statsContainer = document.getElementById('bankViewStatsContainer');
   const btnActive = document.getElementById('btnViewBankActive');
   const btnArbitrage = document.getElementById('btnViewBankArbitrage');
+  const btnStats = document.getElementById('btnViewBankStats');
+
+  // Réinitialisation de base des styles de boutons
+  [btnActive, btnArbitrage, btnStats].forEach(b => {
+    if (b) {
+      b.classList.remove('active');
+      b.style.background = 'transparent';
+      b.style.borderColor = 'transparent';
+      b.style.color = 'var(--text-muted)';
+    }
+  });
 
   if (view === 'active') {
     if (activeContainer) activeContainer.style.display = 'block';
     if (arbitrageContainer) arbitrageContainer.style.display = 'none';
+    if (statsContainer) statsContainer.style.display = 'none';
     if (btnActive) {
       btnActive.classList.add('active');
       btnActive.style.background = 'rgba(56,189,248,0.12)';
@@ -6764,27 +6805,31 @@ async function switchBankView(view) {
       btnActive.style.color = 'var(--text-main)';
     }
     if (btnArbitrage) {
-      btnArbitrage.classList.remove('active');
       btnArbitrage.style.background = 'rgba(245,158,11,0.08)';
       btnArbitrage.style.borderColor = 'rgba(245,158,11,0.3)';
       btnArbitrage.style.color = '#f59e0b';
+    }
+    if (btnStats) {
+      btnStats.style.background = 'rgba(168,85,247,0.08)';
+      btnStats.style.borderColor = 'rgba(168,85,247,0.3)';
+      btnStats.style.color = '#c084fc';
     }
     await loadQuestions();
     resetBankFilters();
   } else if (view === 'arbitrage') {
     if (activeContainer) activeContainer.style.display = 'none';
     if (arbitrageContainer) arbitrageContainer.style.display = 'block';
-    if (btnActive) {
-      btnActive.classList.remove('active');
-      btnActive.style.background = 'transparent';
-      btnActive.style.borderColor = 'transparent';
-      btnActive.style.color = 'var(--text-muted)';
-    }
+    if (statsContainer) statsContainer.style.display = 'none';
     if (btnArbitrage) {
       btnArbitrage.classList.add('active');
       btnArbitrage.style.background = 'rgba(245,158,11,0.2)';
       btnArbitrage.style.borderColor = '#f59e0b';
       btnArbitrage.style.color = '#fbbf24';
+    }
+    if (btnStats) {
+      btnStats.style.background = 'rgba(168,85,247,0.08)';
+      btnStats.style.borderColor = 'rgba(168,85,247,0.3)';
+      btnStats.style.color = '#c084fc';
     }
     // Par défaut afficher toutes les questions à arbitrer sans filtre résiduel
     const s = document.getElementById('pendingSearchInput');
@@ -6797,14 +6842,36 @@ async function switchBankView(view) {
     if (fcb) fcb.value = 'ALL';
 
     await loadPendingQuestions();
+  } else if (view === 'stats') {
+    if (activeContainer) activeContainer.style.display = 'none';
+    if (arbitrageContainer) arbitrageContainer.style.display = 'none';
+    if (statsContainer) statsContainer.style.display = 'block';
+    if (btnStats) {
+      btnStats.classList.add('active');
+      btnStats.style.background = 'rgba(168,85,247,0.22)';
+      btnStats.style.borderColor = '#a855f7';
+      btnStats.style.color = '#e9d5ff';
+    }
+    if (btnArbitrage) {
+      btnArbitrage.style.background = 'rgba(245,158,11,0.08)';
+      btnArbitrage.style.borderColor = 'rgba(245,158,11,0.3)';
+      btnArbitrage.style.color = '#f59e0b';
+    }
+    if (!state.questions || state.questions.length === 0) {
+      await loadQuestions();
+    }
+    renderBankStatistics();
   }
 }
+window.switchBankView = switchBankView;
 
 function resetBankFilters() {
   const bStatus = document.getElementById('bankFilterStatus');
   if (bStatus) bStatus.value = 'ALL';
   const bPack = document.getElementById('bankFilterPack');
   if (bPack) bPack.value = 'ALL';
+  const bThema = document.getElementById('bankFilterThematique');
+  if (bThema) bThema.value = 'ALL';
   updateBankSujetsDropdown();
   const bClasse = document.getElementById('bankFilterClasse');
   if (bClasse) bClasse.value = 'ALL';
@@ -6814,6 +6881,375 @@ function resetBankFilters() {
   if (bCible) bCible.value = 'ALL';
   renderBankDeck();
 }
+window.resetBankFilters = resetBankFilters;
+
+// ============================================================================
+// STATISTIQUES GLOBALES DE LA BANQUE DE QUESTIONS
+// ============================================================================
+
+function renderBankStatistics() {
+  const questions = Array.isArray(state.questions) ? state.questions : [];
+  const totalQ = questions.length;
+
+  // 1. Définition des Packs
+  const packsDef = (state.packs && state.packs.length > 0)
+    ? state.packs
+    : [
+        { id: 1, nom: 'Jeu 1 (Questionnaire initial)' },
+        { id: 2, nom: 'Jeu 2 (Approfondissement)' },
+        { id: 3, nom: 'Jeu 3 (Questions abonnés)' }
+      ];
+
+  // 2. Définition des Classes de sensibilité
+  const classeLabels = {
+    0: '0 - Non définies',
+    1: '1 - Standards',
+    2: '2 - Personnelles',
+    3: '3 - Intimes',
+    4: '4 - Privées',
+    5: '5 - À caractère sexuel',
+    8: '8 - Identité',
+    9: '9 - Amorales / Interdits'
+  };
+
+  const classeColors = {
+    0: '#94a3b8',
+    1: '#38bdf8',
+    2: '#818cf8',
+    3: '#f472b6',
+    4: '#c084fc',
+    5: '#fb7185',
+    8: '#34d399',
+    9: '#fbbf24'
+  };
+
+  // 3. Définition des Cibles
+  const cibleLabels = {
+    0: { label: 'Mixte (0 - Tous genres)', color: '#38bdf8', icon: '👥' },
+    1: { label: 'Hommes uniquement (1)', color: '#60a5fa', icon: '👨' },
+    2: { label: 'Femmes uniquement (2)', color: '#f472b6', icon: '👩' }
+  };
+
+  // 4. Calcul par Thématique et Sujet
+  const themasMap = {};
+  const allSujetsMap = {};
+
+  questions.forEach(q => {
+    const th = normalizeThematique(q.thematique) || 'Non définie';
+    const sj = String(q.sujet || 'Général').trim();
+
+    if (!themasMap[th]) {
+      themasMap[th] = { count: 0, sujets: new Set() };
+    }
+    themasMap[th].count++;
+    themasMap[th].sujets.add(sj);
+
+    const sKey = `${th}:::${sj}`;
+    if (!allSujetsMap[sKey]) {
+      allSujetsMap[sKey] = { thema: th, sujet: sj, count: 0 };
+    }
+    allSujetsMap[sKey].count++;
+  });
+
+  const sortedThemas = Object.keys(themasMap).sort((a, b) => themasMap[b].count - themasMap[a].count);
+  const allSujetsList = Object.values(allSujetsMap).sort((a, b) => {
+    if (a.thema !== b.thema) return a.thema.localeCompare(b.thema);
+    return b.count - a.count;
+  });
+
+  // Mise à jour des compteurs en en-tête
+  const statTotalCatalog = document.getElementById('statTotalCatalog');
+  if (statTotalCatalog) statTotalCatalog.textContent = totalQ;
+
+  const statTotalPacks = document.getElementById('statTotalPacks');
+  if (statTotalPacks) statTotalPacks.textContent = packsDef.length;
+
+  const statTotalThemas = document.getElementById('statTotalThemas');
+  if (statTotalThemas) statTotalThemas.textContent = sortedThemas.length;
+
+  const statTotalSujets = document.getElementById('statTotalSujets');
+  if (statTotalSujets) statTotalSujets.textContent = allSujetsList.length;
+
+  const badgeBankStatsCount = document.getElementById('badgeBankStatsCount');
+  if (badgeBankStatsCount) badgeBankStatsCount.textContent = `${totalQ} Qs`;
+
+  const statBadgePacksTotal = document.getElementById('statBadgePacksTotal');
+  if (statBadgePacksTotal) statBadgePacksTotal.textContent = `${packsDef.length} jeux`;
+
+  const statBadgeThemasTotal = document.getElementById('statBadgeThemasTotal');
+  if (statBadgeThemasTotal) statBadgeThemasTotal.textContent = `${sortedThemas.length} thématiques`;
+
+  const statBadgeSujetsDetailTotal = document.getElementById('statBadgeSujetsDetailTotal');
+  if (statBadgeSujetsDetailTotal) statBadgeSujetsDetailTotal.textContent = `${allSujetsList.length} sujets`;
+
+  // -------------------------------------------------------------
+  // A. Bloc 1 : Répartition par Jeu (Pack)
+  // -------------------------------------------------------------
+  const statListPacks = document.getElementById('statListPacks');
+  if (statListPacks) {
+    const packColors = ['#38bdf8', '#a855f7', '#f59e0b', '#10b981'];
+    let packsHtml = '';
+
+    packsDef.forEach((pk, idx) => {
+      const count = questions.filter(q => Number(q.pack_id) === Number(pk.id)).length;
+      const pct = totalQ > 0 ? ((count / totalQ) * 100).toFixed(1) : 0;
+      const color = packColors[idx % packColors.length];
+
+      packsHtml += `
+        <div class="stat-row-item" onclick="filterBankFromStats('pack', '${pk.id}', '${escapeHtml(pk.nom)}')" title="Cliquer pour afficher ces questions dans la banque">
+          <div class="stat-row-header">
+            <span class="stat-row-title">
+              <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:${color};"></span>
+              ${escapeHtml(pk.nom)}
+            </span>
+            <span class="stat-row-count" style="color:${color};">
+              ${count} <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">(${pct}%)</span>
+            </span>
+          </div>
+          <div class="stat-progress-track">
+            <div class="stat-progress-fill" style="width: ${pct}%; background: ${color};"></div>
+          </div>
+        </div>
+      `;
+    });
+    statListPacks.innerHTML = packsHtml;
+  }
+
+  // -------------------------------------------------------------
+  // B. Bloc 2 : Répartition par Classe de Sensibilité (0 à 9)
+  // -------------------------------------------------------------
+  const statListClasses = document.getElementById('statListClasses');
+  if (statListClasses) {
+    let classesHtml = '';
+    const classKeys = [1, 2, 3, 4, 5, 8, 9, 0];
+    let activeClassesCount = 0;
+
+    classKeys.forEach(c => {
+      const count = questions.filter(q => Number(q.classe) === Number(c)).length;
+      if (count > 0 || c === 0) {
+        if (count > 0) activeClassesCount++;
+        const pct = totalQ > 0 ? ((count / totalQ) * 100).toFixed(1) : 0;
+        const color = classeColors[c] || '#cbd5e1';
+        const label = classeLabels[c] || `Classe ${c}`;
+
+        classesHtml += `
+          <div class="stat-row-item" onclick="filterBankFromStats('classe', '${c}', '${escapeHtml(label)}')" title="Cliquer pour afficher ces questions dans la banque">
+            <div class="stat-row-header">
+              <span class="stat-row-title">
+                <span class="badge-tag classe" style="font-size:10.5px; padding:2px 7px;">${c}</span>
+                ${escapeHtml(label)}
+              </span>
+              <span class="stat-row-count" style="color:${color};">
+                ${count} <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">(${pct}%)</span>
+              </span>
+            </div>
+            <div class="stat-progress-track">
+              <div class="stat-progress-fill" style="width: ${pct}%; background: ${color};"></div>
+            </div>
+          </div>
+        `;
+      }
+    });
+
+    const statBadgeClassesTotal = document.getElementById('statBadgeClassesTotal');
+    if (statBadgeClassesTotal) statBadgeClassesTotal.textContent = `${activeClassesCount} actives`;
+
+    statListClasses.innerHTML = classesHtml;
+  }
+
+  // -------------------------------------------------------------
+  // C. Bloc 3 : Répartition par Cible
+  // -------------------------------------------------------------
+  const statListCibles = document.getElementById('statListCibles');
+  if (statListCibles) {
+    let ciblesHtml = '';
+    [0, 1, 2].forEach(cib => {
+      const count = questions.filter(q => Number(q.cible) === Number(cib)).length;
+      const pct = totalQ > 0 ? ((count / totalQ) * 100).toFixed(1) : 0;
+      const meta = cibleLabels[cib] || { label: `Cible ${cib}`, color: '#cbd5e1', icon: '❓' };
+
+      ciblesHtml += `
+        <div class="stat-row-item" onclick="filterBankFromStats('cible', '${cib}', '${escapeHtml(meta.label)}')" title="Cliquer pour afficher ces questions dans la banque">
+          <div class="stat-row-header">
+            <span class="stat-row-title">
+              <span>${meta.icon}</span>
+              ${escapeHtml(meta.label)}
+            </span>
+            <span class="stat-row-count" style="color:${meta.color};">
+              ${count} <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">(${pct}%)</span>
+            </span>
+          </div>
+          <div class="stat-progress-track">
+            <div class="stat-progress-fill" style="width: ${pct}%; background: ${meta.color};"></div>
+          </div>
+        </div>
+      `;
+    });
+    statListCibles.innerHTML = ciblesHtml;
+  }
+
+  // -------------------------------------------------------------
+  // D. Bloc 4 : Répartition par Thématique
+  // -------------------------------------------------------------
+  const statListThematiques = document.getElementById('statListThematiques');
+  if (statListThematiques) {
+    let themasHtml = '';
+    const themaColorPalette = ['#a855f7', '#38bdf8', '#10b981', '#f59e0b', '#ec4899', '#6366f1', '#14b8a6', '#f43f5e'];
+
+    sortedThemas.forEach((th, idx) => {
+      const data = themasMap[th];
+      const pct = totalQ > 0 ? ((data.count / totalQ) * 100).toFixed(1) : 0;
+      const color = themaColorPalette[idx % themaColorPalette.length];
+      const sujetsCount = data.sujets.size;
+
+      themasHtml += `
+        <div class="stat-row-item" onclick="filterBankFromStats('thematique', '${escapeHtml(th)}', '${escapeHtml(th)}')" title="Cliquer pour afficher cette thématique dans la banque">
+          <div class="stat-row-header">
+            <span class="stat-row-title">
+              <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:${color};"></span>
+              ${escapeHtml(th)}
+              <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">(${sujetsCount} sujet${sujetsCount > 1 ? 's' : ''})</span>
+            </span>
+            <span class="stat-row-count" style="color:${color};">
+              ${data.count} <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">(${pct}%)</span>
+            </span>
+          </div>
+          <div class="stat-progress-track">
+            <div class="stat-progress-fill" style="width: ${pct}%; background: ${color};"></div>
+          </div>
+        </div>
+      `;
+    });
+    statListThematiques.innerHTML = themasHtml;
+  }
+
+  // -------------------------------------------------------------
+  // E. Bloc 5 : Répertoire des Sujets & Volumes de Questions
+  // -------------------------------------------------------------
+  renderStatsSujetsTable(allSujetsList, totalQ);
+}
+window.renderBankStatistics = renderBankStatistics;
+
+function renderStatsSujetsTable(sujetsList, totalQ) {
+  const tbody = document.getElementById('statSujetsTableBody');
+  if (!tbody) return;
+
+  if (!sujetsList || sujetsList.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" style="text-align:center; padding:24px; color:var(--text-dim);">
+          Aucun sujet répertorié dans la banque.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  let tableHtml = '';
+  sujetsList.forEach(item => {
+    const pct = totalQ > 0 ? ((item.count / totalQ) * 100).toFixed(1) : 0;
+    tableHtml += `
+      <tr class="stat-table-tr" data-thema="${escapeHtml(item.thema.toLowerCase())}" data-sujet="${escapeHtml(item.sujet.toLowerCase())}" style="border-bottom: 1px solid rgba(255,255,255,0.04);">
+        <td style="padding: 10px 14px; font-weight: 600; color: var(--text-bright);">
+          <span style="color: var(--accent-cyan); margin-right: 6px;">📂</span> ${escapeHtml(item.thema)}
+        </td>
+        <td style="padding: 10px 14px; color: var(--text-main);">
+          ${escapeHtml(item.sujet)}
+        </td>
+        <td style="padding: 10px 14px; text-align: center; font-weight: 700; color: var(--text-bright);">
+          <span class="badge-soft" style="font-size: 12px; padding: 3px 10px; background: rgba(56,189,248,0.15); color: #38bdf8;">
+            ${item.count} question${item.count > 1 ? 's' : ''}
+          </span>
+        </td>
+        <td style="padding: 10px 14px; text-align: center;">
+          <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <div style="width: 70px; height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden;">
+              <div style="width: ${pct}%; height: 100%; background: #a855f7; border-radius: 3px;"></div>
+            </div>
+            <span style="font-size: 11.5px; color: var(--text-muted); min-width: 36px; text-align: right;">${pct}%</span>
+          </div>
+        </td>
+        <td style="padding: 10px 14px; text-align: right;">
+          <button class="btn btn-outline btn-sm" onclick="filterBankFromStats('sujet', '${escapeHtml(item.sujet)}', '${escapeHtml(item.thema)}')" title="Filtrer la banque sur ce sujet" style="font-size: 11.5px; padding: 4px 10px;">
+            🔍 Filtrer
+          </button>
+        </td>
+      </tr>
+    `;
+  });
+
+  tbody.innerHTML = tableHtml;
+}
+
+// Recherche textuelle dynamique dans le tableau des sujets
+function filterStatsSujetsTable() {
+  const input = document.getElementById('statSujetSearchInput');
+  if (!input) return;
+  const q = input.value.toLowerCase().trim();
+  const rows = document.querySelectorAll('#statSujetsTableBody .stat-table-tr');
+
+  let visibleCount = 0;
+  rows.forEach(r => {
+    const th = r.getAttribute('data-thema') || '';
+    const sj = r.getAttribute('data-sujet') || '';
+    const match = !q || th.includes(q) || sj.includes(q);
+    r.style.display = match ? '' : 'none';
+    if (match) visibleCount++;
+  });
+
+  const badge = document.getElementById('statBadgeSujetsDetailTotal');
+  if (badge) {
+    badge.textContent = `${visibleCount} affiché${visibleCount > 1 ? 's' : ''}`;
+  }
+}
+window.filterStatsSujetsTable = filterStatsSujetsTable;
+
+// Bascule et filtrage immédiat de la banque de questions depuis une statistique cliquée
+async function filterBankFromStats(filterType, filterValue, extraVal = null) {
+  await switchBankView('active');
+  resetBankFilters();
+
+  if (filterType === 'pack') {
+    const packSel = document.getElementById('bankFilterPack');
+    if (packSel) packSel.value = filterValue;
+    showToast(`Filtre appliqué : Jeu ${extraVal || filterValue}`);
+  } else if (filterType === 'classe') {
+    const classeSel = document.getElementById('bankFilterClasse');
+    if (classeSel) classeSel.value = filterValue;
+    showToast(`Filtre appliqué : ${extraVal || 'Classe ' + filterValue}`);
+  } else if (filterType === 'cible') {
+    const cibleSel = document.getElementById('bankFilterCible');
+    if (cibleSel) cibleSel.value = filterValue;
+    showToast(`Filtre appliqué : Cible ${extraVal || filterValue}`);
+  } else if (filterType === 'thematique') {
+    const themaSel = document.getElementById('bankFilterThematique');
+    if (themaSel) {
+      themaSel.value = filterValue;
+      onBankThematiqueChange();
+    }
+    showToast(`Filtre appliqué : Thématique ${filterValue}`);
+  } else if (filterType === 'sujet') {
+    if (extraVal) {
+      const themaSel = document.getElementById('bankFilterThematique');
+      if (themaSel) {
+        themaSel.value = extraVal;
+        updateBankSujetsDropdown();
+      }
+    }
+    const sujetSel = document.getElementById('bankFilterSujet');
+    if (sujetSel) sujetSel.value = filterValue;
+    showToast(`Filtre appliqué : Sujet ${filterValue}`);
+  }
+
+  renderBankDeck();
+
+  // Scroll fluide vers la barre de filtres de la banque
+  const filtersRow = document.querySelector('#bankViewActiveContainer .bank-filters-single-row');
+  if (filtersRow) {
+    filtersRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+window.filterBankFromStats = filterBankFromStats;
 
 function resetPendingFilters() {
   const s = document.getElementById('pendingSearchInput');

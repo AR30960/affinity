@@ -1286,23 +1286,34 @@
             <span>⚖️ Espace d'Arbitrage</span>
             <span id="badgePendingQuestionsCount" class="badge-soft" style="font-size: 11px; padding: 2px 8px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.4); font-weight: 700;">60 en attente</span>
           </button>
+          <button id="btnViewBankStats" class="tab-btn" onclick="switchBankView('stats')" style="display: inline-flex; align-items: center; gap: 10px; padding: 10px 20px; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer; border: 1px solid rgba(168,85,247,0.3); transition: var(--transition-smooth); background: rgba(168,85,247,0.08); color: #c084fc;">
+            <span>📊 Statistiques</span>
+            <span id="badgeBankStatsCount" class="badge-soft" style="font-size: 11px; padding: 2px 8px; background: rgba(168,85,247,0.25); color: #e9d5ff; font-weight: 700;">Global</span>
+          </button>
         </div>
 
         <!-- CONTENEUR 1 : BANQUE ACTIVE (QUESTIONS VALIDÉES) -->
         <div id="bankViewActiveContainer">
-          <!-- BARRE DE FILTRES SUR UNE SEULE LIGNE : Thématique -> Classes -> Sujets -> Cible -->
+          <!-- BARRE DE FILTRES SUR UNE SEULE LIGNE : Jeu -> Thématique -> Classes -> Sujets -> Cible -->
           <div class="bank-filters-single-row">
-            <!-- 1. Thématique (filtre automatiquement les sujets) -->
+            <!-- 1. Jeu / Pack de question -->
             <div class="bank-filter-item">
-              <select id="bankFilterThematique" class="custom-select" onchange="onBankThematiqueChange()" title="Filtrer par Thématique">
-                <option value="ALL">Toutes les thématiques</option>
+              <select id="bankFilterPack" class="custom-select" onchange="renderQuestionsTable()" title="Filtrer par Jeu">
+                <option value="ALL">Jeux</option>
               </select>
             </div>
 
-            <!-- 2. Les Classes -->
+            <!-- 2. Thématique (filtre automatiquement les sujets) -->
             <div class="bank-filter-item">
-              <select id="bankFilterClasse" class="custom-select" onchange="renderQuestionsTable()" title="Filtrer par classe">
-                <option value="ALL">Toutes les classes</option>
+              <select id="bankFilterThematique" class="custom-select" onchange="onBankThematiqueChange()" title="Filtrer par Thématique">
+                <option value="ALL">Thématiques</option>
+              </select>
+            </div>
+
+            <!-- 3. Les Classes -->
+            <div class="bank-filter-item">
+              <select id="bankFilterClasse" class="custom-select" onchange="renderQuestionsTable()" title="Filtrer par Classe">
+                <option value="ALL">Classes</option>
                 <option value="0">0 - Non définies</option>
                 <option value="1">1 - Standards</option>
                 <option value="2">2 - Personnelles</option>
@@ -1314,17 +1325,17 @@
               </select>
             </div>
 
-            <!-- 3. Les Sujets (affichés par rapport à la thématique sélectionnée) -->
+            <!-- 4. Les Sujets (affichés par rapport à la thématique sélectionnée) -->
             <div class="bank-filter-item">
-              <select id="bankFilterSujet" class="custom-select" onchange="renderQuestionsTable()" title="Filtrer par sujet">
-                <option value="ALL">Tous les sujets</option>
+              <select id="bankFilterSujet" class="custom-select" onchange="renderQuestionsTable()" title="Filtrer par Sujet">
+                <option value="ALL">Sujets</option>
               </select>
             </div>
 
-            <!-- 4. La Cible -->
+            <!-- 5. La Cible -->
             <div class="bank-filter-item">
-              <select id="bankFilterCible" class="custom-select" onchange="renderQuestionsTable()" title="Filtrer par cible">
-                <option value="ALL">Toutes les cibles</option>
+              <select id="bankFilterCible" class="custom-select" onchange="renderQuestionsTable()" title="Filtrer par Cible">
+                <option value="ALL">Cibles</option>
                 <option value="0">0 - Mixte (Tous)</option>
                 <option value="1">1 - Hommes</option>
                 <option value="2">2 - Femmes</option>
@@ -1338,7 +1349,7 @@
 
             <!-- Compteur & Bouton Ajouter Question -->
             <div style="margin-left: auto; display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
-              <span id="bankQuestionsCountBadge" class="badge-soft" style="font-size: 12px; padding: 6px 12px; white-space: nowrap;">205 questions</span>
+              <span id="bankQuestionsCountBadge" class="badge-soft" style="font-size: 12px; padding: 6px 12px; white-space: nowrap;">256 questions</span>
               <button class="btn btn-primary btn-sm admin-only" id="btnOpenAddQuestion" onclick="openAddQuestionModal()" style="white-space: nowrap; display: none;">
                 <span>+</span> Ajouter une Question
               </button>
@@ -1390,14 +1401,14 @@
             <!-- 1. Thématique -->
             <div class="bank-filter-item">
               <select id="pendingFilterThematique" class="custom-select" onchange="onPendingThematiqueChange()" title="Filtrer par thématique">
-                <option value="ALL">Toutes les thématiques</option>
+                <option value="ALL">Thématiques</option>
               </select>
             </div>
 
             <!-- 2. Classes (0 à 9 harmonisées) -->
             <div class="bank-filter-item">
               <select id="pendingFilterClasse" class="custom-select" onchange="renderPendingQuestionsTable()" title="Filtrer par classe">
-                <option value="ALL">Toutes les classes</option>
+                <option value="ALL">Classes</option>
                 <option value="0">0 - Non définies</option>
                 <option value="1">1 - Standards</option>
                 <option value="2">2 - Personnelles</option>
@@ -1412,14 +1423,14 @@
             <!-- 3. Sujets (dynamiques selon thématique) -->
             <div class="bank-filter-item">
               <select id="pendingFilterSujet" class="custom-select" onchange="renderPendingQuestionsTable()" title="Filtrer par sujet">
-                <option value="ALL">Tous les sujets</option>
+                <option value="ALL">Sujets</option>
               </select>
             </div>
 
             <!-- 4. Cible -->
             <div class="bank-filter-item">
               <select id="pendingFilterCible" class="custom-select" onchange="renderPendingQuestionsTable()" title="Filtrer par cible">
-                <option value="ALL">Toutes les cibles</option>
+                <option value="ALL">Cibles</option>
                 <option value="0">0 - Mixte (Tous)</option>
                 <option value="1">1 - Hommes</option>
                 <option value="2">2 - Femmes</option>
@@ -1429,7 +1440,7 @@
             <!-- 5. Type -->
             <div class="bank-filter-item">
               <select id="pendingFilterType" class="custom-select" onchange="renderPendingQuestionsTable()" title="Filtrer par type">
-                <option value="ALL">Tous les types</option>
+                <option value="ALL">Types</option>
                 <option value="M">Multi-Axes (V-A-D-P)</option>
                 <option value="G">Goût Unique (G)</option>
               </select>
@@ -1454,6 +1465,118 @@
           <!-- PRÉSENTATION EN CARTES (IDENTIQUE À BANQUE ACTIVE) -->
           <div class="questions-deck" id="pendingQuestionsDeck">
             <!-- Cartes injectées dynamiquement par JS -->
+          </div>
+        </div>
+
+        <!-- CONTENEUR 3 : STATISTIQUES DE LA BANQUE DE QUESTIONS -->
+        <div id="bankViewStatsContainer" style="display: none;">
+          <!-- En-tête avec KPI majeurs -->
+          <div class="stats-overview-banner" style="background: linear-gradient(135deg, rgba(168,85,247,0.12) 0%, rgba(56,189,248,0.12) 100%); border: 1px solid rgba(168,85,247,0.3); border-radius: var(--radius-md); padding: 22px; margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap;">
+              <div>
+                <h3 style="font-size: 19px; font-weight: 800; color: #e9d5ff; margin: 0 0 6px 0; display: flex; align-items: center; gap: 10px;">
+                  <span>📊</span> Tableau de Bord Statistique de la Banque
+                </h3>
+                <p style="font-size: 13.5px; color: var(--text-muted); margin: 0; max-width: 780px;">
+                  Vue d'ensemble et répartition détaillée du catalogue officiel : par <strong>Jeu</strong>, <strong>Classe</strong>, <strong>Cible</strong>, <strong>Thématique</strong> et <strong>Sujets</strong>.
+                </p>
+              </div>
+              <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                <div style="background: rgba(168,85,247,0.18); border: 1px solid rgba(168,85,247,0.35); border-radius: var(--radius-sm); padding: 10px 16px; text-align: center; min-width: 105px;">
+                  <div style="font-size: 22px; font-weight: 800; color: #e9d5ff;" id="statTotalCatalog">256</div>
+                  <div style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Total Questions</div>
+                </div>
+                <div style="background: rgba(56,189,248,0.15); border: 1px solid rgba(56,189,248,0.3); border-radius: var(--radius-sm); padding: 10px 16px; text-align: center; min-width: 90px;">
+                  <div style="font-size: 22px; font-weight: 800; color: #38bdf8;" id="statTotalPacks">3</div>
+                  <div style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Jeux</div>
+                </div>
+                <div style="background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); border-radius: var(--radius-sm); padding: 10px 16px; text-align: center; min-width: 95px;">
+                  <div style="font-size: 22px; font-weight: 800; color: #10b981;" id="statTotalThemas">7</div>
+                  <div style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Thématiques</div>
+                </div>
+                <div style="background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3); border-radius: var(--radius-sm); padding: 10px 16px; text-align: center; min-width: 90px;">
+                  <div style="font-size: 22px; font-weight: 800; color: #fbbf24;" id="statTotalSujets">34</div>
+                  <div style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Sujets</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Grille des 4 dimensions majeures (Jeux, Classes, Cibles, Thématiques) -->
+          <div class="stats-grid-dashboard" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-bottom: 24px;">
+            <!-- 1. Répartition par Jeu de Question (Pack) -->
+            <div class="stat-card-box" style="background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 18px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px;">
+                <h4 style="margin: 0; font-size: 15px; color: var(--text-bright); display: flex; align-items: center; gap: 8px;">
+                  <span>🎲</span> Répartition par Jeu de Question
+                </h4>
+                <span class="badge-soft" id="statBadgePacksTotal">3 jeux</span>
+              </div>
+              <div id="statListPacks" style="display: flex; flex-direction: column; gap: 10px;"></div>
+            </div>
+
+            <!-- 2. Répartition par Classe de Sensibilité (0 à 9) -->
+            <div class="stat-card-box" style="background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 18px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px;">
+                <h4 style="margin: 0; font-size: 15px; color: var(--text-bright); display: flex; align-items: center; gap: 8px;">
+                  <span>🏷️</span> Répartition par Classe de Sensibilité
+                </h4>
+                <span class="badge-soft" id="statBadgeClassesTotal">Classes 0 à 9</span>
+              </div>
+              <div id="statListClasses" style="display: flex; flex-direction: column; gap: 8px;"></div>
+            </div>
+
+            <!-- 3. Répartition par Cible (Mixte, Hommes, Femmes) -->
+            <div class="stat-card-box" style="background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 18px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px;">
+                <h4 style="margin: 0; font-size: 15px; color: var(--text-bright); display: flex; align-items: center; gap: 8px;">
+                  <span>👥</span> Répartition par Cible
+                </h4>
+                <span class="badge-soft" id="statBadgeCiblesTotal">Mixte &amp; Genre</span>
+              </div>
+              <div id="statListCibles" style="display: flex; flex-direction: column; gap: 10px;"></div>
+            </div>
+
+            <!-- 4. Répartition par Thématique -->
+            <div class="stat-card-box" style="background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 18px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px;">
+                <h4 style="margin: 0; font-size: 15px; color: var(--text-bright); display: flex; align-items: center; gap: 8px;">
+                  <span>📂</span> Répartition par Thématique
+                </h4>
+                <span class="badge-soft" id="statBadgeThemasTotal">7 thématiques</span>
+              </div>
+              <div id="statListThematiques" style="display: flex; flex-direction: column; gap: 10px;"></div>
+            </div>
+          </div>
+
+          <!-- 5. Grand Répertoire des Sujets & Volumes de Questions -->
+          <div class="stat-card-box" style="background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 20px; margin-bottom: 24px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+              <div>
+                <h4 style="margin: 0; font-size: 16px; color: var(--text-bright); display: flex; align-items: center; gap: 8px;">
+                  <span>📝</span> Répertoire des Sujets &amp; Volumes de Questions
+                </h4>
+                <p style="margin: 3px 0 0 0; font-size: 12.5px; color: var(--text-dim);">Détail exhaustif du nombre de questions affectées à chaque sujet, classées par thématique.</p>
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <input type="text" id="statSujetSearchInput" class="custom-select" placeholder="🔍 Filtrer les sujets..." oninput="filterStatsSujetsTable()" style="padding: 6px 12px; font-size: 12.5px; width: 180px;">
+                <span class="badge-soft" id="statBadgeSujetsDetailTotal">34 sujets</span>
+              </div>
+            </div>
+            <div style="overflow-x: auto;">
+              <table class="custom-table" style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <thead>
+                  <tr style="background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border-color); text-align: left;">
+                    <th style="padding: 10px 14px;">Thématique</th>
+                    <th style="padding: 10px 14px;">Sujet</th>
+                    <th style="padding: 10px 14px; text-align: center;">Nombre de Questions</th>
+                    <th style="padding: 10px 14px; text-align: center;">Part du Catalogue</th>
+                    <th style="padding: 10px 14px; text-align: right;">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="statSujetsTableBody"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </section>
