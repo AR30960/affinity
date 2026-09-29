@@ -624,6 +624,7 @@ function renderIdentityDeckQuestions() {
               <span class="id-card-badge-num">#${idx + 1}</span>
               <span class="id-card-theme-tag">${q.thematique} &bull; ${q.sujet}</span>
               <span class="badge-tag type" style="background:rgba(56,189,248,0.15); border-color:#38bdf8; color:#7dd3fc; font-size:10px;">Type P &bull; Précis</span>
+              <span class="badge-tag badge-pack" style="font-size:10px; padding:2px 6px;">🎮 ${escapeHtml(q.pack_nom || ('Jeu ' + (q.pack_id || 1)))}</span>
             </div>
             <span class="id-card-status-badge ${hasAnswer ? 'answered' : 'empty'}">
               ${hasAnswer ? '✓ Renseigné' : 'À renseigner'}
@@ -702,6 +703,7 @@ function renderIdentityDeckQuestions() {
               <span class="id-card-badge-num">#${idx + 1}</span>
               <span class="id-card-theme-tag">${q.thematique} &bull; ${q.sujet}</span>
               <span class="badge-tag type" style="background:rgba(168,85,247,0.18); border-color:#a855f7; color:#f3e8ff; font-size:10px;">Type T &bull; Tolérance</span>
+              <span class="badge-tag badge-pack" style="font-size:10px; padding:2px 6px;">🎮 ${escapeHtml(q.pack_nom || ('Jeu ' + (q.pack_id || 1)))}</span>
             </div>
             <span class="id-card-status-badge ${hasAnswer ? 'answered' : 'empty'}">
               ${hasAnswer ? (isIndifferent ? '✓ Indifférent' : '✓ Tolérances définies') : 'Non défini'}
@@ -4950,7 +4952,11 @@ function renderQuestionsDeck() {
 
     const typeBadgeHtml = isMulti
       ? '<span class="badge-tag type" title="(V) Le Vécu (Passé)&#10;(A) Actuel (Présent)&#10;(D) Découverte ou Poursuite (Futur)&#10;(P) Partage (Chez la personne qui partage votre quotidien ou chez les autres)">Multi-Axes (V-A-D-P)</span>'
-      : '<span class="badge-tag type">Goût (G)</span>';
+      : (q.type === 'P'
+          ? '<span class="badge-tag type" style="background:rgba(59,130,246,0.18); color:#60a5fa; border:1px solid rgba(59,130,246,0.35);">Sur Moi (P)</span>'
+          : (q.type === 'T'
+              ? '<span class="badge-tag type" style="background:rgba(236,72,153,0.18); color:#f472b6; border:1px solid rgba(236,72,153,0.35);">Sur l\'Autre (T)</span>'
+              : '<span class="badge-tag type">Goût (G)</span>'));
 
     const cibleBadgeHtml = q.cible === 0 
       ? '<span class="badge-tag" style="background:rgba(148,163,184,0.15); color:#cbd5e1;">Mixte (0)</span>'
@@ -4977,6 +4983,7 @@ function renderQuestionsDeck() {
         <div class="q-card-header">
           <div class="q-badge-group">
             <span class="badge-tag">#${q.id} &bull; ${escapeHtml(q.thematique || '')} &bull; ${escapeHtml(q.sujet || '')}</span>
+            <span class="badge-tag badge-pack">🎮 ${escapeHtml(q.pack_nom || ('Jeu ' + (q.pack_id || 1)))}</span>
             <span class="badge-tag classe">${classeLabels[q.classe] || 'Classe ' + q.classe}</span>
             ${typeBadgeHtml}
             ${cibleBadgeHtml}
@@ -6752,11 +6759,12 @@ function filterQuestionsDetailView() {
       <div class="q-detail-card" style="background:rgba(255,255,255,0.03); border:1px solid var(--border-color); border-radius:8px; padding:12px 14px; margin-bottom:10px;">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:6px;">
           <div>
-            <div style="font-size:11px; color:var(--text-dim); margin-bottom:2px;">
+            <div style="font-size:11px; color:var(--text-dim); margin-bottom:4px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
               <span class="badge-soft" style="font-size:10.5px; padding:1px 6px;">#${q.id}</span>
-              &bull; ${q.thematique} &bull; ${q.sujet} &bull; Classe ${q.classe} (${q.type === 'G' ? 'Goûts' : 'Multi-axes'})
+              <span class="badge-tag badge-pack" style="font-size:10px; padding:1px 6px;">🎮 ${escapeHtml(q.pack_nom || ('Jeu ' + (q.pack_id || 1)))}</span>
+              <span>&bull; ${escapeHtml(q.thematique)} &bull; ${escapeHtml(q.sujet)} &bull; Classe ${q.classe} (${q.type === 'G' ? 'Goûts' : (q.type === 'P' ? 'Sur Moi' : (q.type === 'T' ? 'Sur l\'Autre' : 'Multi-axes'))})</span>
             </div>
-            <div style="font-size:13px; font-weight:600; color:var(--text-bright); line-height:1.4;">${q.texte}</div>
+            <div style="font-size:13px; font-weight:600; color:var(--text-bright); line-height:1.4;">${escapeHtml(q.texte)}</div>
           </div>
           <div class="q-score-badge ${scoreBadgeCls}" style="flex-shrink:0; font-weight:700; font-size:13px; padding:4px 9px; border-radius:6px; background:rgba(255,255,255,0.08);">
             ${q.score}%
@@ -7037,7 +7045,11 @@ function renderBankSubCard(sq) {
     ? '<span class="badge-tag type" title="(V) Le Vécu (Passé)&#10;(A) Actuel (Présent)&#10;(D) Découverte ou Poursuite (Futur)&#10;(P) Partage (Chez la personne qui partage votre quotidien ou chez les autres)">Multi-Axes (V-A-D-P)</span>'
     : (sq.type === 'G' 
         ? '<span class="badge-tag type">Goût (G)</span>' 
-        : (sq.type === 'P' ? '<span class="badge-tag type" style="background:#0284c7; color:#fff;">Précis (P)</span>' : '<span class="badge-tag type">Standard</span>'));
+        : (sq.type === 'P'
+            ? '<span class="badge-tag type" style="background:rgba(59,130,246,0.18); color:#60a5fa; border:1px solid rgba(59,130,246,0.35);">Sur Moi (P)</span>'
+            : (sq.type === 'T'
+                ? '<span class="badge-tag type" style="background:rgba(236,72,153,0.18); color:#f472b6; border:1px solid rgba(236,72,153,0.35);">Sur l\'Autre (T)</span>'
+                : '<span class="badge-tag type">Standard</span>')));
 
   const cibleBadgeHtml = sq.cible === 0 
     ? '<span class="badge-tag" style="background:rgba(148,163,184,0.15); color:#cbd5e1;">Mixte (0)</span>'
@@ -7050,6 +7062,7 @@ function renderBankSubCard(sq) {
       <div class="q-card-header">
         <div class="q-badge-group">
           <span class="badge-tag">#${sq.id} &bull; ${escapeHtml(sq.thematique || '')} &bull; ${escapeHtml(sq.sujet || '')}</span>
+          <span class="badge-tag badge-pack">🎮 ${escapeHtml(sq.pack_nom || ('Jeu ' + (sq.pack_id || 2)))}</span>
           <span class="badge-tag classe">${classeLabels[sq.classe] || `Classe ${sq.classe}`}</span>
           ${typeBadgeHtml}
           ${cibleBadgeHtml}
@@ -7139,7 +7152,11 @@ function renderBankDeck() {
         ? '<span class="badge-tag type" title="(V) Le Vécu (Passé)&#10;(A) Actuel (Présent)&#10;(D) Découverte ou Poursuite (Futur)&#10;(P) Partage (Chez la personne qui partage votre quotidien ou chez les autres)">Multi-Axes (V-A-D-P)</span>'
         : (mainQ.type === 'G' 
             ? '<span class="badge-tag type">Goût (G)</span>' 
-            : (mainQ.type === 'P' ? '<span class="badge-tag type" style="background:#0284c7; color:#fff;">Précis (P)</span>' : '<span class="badge-tag type">Standard</span>'));
+            : (mainQ.type === 'P'
+                ? '<span class="badge-tag type" style="background:rgba(59,130,246,0.18); color:#60a5fa; border:1px solid rgba(59,130,246,0.35);">Sur Moi (P)</span>'
+                : (mainQ.type === 'T'
+                    ? '<span class="badge-tag type" style="background:rgba(236,72,153,0.18); color:#f472b6; border:1px solid rgba(236,72,153,0.35);">Sur l\'Autre (T)</span>'
+                    : '<span class="badge-tag type">Standard</span>')));
 
       const cibleBadgeHtml = mainQ.cible === 0 
         ? '<span class="badge-tag" style="background:rgba(148,163,184,0.15); color:#cbd5e1;">Mixte (0)</span>'
@@ -7154,6 +7171,7 @@ function renderBankDeck() {
           <div class="q-card-header">
             <div class="q-badge-group">
               <span class="badge-tag">#${mainQ.id} &bull; ${escapeHtml(mainQ.thematique || '')} &bull; ${escapeHtml(mainQ.sujet || '')}</span>
+              <span class="badge-tag badge-pack">🎮 ${escapeHtml(mainQ.pack_nom || ('Jeu ' + (mainQ.pack_id || 1)))}</span>
               <span class="badge-tag classe">${classeLabels[mainQ.classe] || `Classe ${mainQ.classe}`}</span>
               ${typeBadgeHtml}
               ${cibleBadgeHtml}
@@ -8335,7 +8353,11 @@ function renderPendingQuestionsTable() {
       const isMulti = (q.type === 'M' || q.type === 'MULTI');
       const typeBadgeHtml = isMulti
         ? '<span class="badge-tag type" title="(V) Le Vécu (Passé)&#10;(A) Actuel (Présent)&#10;(D) Découverte ou Poursuite (Futur)&#10;(P) Partage (Chez la personne qui partage votre quotidien ou chez les autres)">Multi-Axes (V-A-D-P)</span>'
-        : '<span class="badge-tag type">Goût (G)</span>';
+        : (q.type === 'P'
+            ? '<span class="badge-tag type" style="background:rgba(59,130,246,0.18); color:#60a5fa; border:1px solid rgba(59,130,246,0.35);">Sur Moi (P)</span>'
+            : (q.type === 'T'
+                ? '<span class="badge-tag type" style="background:rgba(236,72,153,0.18); color:#f472b6; border:1px solid rgba(236,72,153,0.35);">Sur l\'Autre (T)</span>'
+                : '<span class="badge-tag type">Goût (G)</span>'));
 
       const cibleBadgeHtml = q.cible === 0 
         ? '<span class="badge-tag" style="background:rgba(148,163,184,0.15); color:#cbd5e1;">Mixte (0)</span>'
@@ -8352,6 +8374,7 @@ function renderPendingQuestionsTable() {
           <div class="q-card-header">
             <div class="q-badge-group">
               <span class="badge-tag">#${q.id} &bull; ${escapeHtml(q.thematique || '')} &bull; ${sujetLabel}</span>
+              <span class="badge-tag badge-pack">🎮 ${escapeHtml(q.pack_nom || ('Jeu ' + (q.pack_id || 1)))}</span>
               <span class="badge-tag classe">${classeLabels[q.classe] || 'Classe ' + q.classe}</span>
               ${typeBadgeHtml}
               ${cibleBadgeHtml}
@@ -8361,9 +8384,9 @@ function renderPendingQuestionsTable() {
             </div>
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
               <select id="select-pack-${q.id}" class="custom-select" style="padding: 5px 8px; font-size: 11.5px; font-weight: 600; min-width: 80px; background: rgba(255,255,255,0.06);" title="Choisir le Jeu auquel affecter la question">
-                <option value="3" ${q.pack_id === 3 ? 'selected' : ''}>Jeu 3</option>
                 <option value="1" ${q.pack_id === 1 ? 'selected' : ''}>Jeu 1</option>
                 <option value="2" ${q.pack_id === 2 ? 'selected' : ''}>Jeu 2</option>
+                <option value="3" ${q.pack_id === 3 ? 'selected' : ''}>Jeu 3</option>
               </select>
               <button class="btn btn-sm" onclick="validatePendingQuestion(${q.id})" style="background: #10b981; color: #fff; border: none; padding: 5px 12px; font-weight: 600; cursor: pointer; border-radius: 6px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;" title="Valider dans le jeu sélectionné">
                 ✅ Valider

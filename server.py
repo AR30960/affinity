@@ -547,12 +547,14 @@ def delete_session(token: str):
     conn.close()
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30.0)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA busy_timeout = 30000")
     return conn
 
 def init_db():
     conn = get_db()
+    conn.execute("PRAGMA journal_mode = WAL")
     c = conn.cursor()
     
     # Table des profils (Pseudo)
@@ -1345,9 +1347,10 @@ def calculate_affinity(profile1_id, profile2_id, allowed_classes=None, mode_rest
     # 3. Récupérer toutes les réponses des deux profils
     c.execute("""
         SELECT a.profile_id, a.question_id, a.axis, a.value, 
-               q.thematique, q.sujet, q.classe, q.type, q.texte
+               q.thematique, q.sujet, q.classe, q.type, q.texte, q.pack_id, p.nom as pack_nom
         FROM answers a
         JOIN questions q ON a.question_id = q.id
+        LEFT JOIN question_packs p ON q.pack_id = p.id
         WHERE a.profile_id IN (?, ?)
     """, (profile1_id, profile2_id))
     rows = c.fetchall()
@@ -1368,7 +1371,9 @@ def calculate_affinity(profile1_id, profile2_id, allowed_classes=None, mode_rest
             "sujet": r["sujet"],
             "classe": r["classe"],
             "type": r["type"],
-            "texte": r["texte"]
+            "texte": r["texte"],
+            "pack_id": r["pack_id"],
+            "pack_nom": r["pack_nom"] or f"Jeu {r['pack_id'] or 1}"
         }
         if pid == profile1_id:
             p1_answers[(qid, axis)] = val
@@ -1568,6 +1573,8 @@ def calculate_affinity(profile1_id, profile2_id, allowed_classes=None, mode_rest
                 "sujet": suj,
                 "classe": q["classe"],
                 "type": q["type"],
+                "pack_id": q.get("pack_id", 1),
+                "pack_nom": q.get("pack_nom", "Jeu 1"),
                 "score": round(q_final_score * 100, 1),
                 "p1_answers": p1_q_ans,
                 "p2_answers": p2_q_ans
@@ -2443,7 +2450,7 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                         SELECT q.*, p.nom as pack_nom 
                         FROM questions q
                         LEFT JOIN question_packs p ON q.pack_id = p.id
-                        WHERE q.status = 'pending_review' AND q.classe = ?
+                        WHERE q.status IN ('pending', 'pending_review') AND q.classe = ?
                         ORDER BY q.id ASC
                     """, (int(cl_param),))
                 else:
@@ -2451,17 +2458,17 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                         SELECT q.*, p.nom as pack_nom 
                         FROM questions q
                         LEFT JOIN question_packs p ON q.pack_id = p.id
-                        WHERE q.status = 'pending_review'
+                        WHERE q.status IN ('pending', 'pending_review')
                         ORDER BY q.classe ASC, q.id ASC
                     """)
                 pending_qs = [dict(row) for row in c.fetchall()]
                 
                 # Décompte par classe dynamique
-                c.execute("SELECT classe, COUNT(*) as cnt FROM questions WHERE status = 'pending_review' GROUP BY classe")
+                c.execute("SELECT classe, COUNT(*) as cnt FROM questions WHERE status IN ('pending', 'pending_review') GROUP BY classe")
                 counts_by_class = {str(row["classe"]): row["cnt"] for row in c.fetchall()}
-                c.execute("SELECT COUNT(*) as cnt FROM questions WHERE status = 'pending_review' AND classe = 5")
+                c.execute("SELECT COUNT(*) as cnt FROM questions WHERE status IN ('pending', 'pending_review') AND classe = 5")
                 c5_cnt = c.fetchone()["cnt"]
-                c.execute("SELECT COUNT(*) as cnt FROM questions WHERE status = 'pending_review' AND classe = 9")
+                c.execute("SELECT COUNT(*) as cnt FROM questions WHERE status IN ('pending', 'pending_review') AND classe = 9")
                 c9_cnt = c.fetchone()["cnt"]
                 conn.close()
                 return self._send_json({

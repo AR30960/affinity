@@ -207,6 +207,42 @@ L'application **Affinity** est un moteur de calcul d'affinités électives basé
     - *Bouton Détail opérationnel* : Un clic sur « Détail » ou sur la ligne du match discret ouvre immédiatement la fenêtre avec le rapport complet et le badge `🕵️ Match discret Admin`.
     - *Repérabilité immédiate* : Ces calculs sont distinctement marqués dans la liste administrateur par le badge `🕵️ Match discret Admin` avec mise en évidence visuelle ambrée.
 
+- **Fait - 29/09/2026** : ~~Dans la barre d'une question affiche moi également le jeu d'appartenance. Propose moi de nouvelles questions à valider "sur moi" et "sur l'autre" en classe 8~~
+  - **1. Affichage du jeu d'appartenance dans la barre d'une question** :
+    - Ajout du badge distinctif `🎮 Jeu X` (ex: `🎮 Jeu 1`, `🎮 Jeu 2`, `🎮 Jeu 3`) dans l'en-tête de toutes les cartes de questions :
+      - *Questionnaire abonné / invité / admin* (`renderSingleQuestionCard`).
+      - *Banque de questions - Questions mères* (`renderBankQuestionCard`).
+      - *Banque de questions - Questions attachées de précision* (`renderBankSubCard`).
+      - *Questions en attente de validation administrateur* (`renderPendingQuestionsTable`).
+      - *Deck d'identité* (`renderIdentityDeckQuestions`, volets `+ sur moi` et `+ sur l'autre`).
+      - *Détail comparatif des questions de match* (`filterQuestionsDetailView`).
+    - Création du style dédié `.badge-tag.badge-pack` dans `frontend/style.css` (coloris indigo/violet lumineux avec bordure subtile et espacement adapté).
+    - Affinage des badges de type dans l'en-tête des questions pour afficher distinctement `Sur Moi (P)` (badge bleu ciel) et `Sur l'Autre (T)` (badge rose/fuchsia) au lieu d'une étiquette générique.
+  - **2. Nouvelles questions « Sur Moi » et « Sur l'Autre » proposées en Classe 8 (Identité)** :
+    - Conception et insertion de **6 nouvelles paires de questions miroirs** (12 questions au total) en statut `pending_review` prêtes pour validation administrative :
+      1. *Tabac & Vapotage* :
+         - `#80017` (Type P - Sur Moi) : « Quelle est votre habitude vis-à-vis du tabac et du vapotage ? »
+         - `#85017` (Type T - Sur l'Autre) : « Quelles habitudes vis-à-vis du tabac et de la vape tolérez-vous chez votre partenaire ? »
+      2. *Consommation d'alcool* :
+         - `#80018` (Type P - Sur Moi) : « Quel est votre rapport habituel à la consommation d'alcool ? »
+         - `#85018` (Type T - Sur l'Autre) : « Quelle habitude de consommation d'alcool tolérez-vous ou préférez-vous chez l'autre ? »
+      3. *Régime alimentaire & Philosophie culinaire* :
+         - `#80019` (Type P - Sur Moi) : « Quel est votre mode ou régime alimentaire prédominant au quotidien ? »
+         - `#85019` (Type T - Sur l'Autre) : « Quels régimes et habitudes alimentaires acceptez-vous de partager avec votre partenaire ? »
+      4. *Pratique sportive & Activité physique* :
+         - `#80020` (Type P - Sur Moi) : « À quelle fréquence pratiquez-vous une activité sportive ou physique ? »
+         - `#85020` (Type T - Sur l'Autre) : « Quel niveau d'activité physique recherchez-vous ou tolérez-vous chez votre partenaire ? »
+      5. *Animaux de compagnie & Cohabitation* :
+         - `#80021` (Type P - Sur Moi) : « Quelle est votre relation et cohabitation avec les animaux de compagnie ? »
+         - `#85021` (Type T - Sur l'Autre) : « Quelle présence d'animaux de compagnie acceptez-vous au domicile de votre partenaire ? »
+      6. *Tatouages & Piercings (Modifications corporelles)* :
+         - `#80022` (Type P - Sur Moi) : « Portez-vous des tatouages, piercings ou modifications corporelles ? »
+         - `#85022` (Type T - Sur l'Autre) : « Quelles modifications corporelles appréciez-vous ou tolérez-vous chez l'autre ? »
+    - Liaison bilatérale symétrique garantie (`n_quest_lie` liant `800xx` et `850xx`).
+    - Ces 12 questions sont immédiatement consultables et validables (individuellement ou par lot) par l'administrateur dans l'onglet *« Questions en attente de validation »*.
+  - **3. Amélioration de la robustesse de la base de données** :
+    - Activation du mode WAL (`PRAGMA journal_mode = WAL`) et d'un `busy_timeout` de 30 secondes pour éliminer les verrous SQLite concurrents sur Windows.
+
 ---
 
 ## 4. NOUVELLES DEMANDES

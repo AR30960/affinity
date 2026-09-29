@@ -872,6 +872,17 @@ body {
   letter-spacing: 0.2px;
 }
 
+.badge-tag.badge-pack, .badge-tag.pack {
+  background: rgba(99, 102, 241, 0.16);
+  color: #818cf8;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 /* Carte sous-question indentée dans le questionnaire */
 .question-card.is-subquestion {
   margin-left: 32px;
