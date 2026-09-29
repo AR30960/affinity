@@ -256,6 +256,29 @@ L'application **Affinity** est un moteur de calcul d'affinités électives basé
   - **3. Validation immédiate** :
     - L'ensemble des 10 demandes en attente pour AR30 (`#23`) et Alyssa (`#25`) ont été traitées et accordées avec succès. Leurs profils disposent maintenant de l'accès complet aux classes `[1, 2, 3, 4, 5, 9]`.
 
+- **Fait - 29/09/2026** : ~~Ok mets à jour les manuels utilisateur et technique. Dans le manuel utilisateur fais moi une présentation de l'application pour les futurs utilisateurs en argumentant "A la recherche de"~~
+  - **1. Manuel Utilisateur officiel (`Manuel_Utilisateur_Affinity.docx`)** :
+    - *Présentation argumentée « À la recherche de »* en ouverture :
+      - *À la recherche de soi-même* : Démarche d'introspection guidée, vérité personnelle et honnêteté sans fard.
+      - *À la recherche de l'autre* : Tolérance, désirs clairs et indifférence bienveillante via la distinction entre traits personnels et attentes envers le partenaire.
+      - *À la recherche d'une synergie dynamique* : Confrontation multidimensionnelle des temporalités et intentions (Le Vécu, L'Actuel, La Découverte/Poursuite, Le Partage), mise en lumière des points de fusion et des zones de vigilance.
+      - *À la recherche d'une relation respectueuse et consentie* : Souveraineté totale de chaque membre sur son niveau d'exposition classe par classe (restitution en `%` global ou en `détail` question par question).
+    - *Guide exhaustif de l'application* :
+      - Gestion du profil, complétude obligatoire à 100% de la fiche d'identité et de la Classe 8 pour débloquer les calculs de match.
+      - Découverte des types de questions : Type M (Multi-Axes V/A/D/P), Type G (Goût simple 1-10), Type P (+ sur moi) et Type T (+ sur l'autre).
+      - Organisation par Jeux (Badges `🎮 Jeu 1`, `Jeu 2`, `Jeu 3`) et par Classes (0 à 9).
+      - Centre de Matchs & Historique bilatéral : Lancement d'un match direct, négociation bilatérale des autorisations, consultation du rapport complet via la modale plein écran dédiée avec impression.
+      - Gestion des accès, abonnements et sécurité des données.
+  - **2. Manuel Technique officiel (`Manuel_Technique_Affinity.docx`)** :
+    - *Architecture & Concurrence* : SPA Vanilla, serveur Python multithread, configuration haute concurrence SQLite WAL (`journal_mode = WAL`, `busy_timeout = 30000`, `timeout = 30.0s`).
+    - *Schéma de base de données relationnel* complet (`affinity.db`) avec typage strict et gestion des listes sérialisées.
+    - *Moteurs d'évaluation détaillés* :
+      - Moteur d'identité (`evaluate_identity_compatibility`) : Rapprochement miroir `800xx` / `850xx`, tolérance numérique et ensembles de choix avec option d'indifférence.
+      - Moteur canonique (`calculate_affinity`) : Normalisation des distances euclidiennes et pondérations d'axes V/A/D/P.
+    - *Gouvernance des données et restitution consentie* : Négociation bilatérale du niveau de visibilité (`mode_pct` vs `mode_detail`) et gestion des matchs discrets administrateur (`is_discreet`).
+    - *Référentiel des API REST* exhaustif (Authentification, Profils, Questions, Matchs, Demandes d'accès individuelles et par lot `batch-respond`, Administration).
+    - *Maintenance, sauvegardes et déploiement* opérationnel sous Windows.
+
 ---
 
 ## 4. NOUVELLES DEMANDES
