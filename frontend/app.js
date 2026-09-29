@@ -994,12 +994,9 @@ function initEventListeners() {
   });
 
   // Boutons rapides du Header
-  document.getElementById('btnNewProfileModal').addEventListener('click', () => openCreateProfileModal());
-  document.getElementById('btnOpenAddProfile').addEventListener('click', () => openCreateProfileModal());
-  document.getElementById('btnQuickMatch').addEventListener('click', () => {
-    switchTab('affinity');
-  });
-  document.getElementById('btnSwitchProfileQuick').addEventListener('click', () => switchTab('profiles'));
+  document.getElementById('btnNewProfileModal')?.addEventListener('click', () => openCreateProfileModal());
+  document.getElementById('btnOpenAddProfile')?.addEventListener('click', () => openCreateProfileModal());
+  document.getElementById('btnSwitchProfileQuick')?.addEventListener('click', () => switchTab('profiles'));
 
   // Fermeture des modales sur clic extérieur (backdrop) ou touche Escape
   document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
@@ -1765,12 +1762,6 @@ function applyRolePermissionsUi() {
     simSwitchBox.style.display = (isRealAdmin() && isCurrentAdmin() && !state.simulatedRole) ? 'flex' : 'none';
   }
 
-  // 4b. Bouton Lancer un Match dans le header (strictement réservé à l'Administrateur réel non simulé)
-  const btnQuickMatch = document.getElementById('btnQuickMatch');
-  if (btnQuickMatch) {
-    btnQuickMatch.style.display = (isRealAdmin() && isCurrentAdmin() && !state.simulatedRole) ? 'inline-flex' : 'none';
-  }
-
   // 5. Calculateur d'Affinité (Verrouillé si Invité)
   updateAffinityAccessUi();
 
@@ -1936,12 +1927,6 @@ function updateAffinityAccessUi() {
   const calcContent = document.getElementById('affinityCalculatorContent');
   
   if (!guestLock || !calcContent) return;
-
-  // Header : masquer strictement le bouton Lancer un Match pour Abonnés et Invités
-  const btnQuickMatch = document.getElementById('btnQuickMatch');
-  if (btnQuickMatch) {
-    btnQuickMatch.style.display = isCurrentAdmin() ? 'inline-flex' : 'none';
-  }
 
   // Masquer les anciens panneaux manuels résiduels
   const selectorPanel = document.getElementById('affinitySelectorPanel');
@@ -6050,7 +6035,8 @@ async function respondMatchRequestAction(requestId, action) {
     if (action === 'accepted' && data.affinity_result) {
       openMatchResultsModal(data.affinity_result, {
         title: '🎉 Match Réalisé d\'un Commun Accord',
-        subtitle: 'Validation bilatérale des périmètres de calcul'
+        subtitle: 'Validation bilatérale des périmètres de calcul',
+        restitutionMode: validatedRestitution
       });
     }
   } catch (err) {
@@ -6277,6 +6263,7 @@ async function launchAdminDiscreetMatch() {
     openMatchResultsModal(data.affinity_result, {
       title: `🕵️ Match Discret : ${data.p1_pseudo} ⇄ ${data.p2_pseudo}`,
       subtitle: `Calcul confidentiel superviseur &bull; Aucun membre n'en a été informé`,
+      restitutionMode: 'detail',
       isDiscreet: true
     });
   } catch (err) {
@@ -6290,28 +6277,34 @@ async function launchAdminDiscreetMatch() {
 }
 
 async function viewAdminSupervisionMatch(matchId) {
-  const match = (state.adminSupervisionMatches || []).find(m => m.id === matchId);
-  if (!match) return;
+  try {
+    const match = (state.adminSupervisionMatches || []).find(m => m.id === matchId);
+    if (!match) {
+      alert("Enregistrement de ce match introuvable.");
+      return;
+    }
 
-  const isDiscreet = (match.is_admin_discreet === 1);
-  const title = isDiscreet 
-    ? `🕵️ Match Discret : ${match.sender_pseudo} ⇄ ${match.receiver_pseudo}`
-    : `Rapport de Match : ${match.sender_pseudo} ⇄ ${match.receiver_pseudo}`;
-  const subtitle = isDiscreet
-    ? `Simulation superviseur confidentielle &bull; Membres non informés`
-    : `Demande de match bilatérale supervisée (${match.status})`;
+    const isDiscreet = (match.is_admin_discreet === 1);
+    const title = isDiscreet 
+      ? `🕵️ Match Discret : ${match.sender_pseudo} ⇄ ${match.receiver_pseudo}`
+      : `Rapport de Match : ${match.sender_pseudo} ⇄ ${match.receiver_pseudo}`;
+    const subtitle = isDiscreet
+      ? `Simulation superviseur confidentielle &bull; Membres non informés`
+      : `Demande de match bilatérale supervisée (${match.status})`;
 
-  if (match.affinity_result) {
-    openMatchResultsModal(match.affinity_result, {
-      matchDate: match.responded_at || match.created_at,
-      restitutionMode: match.validated_restitution || 'percentage',
-      title,
-      subtitle,
-      isDiscreet
-    });
-  } else {
-    // Calcul à la volée pour l'administrateur
-    try {
+    // RÈGLE DEMANDÉE : Par défaut un match discret a pour périmètre % et détail
+    const restMode = isDiscreet ? 'detail' : (match.validated_restitution || 'percentage');
+
+    if (match.affinity_result) {
+      openMatchResultsModal(match.affinity_result, {
+        matchDate: match.responded_at || match.created_at,
+        restitutionMode: restMode,
+        title,
+        subtitle,
+        isDiscreet
+      });
+    } else {
+      // Calcul à la volée pour l'administrateur
       const res = await fetch(`${API_BASE}/api/affinity/calculate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -6325,6 +6318,7 @@ async function viewAdminSupervisionMatch(matchId) {
       if (res.ok) {
         openMatchResultsModal(data, {
           matchDate: match.created_at,
+          restitutionMode: restMode,
           title,
           subtitle,
           isDiscreet
@@ -6332,9 +6326,9 @@ async function viewAdminSupervisionMatch(matchId) {
       } else {
         alert("Impossible de calculer l'affinité : " + (data.message || data.error));
       }
-    } catch (err) {
-      alert("Erreur : " + err.message);
     }
+  } catch (err) {
+    alert("Erreur lors de l'ouverture du match : " + err.message);
   }
 }
 
@@ -6455,7 +6449,7 @@ async function computeAffinityAction() {
   }
 }
 
-function renderAffinityResults(data) {
+function renderAffinityResults(data, options = {}) {
   // 0. Diagnostic Préalable : Compatibilité Identité (Moi & L'Autre)
   renderIdentityPreCheckResults(data.identity_compatibility);
 
@@ -6547,18 +6541,33 @@ function renderAffinityResults(data) {
   }
 
   // 5. Restitution : Pourcentages par Thématique & par Sujet
-  const mode = options.restitutionMode || data.restitution_mode || 'percentage';
+  const rawMode = (options && options.restitutionMode) || data.validated_restitution || data.proposed_restitution || data.restitution_mode || 'percentage';
   const restBadge = document.getElementById('restitutionModeBadge');
+  const questionsCount = (data.questions_details || []).length;
+
+  let modeBadgeLabel = 'Mode Accordé : 📊 Pourcentage par thématique & sujet';
+  if (typeof rawMode === 'object' && rawMode !== null) {
+    const hasDet = Object.values(rawMode).some(m => m === 'detail');
+    const hasPct = Object.values(rawMode).some(m => m === 'percentage');
+    if (hasDet && hasPct) {
+      modeBadgeLabel = 'Mode Accordé : 🔍 Détail par question & 📊 Pourcentage';
+    } else if (hasDet) {
+      modeBadgeLabel = 'Mode Accordé : 🔍 Détail question par question';
+    } else {
+      modeBadgeLabel = 'Mode Accordé : 📊 Pourcentage par thématique & sujet';
+    }
+  } else if (rawMode === 'detail' || questionsCount > 0) {
+    modeBadgeLabel = 'Mode Accordé : 🔍 Détail question par question & 📊 Pourcentage';
+  }
+
   if (restBadge) {
-    restBadge.textContent = (mode === 'detail') 
-      ? 'Mode Accordé : 🔍 Détail question par question' 
-      : 'Mode Accordé : 📊 Pourcentage par thématique & sujet';
+    restBadge.textContent = modeBadgeLabel;
   }
 
   renderThematiquesAndSujets(data);
 
-  // 6. Restitution : Comparaison Détaillée Question par Question (uniquement si mode 'detail')
-  renderQuestionsDetailSection(data, mode);
+  // 6. Restitution : Comparaison Détaillée Question par Question
+  renderQuestionsDetailSection(data, rawMode);
 }
 
 // Rendu des barres de progression en pourcentage par thématique et sujet
@@ -6621,7 +6630,14 @@ function renderQuestionsDetailSection(data, mode) {
   if (!sec) return;
 
   const questions = data.questions_details || [];
-  if (mode !== 'detail' || questions.length === 0) {
+  let shouldShow = questions.length > 0;
+  if (mode === 'percentage') {
+    shouldShow = false;
+  } else if (typeof mode === 'object' && mode !== null) {
+    shouldShow = Object.values(mode).some(m => m === 'detail') && questions.length > 0;
+  }
+
+  if (!shouldShow || questions.length === 0) {
     sec.style.display = 'none';
     return;
   }
