@@ -1704,9 +1704,14 @@
               <h3>Demandes d'Accès aux Périmètres reçues</h3>
               <p class="text-dim-sm">Validez ou refusez les demandes d'accès à de nouvelles classes ou thématiques envoyées par les membres.</p>
             </div>
-            <button class="btn btn-sm btn-outline" onclick="loadAdminAccessRequests()">
-              <span>🔄</span> Actualiser les demandes
-            </button>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <button class="btn btn-sm btn-primary" id="btnBatchApproveRequests" onclick="batchApproveAdminAccessRequests()" style="display:none;">
+                <span>✅</span> Tout accorder
+              </button>
+              <button class="btn btn-sm btn-outline" onclick="loadAdminAccessRequests()">
+                <span>🔄</span> Actualiser les demandes
+              </button>
+            </div>
           </div>
 
           <div class="table-responsive">

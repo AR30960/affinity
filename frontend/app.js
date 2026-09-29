@@ -4077,6 +4077,16 @@ async function loadAdminAccessRequests() {
     if (!res.ok) return;
     const data = await res.json();
     const reqs = data.requests || [];
+    const pendingReqs = reqs.filter(r => r.status === 'pending');
+    const batchBtn = document.getElementById('btnBatchApproveRequests');
+    if (batchBtn) {
+      if (pendingReqs.length > 0) {
+        batchBtn.style.display = 'inline-flex';
+        batchBtn.innerHTML = `<span>✅</span> Tout accorder (${pendingReqs.length})`;
+      } else {
+        batchBtn.style.display = 'none';
+      }
+    }
 
     if (reqs.length === 0) {
       tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px; color:var(--text-dim);">Aucune demande d'accès reçue pour le moment.</td></tr>`;
@@ -4177,6 +4187,31 @@ async function respondAdminAccessRequest(requestId, action) {
     alert('Erreur : ' + err.message);
   }
 }
+
+async function batchApproveAdminAccessRequests() {
+  if (!confirm('Confirmez-vous l\'approbation de toutes les demandes d\'accès en attente ?')) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/access-requests/batch-respond`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'approved' })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erreur lors du traitement par lot');
+    showToast(data.message || 'Toutes les demandes ont été approuvées avec succès !');
+    await loadProfiles();
+    loadAdminAccessRequests();
+    if (state.activeProfileId) {
+      loadProfileCatalogAccess(state.activeProfileId);
+      loadProfileAdminRequests(state.activeProfileId);
+    }
+  } catch (err) {
+    alert('Erreur : ' + err.message);
+  }
+}
+
+window.respondAdminAccessRequest = respondAdminAccessRequest;
+window.batchApproveAdminAccessRequests = batchApproveAdminAccessRequests;
 
 // ==========================================================================
 // GESTION ADMINISTRATIVE DU PÉRIMÈTRE DE QUESTIONS PAR PROFIL

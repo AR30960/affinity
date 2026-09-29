@@ -3547,7 +3547,104 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                 resp_data["affinity_result"] = aff_result
             return self._send_json(resp_data)
 
-        # Réponse administrateur à une demande d'accès (Approbation / Refus)
+        # Réponse administrateur par lot aux demandes d'accès (Approbation de toutes les demandes en attente)
+        elif path == "/api/admin/access-requests/batch-respond":
+            action = data.get("action", "approved").lower()
+            new_status = "approved" if action in ("approve", "approved") else "rejected"
+            
+            c.execute("SELECT id FROM admin_access_requests WHERE status = 'pending'")
+            req_rows = c.fetchall()
+            updated_count = 0
+            
+            for row in req_rows:
+                rid = row["id"]
+                c.execute("SELECT * FROM admin_access_requests WHERE id = ?", (rid,))
+                req = c.fetchone()
+                if not req:
+                    continue
+                
+                c.execute("""
+                    UPDATE admin_access_requests
+                    SET status = ?, responded_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                """, (new_status, rid))
+                
+                if new_status == "approved":
+                    pid = req["profile_id"]
+                    target_type = str(req["target_type"]).lower()
+                    target_value = req["target_value"]
+                    action_type = req["action_type"] if "action_type" in req.keys() and req["action_type"] else "grant"
+
+                    c.execute("SELECT allowed_packs, allowed_classes FROM profile_question_access WHERE profile_id = ?", (pid,))
+                    pqa = c.fetchone()
+                    raw_cls = pqa["allowed_classes"] if (pqa and pqa["allowed_classes"]) else "ALL"
+                    raw_pks = pqa["allowed_packs"] if (pqa and pqa["allowed_packs"]) else "ALL"
+
+                    if target_type == "classe":
+                        import re
+                        m = re.search(r'\d+', str(target_value))
+                        if m:
+                            cl_num = int(m.group(0))
+                            c.execute("SELECT DISTINCT classe FROM questions")
+                            all_classes_db = [int(r["classe"]) for r in c.fetchall()]
+                            if raw_cls == "ALL":
+                                curr_set = set(all_classes_db)
+                            else:
+                                try:
+                                    parsed = json.loads(raw_cls)
+                                    curr_set = set(int(x) for x in parsed if str(x).isdigit())
+                                except Exception:
+                                    curr_set = {1}
+
+                            if action_type == "revoke":
+                                if cl_num in curr_set and cl_num != 1:
+                                    curr_set.remove(cl_num)
+                            else:
+                                curr_set.add(cl_num)
+
+                            curr_set.add(1)
+                            final_list = sorted(list(curr_set))
+                            c.execute("""
+                                INSERT INTO profile_question_access (profile_id, allowed_classes) VALUES (?, ?)
+                                ON CONFLICT(profile_id) DO UPDATE SET allowed_classes = excluded.allowed_classes, updated_at = CURRENT_TIMESTAMP
+                            """, (pid, json.dumps(final_list)))
+
+                    elif target_type == "pack":
+                        try:
+                            import re
+                            m = re.search(r'\d+', str(target_value))
+                            pk_id = int(m.group(0)) if m else int(target_value)
+                            c.execute("SELECT id FROM question_packs")
+                            all_packs_db = [int(r["id"]) for r in c.fetchall()]
+                            if raw_pks == "ALL":
+                                curr_set = set(all_packs_db)
+                            else:
+                                try:
+                                    parsed = json.loads(raw_pks)
+                                    curr_set = set(int(x) for x in parsed if str(x).isdigit())
+                                except Exception:
+                                    curr_set = {1}
+
+                            if action_type == "revoke":
+                                if pk_id in curr_set:
+                                    curr_set.remove(pk_id)
+                            else:
+                                curr_set.add(pk_id)
+
+                            final_list = sorted(list(curr_set))
+                            c.execute("""
+                                INSERT INTO profile_question_access (profile_id, allowed_packs) VALUES (?, ?)
+                                ON CONFLICT(profile_id) DO UPDATE SET allowed_packs = excluded.allowed_packs, updated_at = CURRENT_TIMESTAMP
+                            """, (pid, json.dumps(final_list)))
+                        except Exception:
+                            pass
+                updated_count += 1
+                
+            conn.commit()
+            conn.close()
+            return self._send_json({"success": True, "count": updated_count, "message": f"{updated_count} demande(s) traitée(s) avec succès."})
+
+        # Réponse administrateur à une demande d'accès unitaire (Approbation / Refus)
         elif path.startswith("/api/access-requests/") and path.endswith("/respond"):
             req_id = int(path.split("/")[3])
             action = data.get("action", "").lower()
@@ -3568,7 +3665,7 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
             # Si approuvée, accorder ou retirer automatiquement le droit dans profile_question_access
             if new_status == "approved":
                 pid = req["profile_id"]
-                target_type = req["target_type"]
+                target_type = str(req["target_type"]).lower()
                 target_value = req["target_value"]
                 action_type = req["action_type"] if "action_type" in req.keys() and req["action_type"] else "grant"
 
@@ -3583,25 +3680,28 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                     if m:
                         cl_num = int(m.group(0))
                         c.execute("SELECT DISTINCT classe FROM questions")
-                        all_classes_db = [r["classe"] for r in c.fetchall()]
+                        all_classes_db = [int(r["classe"]) for r in c.fetchall()]
+                        if raw_cls == "ALL":
+                            curr_set = set(all_classes_db)
+                        else:
+                            try:
+                                parsed = json.loads(raw_cls)
+                                curr_set = set(int(x) for x in parsed if str(x).isdigit())
+                            except Exception:
+                                curr_set = {1}
+
                         if action_type == "revoke":
-                            curr = list(all_classes_db) if raw_cls == "ALL" else list(json.loads(raw_cls))
-                            if cl_num in curr and cl_num != 1:
-                                curr.remove(cl_num)
-                            c.execute("""
-                                INSERT INTO profile_question_access (profile_id, allowed_classes) VALUES (?, ?)
-                                ON CONFLICT(profile_id) DO UPDATE SET allowed_classes = excluded.allowed_classes, updated_at = CURRENT_TIMESTAMP
-                            """, (pid, json.dumps(curr)))
+                            if cl_num in curr_set and cl_num != 1:
+                                curr_set.remove(cl_num)
                         else: # grant
-                            if raw_cls != "ALL":
-                                curr = list(json.loads(raw_cls))
-                                if cl_num not in curr:
-                                    curr.append(cl_num)
-                                    curr.sort()
-                                c.execute("""
-                                    INSERT INTO profile_question_access (profile_id, allowed_classes) VALUES (?, ?)
-                                    ON CONFLICT(profile_id) DO UPDATE SET allowed_classes = excluded.allowed_classes, updated_at = CURRENT_TIMESTAMP
-                                """, (pid, json.dumps(curr)))
+                            curr_set.add(cl_num)
+
+                        curr_set.add(1) # Classe 1 toujours accordée
+                        final_list = sorted(list(curr_set))
+                        c.execute("""
+                            INSERT INTO profile_question_access (profile_id, allowed_classes) VALUES (?, ?)
+                            ON CONFLICT(profile_id) DO UPDATE SET allowed_classes = excluded.allowed_classes, updated_at = CURRENT_TIMESTAMP
+                        """, (pid, json.dumps(final_list)))
 
                 elif target_type == "pack":
                     try:
@@ -3609,26 +3709,28 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                         m = re.search(r'\d+', str(target_value))
                         pk_id = int(m.group(0)) if m else int(target_value)
                         c.execute("SELECT id FROM question_packs")
-                        all_packs_db = [r["id"] for r in c.fetchall()]
+                        all_packs_db = [int(r["id"]) for r in c.fetchall()]
+                        if raw_pks == "ALL":
+                            curr_set = set(all_packs_db)
+                        else:
+                            try:
+                                parsed = json.loads(raw_pks)
+                                curr_set = set(int(x) for x in parsed if str(x).isdigit())
+                            except Exception:
+                                curr_set = {1}
+
                         if action_type == "revoke":
-                            curr = list(all_packs_db) if raw_pks == "ALL" else list(json.loads(raw_pks))
-                            if pk_id in curr:
-                                curr.remove(pk_id)
-                            c.execute("""
-                                INSERT INTO profile_question_access (profile_id, allowed_packs) VALUES (?, ?)
-                                ON CONFLICT(profile_id) DO UPDATE SET allowed_packs = excluded.allowed_packs, updated_at = CURRENT_TIMESTAMP
-                            """, (pid, json.dumps(curr)))
+                            if pk_id in curr_set:
+                                curr_set.remove(pk_id)
                         else: # grant
-                            if raw_pks != "ALL":
-                                curr = list(json.loads(raw_pks))
-                                if pk_id not in curr:
-                                    curr.append(pk_id)
-                                    curr.sort()
-                                c.execute("""
-                                    INSERT INTO profile_question_access (profile_id, allowed_packs) VALUES (?, ?)
-                                    ON CONFLICT(profile_id) DO UPDATE SET allowed_packs = excluded.allowed_packs, updated_at = CURRENT_TIMESTAMP
-                                """, (pid, json.dumps(curr)))
-                    except:
+                            curr_set.add(pk_id)
+
+                        final_list = sorted(list(curr_set))
+                        c.execute("""
+                            INSERT INTO profile_question_access (profile_id, allowed_packs) VALUES (?, ?)
+                            ON CONFLICT(profile_id) DO UPDATE SET allowed_packs = excluded.allowed_packs, updated_at = CURRENT_TIMESTAMP
+                        """, (pid, json.dumps(final_list)))
+                    except Exception:
                         pass
 
             conn.commit()

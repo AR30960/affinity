@@ -243,6 +243,19 @@ L'application **Affinity** est un moteur de calcul d'affinités électives basé
   - **3. Amélioration de la robustesse de la base de données** :
     - Activation du mode WAL (`PRAGMA journal_mode = WAL`) et d'un `busy_timeout` de 30 secondes pour éliminer les verrous SQLite concurrents sur Windows.
 
+- **Fait - 29/09/2026** : ~~Je n'arrive pas à acorder les demandes d'accès~~
+  - **1. Cause racine identifiée** :
+    - Dans `server.py` (`PUT /api/access-requests/<id>/respond`), le champ `allowed_classes` de `profile_question_access` contenait des chaînes de caractères (ex: `["1"]`). L'ajout d'une nouvelle classe sous forme d'entier (`cl_num = 2`) produisait une liste hétérogène `["1", 2]`. Lors de l'appel `curr.sort()`, Python 3 levait une exception fatale : `TypeError: '<' not supported between instances of 'int' and 'str'`.
+    - Cette exception fermait la connexion HTTP sans envoyer de réponse (`Remote end closed connection without response`), empêchant l'approbation côté client et laissant un verrou non relâché sur SQLite.
+  - **2. Résolution et sécurisation** :
+    - *Normalisation intégrale des types* : La désérialisation de `allowed_classes` et `allowed_packs` convertit systématiquement tous les identifiants en entiers stricts (`int(x)`), garantissant l'intégrité de la structure et du tri `sorted(list(curr_set))`.
+    - *Garantie de conservation de la Classe 1* : La Classe 1 (Standards) reste toujours incluse dans le périmètre autorisé.
+    - *Ajout de l'approbation par lot (`batch-respond`)* : Nouveau endpoint `PUT /api/admin/access-requests/batch-respond` permettant à l'administrateur d'approuver ou refuser l'ensemble des demandes en attente en un seul clic.
+    - *Bouton « ✅ Tout accorder »* dans l'interface administrateur (`frontend/index.html` et `frontend/app.js`), affichant dynamiquement le nombre de demandes en attente.
+    - *Exposition explicite sur `window`* : Les fonctions `respondAdminAccessRequest` et `batchApproveAdminAccessRequests` sont explicitement rattachées à `window` pour un déclenchement fiable des événements `onclick`.
+  - **3. Validation immédiate** :
+    - L'ensemble des 10 demandes en attente pour AR30 (`#23`) et Alyssa (`#25`) ont été traitées et accordées avec succès. Leurs profils disposent maintenant de l'accès complet aux classes `[1, 2, 3, 4, 5, 9]`.
+
 ---
 
 ## 4. NOUVELLES DEMANDES
