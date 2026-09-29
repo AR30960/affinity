@@ -182,6 +182,9 @@ L'application **Affinity** est un moteur de calcul d'affinités électives basé
   - **Historique bilatéral des matchs datés** :
     - Nouvelle modale dédiée listant chronologiquement l'ensemble des matchs acceptés entre deux abonnés (`GET /api/match-requests/history`).
     - Consultation instantanée en un clic du rapport de match archivé avec toutes ses jauges, axes et détails de restitution convenus.
+  - **Diagnostic Préalable d'Identité** :
+    - Préservation intégrale du diagnostic préalable d'identité physique et de critères.
+    - Épuration du titre en `Diagnostic Préalable d'Identité` (suppression de `: Critères Moi & L'Autre`).
 
 ---
 
