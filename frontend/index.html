@@ -961,7 +961,7 @@
                 </div>
               </div>
 
-              <!-- Filtres de sexe interactifs (Sexe opposé par défaut, Même sexe, Tous les sexes) -->
+              <!-- Filtres de recherche et Sélecteur de tri -->
               <div class="mch-filters-wrap">
                 <span class="mch-filter-label">Recherche :</span>
                 <div class="mch-filter-buttons">
@@ -975,6 +975,18 @@
                     <span>👥 Tous les sexes</span>
                   </button>
                 </div>
+
+                <!-- Tri spécifique demandé : Matchs déjà réalisés & Distance -->
+                <div class="mch-sort-wrap" style="display:flex; align-items:center; gap:6px; margin-left:8px;">
+                  <span class="mch-filter-label">Tri :</span>
+                  <select id="selectMatchSort" class="custom-select select-sm" onchange="renderMatchCandidates()" style="font-size:12px; padding:5px 9px; border-radius:6px; background:rgba(255,255,255,0.06); color:var(--text-bright); border:1px solid var(--border-color); cursor:pointer;">
+                    <option value="matches_and_distance" selected>🤝 Matchs réalisés &amp; 🚗 Distance</option>
+                    <option value="distance_only">🚗 Distance la plus proche</option>
+                    <option value="matches_only">🤝 Nombre de matchs seuls</option>
+                    <option value="pseudo">🔤 Ordre alphabétique</option>
+                  </select>
+                </div>
+
                 <span class="mch-count-badge" id="matchCandidatesCount">0 candidat(s)</span>
               </div>
             </div>
@@ -1079,7 +1091,7 @@
                 <div class="mipc-title-group">
                   <span class="mipc-icon">💎</span>
                   <div>
-                    <h4>Diagnostic Préalable d'Identité : Critères Moi &amp; L'Autre</h4>
+                    <h4>Diagnostic Préalable d'Identité</h4>
                     <p id="matchIdentityPreCheckSub">Concordance des caractéristiques physiques et styles avec les tolérances attendues</p>
                   </div>
                 </div>
@@ -1165,6 +1177,52 @@
                 <div id="vigilanceList" class="fv-list">
                   <!-- Rempli en JS -->
                 </div>
+              </div>
+            </div>
+
+            <!-- Section 1 : Pourcentages d'Affinité par Thématique et par Sujet -->
+            <div class="themas-sujets-section" id="themasSujetsSection" style="margin-top: 30px; width: 100%;">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:10px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 10px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-size:18px;">📊</span>
+                  <div>
+                    <h4 style="margin:0; font-size:15px; color:var(--text-bright);">Scores en Pourcentage par Thématique et Sujet</h4>
+                    <p style="margin:2px 0 0 0; font-size:12px; color:var(--text-dim);">Décomposition fine de l'affinité sur chaque centre d'intérêt et thématique.</p>
+                  </div>
+                </div>
+                <span id="restitutionModeBadge" class="badge-soft" style="font-size:11.5px; padding:3px 9px; font-weight:600;">Mode : Pourcentage</span>
+              </div>
+              <div id="themasSujetsList" class="themas-sujets-container">
+                <!-- Rempli par JavaScript -->
+              </div>
+            </div>
+
+            <!-- Section 2 : Comparaison Détaillée Question par Question (Quand validé en mode détail) -->
+            <div class="questions-detail-section" id="questionsDetailSection" style="display:none; margin-top: 30px; width: 100%; border-top: 1px dashed rgba(255,255,255,0.15); padding-top: 24px;">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+                <div>
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-size:18px;">🔍</span>
+                    <h4 style="margin:0; font-size:15px; color:var(--text-bright);">Détail Comparatif Question par Question</h4>
+                  </div>
+                  <p style="margin:3px 0 0 0; font-size:12px; color:var(--text-dim);">
+                    Validation bilatérale accordée : Confrontation transparente des réponses pour chaque question commune.
+                  </p>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                  <input type="text" id="inputSearchQuestionDetail" class="form-input" placeholder="🔍 Rechercher dans les questions..." oninput="filterQuestionsDetailView()" style="font-size:12px; padding:5px 10px; width:190px;">
+                  <select id="selectThemaQuestionDetail" class="custom-select" onchange="filterQuestionsDetailView()" style="font-size:12px; padding:5px 10px;">
+                    <option value="ALL">Toutes les thématiques</option>
+                  </select>
+                  <select id="selectTypeQuestionDetail" class="custom-select" onchange="filterQuestionsDetailView()" style="font-size:12px; padding:5px 10px;">
+                    <option value="ALL">Tous les types (G, V, A, D, P)</option>
+                    <option value="G">Goûts généraux (G)</option>
+                    <option value="MULTI">Multi-axes (V, A, D, P)</option>
+                  </select>
+                </div>
+              </div>
+              <div id="questionsDetailList" class="questions-detail-cards-list">
+                <!-- Rempli par JavaScript -->
               </div>
             </div>
           </div>
@@ -2676,6 +2734,151 @@
           ← Annuler et revenir
         </button>
       </form>
+    </div>
+  </div>
+
+  <!-- MODALE : NOUVELLE DEMANDE DE MATCH ENTRE ABONNÉS -->
+  <div id="modalNewMatchRequest" class="modal-backdrop" style="display: none;">
+    <div class="modal-card" style="max-width: 580px;">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:24px;">💌</span>
+          <div>
+            <h3 style="margin:0; font-size:17px; color:var(--text-bright);">Demande de Match Bilatéral</h3>
+            <p style="margin:2px 0 0 0; font-size:12.5px; color:var(--text-dim);" id="nmrTargetSubtitle">Proposition d'affinité avec le membre</p>
+          </div>
+        </div>
+        <button type="button" class="btn-close-modal" onclick="closeNewMatchRequestModal()">✕</button>
+      </div>
+
+      <div class="modal-body" style="padding: 20px;">
+        <!-- Profil destinataire ciblé -->
+        <div class="nmr-target-card" id="nmrTargetCard" style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:rgba(255,255,255,0.04); border:1px solid var(--border-color); border-radius:10px; margin-bottom:20px;">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div class="ap-avatar" id="nmrTargetAvatar" style="width:42px; height:42px; font-size:16px;">?</div>
+            <div>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <strong id="nmrTargetPseudo" style="font-size:15px; color:var(--text-bright);">Membre</strong>
+                <span class="uph-id-tag" id="nmrTargetAffId">AFF-0000</span>
+              </div>
+              <div id="nmrTargetLocation" style="font-size:12px; color:var(--text-dim); margin-top:2px;">Localisation</div>
+            </div>
+          </div>
+          <div id="nmrTargetDistanceBadge" class="tpc-distance-badge" style="font-size:12px; padding:4px 10px;">
+            🚗 Calcul distance...
+          </div>
+        </div>
+
+        <!-- 1. Choix des classes de calcul -->
+        <div style="margin-bottom: 22px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+            <label style="font-weight:700; font-size:13.5px; color:var(--text-bright); display:flex; align-items:center; gap:6px;">
+              <span>📚</span> Classes de questionnaires à inclure :
+            </label>
+            <div style="display:flex; gap:6px;">
+              <button type="button" class="btn btn-xs btn-outline" onclick="setNmrClassesPreset('standards')">Classes 1 &amp; 2</button>
+              <button type="button" class="btn btn-xs btn-outline" onclick="setNmrClassesPreset('all')">Toutes</button>
+            </div>
+          </div>
+          <p style="font-size:12px; color:var(--text-dim); margin:0 0 10px 0;">
+            Cochez les classes de sensibilité pour lesquelles vous souhaitez que le calcul d'affinité soit effectué.
+          </p>
+          <div class="nmr-classes-grid" id="nmrClassesGrid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap:8px;">
+            <label class="nmr-class-checkbox-label">
+              <input type="checkbox" name="nmrClass" value="1" checked>
+              <span><strong>Classe 1 :</strong> Standards (Vie, Goûts)</span>
+            </label>
+            <label class="nmr-class-checkbox-label">
+              <input type="checkbox" name="nmrClass" value="2" checked>
+              <span><strong>Classe 2 :</strong> Personnelles (Projets)</span>
+            </label>
+            <label class="nmr-class-checkbox-label">
+              <input type="checkbox" name="nmrClass" value="3">
+              <span><strong>Classe 3 :</strong> Intimes (Sensibilité)</span>
+            </label>
+            <label class="nmr-class-checkbox-label">
+              <input type="checkbox" name="nmrClass" value="4">
+              <span><strong>Classe 4 :</strong> Privées (Désirs)</span>
+            </label>
+            <label class="nmr-class-checkbox-label">
+              <input type="checkbox" name="nmrClass" value="5">
+              <span><strong>Classe 5 :</strong> Hors normes (Singularités)</span>
+            </label>
+            <label class="nmr-class-checkbox-label">
+              <input type="checkbox" name="nmrClass" value="9">
+              <span><strong>Classe 9 :</strong> Amorales (Limites &amp; Tabous)</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 2. Choix du niveau de restitution (Pourcentage par thématique/sujet OU Détail question par question) -->
+        <div style="margin-bottom: 10px;">
+          <label style="font-weight:700; font-size:13.5px; color:var(--text-bright); display:flex; align-items:center; gap:6px; margin-bottom:8px;">
+            <span>🎯</span> Niveau de restitution souhaité pour le résultat :
+          </label>
+          <div class="nmr-restitution-options" style="display:flex; flex-direction:column; gap:10px;">
+            <label class="nmr-restitution-card active" id="nmrCardRestitutionPercentage">
+              <input type="radio" name="nmrRestitutionMode" value="percentage" checked onchange="updateNmrRestitutionCardStyle()">
+              <div style="flex:1;">
+                <div style="font-weight:700; font-size:13px; color:var(--text-bright); margin-bottom:3px; display:flex; align-items:center; gap:6px;">
+                  <span>📊</span> En pourcentage par thématique et sujet
+                </div>
+                <div style="font-size:12px; color:var(--text-dim); line-height:1.4;">
+                  Score global, radar visuel, pourcentages détaillés pour chaque thématique et sous-sujet, points de fusion (&ge;85%) et zones de vigilance sans dévoiler les réponses mot-à-mot.
+                </div>
+              </div>
+            </label>
+
+            <label class="nmr-restitution-card" id="nmrCardRestitutionDetail">
+              <input type="radio" name="nmrRestitutionMode" value="detail" onchange="updateNmrRestitutionCardStyle()">
+              <div style="flex:1;">
+                <div style="font-weight:700; font-size:13px; color:var(--text-bright); margin-bottom:3px; display:flex; align-items:center; gap:6px;">
+                  <span>🔍</span> En détail question par question
+                </div>
+                <div style="font-size:12px; color:var(--text-dim); line-height:1.4;">
+                  Tous les pourcentages par thématique et sujet, enrichis de la confrontation transparente de vos réponses respectives sur chaque question commune évaluée.
+                </div>
+              </div>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="padding:14px 20px; display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.02); border-top:1px solid var(--border-color);">
+        <button type="button" class="btn btn-outline" onclick="closeNewMatchRequestModal()">Annuler</button>
+        <button type="button" class="btn btn-primary btn-glow" id="btnSubmitNewMatchRequest" onclick="submitNewMatchRequest()">
+          <span>💌</span> Envoyer la Demande de Match
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALE : HISTORIQUE DES MATCHS AVEC UN ABONNÉ SPÉCIFIQUE -->
+  <div id="modalSubscriberMatchHistory" class="modal-backdrop" style="display: none;">
+    <div class="modal-card" style="max-width: 640px;">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div class="ap-avatar" id="smhPartnerAvatar" style="width:38px; height:38px; font-size:15px;">?</div>
+          <div>
+            <h3 style="margin:0; font-size:16.5px; color:var(--text-bright);" id="smhTitle">Historique des Matchs avec Camille</h3>
+            <p style="margin:2px 0 0 0; font-size:12px; color:var(--text-dim);" id="smhSubtitle">Tous les matchs réalisés d'un commun accord, triés du plus récent au plus ancien.</p>
+          </div>
+        </div>
+        <button type="button" class="btn-close-modal" onclick="closeSubscriberMatchHistoryModal()">✕</button>
+      </div>
+
+      <div class="modal-body" style="padding: 18px; max-height: 60vh; overflow-y: auto;">
+        <div id="smhMatchesList" class="smh-matches-list" style="display:flex; flex-direction:column; gap:12px;">
+          <!-- Injecté par JavaScript : liste des matchs datés -->
+        </div>
+      </div>
+
+      <div class="modal-footer" style="padding:14px 20px; display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.02); border-top:1px solid var(--border-color);">
+        <button type="button" class="btn btn-outline" onclick="closeSubscriberMatchHistoryModal()">Fermer</button>
+        <button type="button" class="btn btn-primary" id="btnSmhNewMatch" onclick="requestNewMatchFromHistory()">
+          <span>💌</span> Proposer un nouveau Match
+        </button>
+      </div>
     </div>
   </div>
 

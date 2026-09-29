@@ -836,12 +836,27 @@ def init_db():
             status TEXT DEFAULT 'pending', -- 'pending', 'accepted', 'declined'
             proposed_classes TEXT DEFAULT 'ALL',
             validated_classes TEXT DEFAULT 'ALL',
+            proposed_restitution TEXT DEFAULT 'percentage', -- 'percentage' ou 'detail'
+            validated_restitution TEXT DEFAULT 'percentage', -- 'percentage' ou 'detail'
+            result_json TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             responded_at TIMESTAMP,
             FOREIGN KEY (sender_id) REFERENCES profiles(id) ON DELETE CASCADE,
             FOREIGN KEY (receiver_id) REFERENCES profiles(id) ON DELETE CASCADE
         )
     ''')
+    c.execute("PRAGMA table_info(match_requests)")
+    mr_cols = [col["name"] for col in c.fetchall()]
+    if "proposed_restitution" not in mr_cols:
+        c.execute("ALTER TABLE match_requests ADD COLUMN proposed_restitution TEXT DEFAULT 'percentage'")
+        conn.commit()
+    if "validated_restitution" not in mr_cols:
+        c.execute("ALTER TABLE match_requests ADD COLUMN validated_restitution TEXT DEFAULT 'percentage'")
+        conn.commit()
+    if "result_json" not in mr_cols:
+        c.execute("ALTER TABLE match_requests ADD COLUMN result_json TEXT")
+        conn.commit()
+
 
     # Table d'historique des calculs d'affinités de l'administrateur
     c.execute('''
@@ -1275,7 +1290,7 @@ def evaluate_identity_compatibility(profile1_id, profile2_id, conn=None):
 # ==========================================
 # ALGORITHME DE CALCUL D'AFFINITÉ (MOTEUR)
 # ==========================================
-def calculate_affinity(profile1_id, profile2_id, allowed_classes=None):
+def calculate_affinity(profile1_id, profile2_id, allowed_classes=None, mode_restitution="percentage"):
     conn = get_db()
     c = conn.cursor()
     
@@ -1396,6 +1411,9 @@ def calculate_affinity(profile1_id, profile2_id, allowed_classes=None):
             "distance_km": dist,
             "axes": {"G": None, "V": None, "A": None, "DP_synergy": None},
             "thematiques": {},
+            "sujets": {},
+            "questions_details": [],
+            "restitution_mode": mode_restitution,
             "points_de_fusion": [],
             "zones_de_vigilance": [],
             "identity_compatibility": identity_compat,
@@ -1403,8 +1421,11 @@ def calculate_affinity(profile1_id, profile2_id, allowed_classes=None):
         }
         
     score_details_thematique = {}
+    score_details_sujet = {}
+    questions_details = []
     points_de_fusion = []
     zones_de_vigilance = []
+
     
     total_weights = 0
     accumulated_score = 0
@@ -1515,6 +1536,39 @@ def calculate_affinity(profile1_id, profile2_id, allowed_classes=None):
             q_final_score = q_sim_sum / q_axes_evaluated
             score_details_thematique[th]["sum"] += q_final_score * q_weight
             score_details_thematique[th]["weight"] += q_weight
+
+            # Agrégation par sujet sous chaque thématique
+            suj = q["sujet"] or "Général"
+            if th not in score_details_sujet:
+                score_details_sujet[th] = {}
+            if suj not in score_details_sujet[th]:
+                score_details_sujet[th][suj] = {"sum": 0.0, "weight": 0.0, "count": 0}
+            score_details_sujet[th][suj]["sum"] += q_final_score * q_weight
+            score_details_sujet[th][suj]["weight"] += q_weight
+            score_details_sujet[th][suj]["count"] += 1
+
+            # Réponses individuelles de chaque profil pour le détail question par question
+            p1_q_ans = {}
+            p2_q_ans = {}
+            if q["type"] == "G":
+                if (qid, "G") in p1_answers: p1_q_ans["G"] = p1_answers[(qid, "G")]
+                if (qid, "G") in p2_answers: p2_q_ans["G"] = p2_answers[(qid, "G")]
+            else:
+                for ax in ["V", "A", "D", "P"]:
+                    if (qid, ax) in p1_answers: p1_q_ans[ax] = p1_answers[(qid, ax)]
+                    if (qid, ax) in p2_answers: p2_q_ans[ax] = p2_answers[(qid, ax)]
+
+            questions_details.append({
+                "id": qid,
+                "texte": q["texte"],
+                "thematique": th,
+                "sujet": suj,
+                "classe": q["classe"],
+                "type": q["type"],
+                "score": round(q_final_score * 100, 1),
+                "p1_answers": p1_q_ans,
+                "p2_answers": p2_q_ans
+            })
             
             accumulated_score += q_final_score * q_weight
             total_weights += q_weight
@@ -1539,6 +1593,14 @@ def calculate_affinity(profile1_id, profile2_id, allowed_classes=None):
         if data["weight"] > 0:
             thematiques_report[th] = round((data["sum"] / data["weight"]) * 100, 1)
 
+    # Détail par sujet au sein de chaque thématique
+    sujets_report = {}
+    for th, s_dict in score_details_sujet.items():
+        sujets_report[th] = {}
+        for s_name, s_val in s_dict.items():
+            if s_val["weight"] > 0:
+                sujets_report[th][s_name] = round((s_val["sum"] / s_val["weight"]) * 100, 1)
+
     # Détail par axe temporel/relationnel
     axis_report = {}
     for ax, val in axis_scores.items():
@@ -1549,6 +1611,9 @@ def calculate_affinity(profile1_id, profile2_id, allowed_classes=None):
     dist = calculate_distance_km(c1, c2)
     conn.close()
 
+    # Si le mode de restitution retenu est 'percentage', on n'envoie pas le détail individuel des réponses
+    final_questions_details = questions_details if mode_restitution == "detail" else []
+
     return {
         "profile1": {"id": p1["id"], "pseudo": p1["pseudo"], "ville": c1, "identite": dict(id1) if id1 else {}},
         "profile2": {"id": p2["id"], "pseudo": p2["pseudo"], "ville": c2, "identite": dict(id2) if id2 else {}},
@@ -1556,6 +1621,9 @@ def calculate_affinity(profile1_id, profile2_id, allowed_classes=None):
         "distance_km": dist,
         "questions_evaluees": len(common_questions),
         "thematiques": thematiques_report,
+        "sujets": sujets_report,
+        "questions_details": final_questions_details,
+        "restitution_mode": mode_restitution,
         "axes": axis_report,
         "points_de_fusion": sorted(points_de_fusion, key=lambda x: x["score"], reverse=True)[:5],
         "zones_de_vigilance": sorted(zones_de_vigilance, key=lambda x: x["score"])[:5],
@@ -2075,6 +2143,22 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                             r["validated_classes"] = json.loads(r["validated_classes"]) if r["validated_classes"] != "ALL" else "ALL"
                         except Exception:
                             pass
+                        r["proposed_restitution"] = r.get("proposed_restitution") or "percentage"
+                        r["validated_restitution"] = r.get("validated_restitution") or "percentage"
+                        if r["status"] == "accepted":
+                            if r.get("result_json"):
+                                try:
+                                    r["affinity_result"] = json.loads(r["result_json"])
+                                    r["score_global"] = r["affinity_result"].get("score_global", 0)
+                                except Exception:
+                                    pass
+                            if "affinity_result" not in r:
+                                try:
+                                    aff = calculate_affinity(r["sender_id"], r["receiver_id"], r["validated_classes"], r["validated_restitution"])
+                                    r["score_global"] = aff.get("score_global", 0)
+                                    r["affinity_result"] = aff
+                                except Exception:
+                                    pass
                         received.append(r)
 
                     sent = []
@@ -2086,17 +2170,86 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                             s["validated_classes"] = json.loads(s["validated_classes"]) if s["validated_classes"] != "ALL" else "ALL"
                         except Exception:
                             pass
+                        s["proposed_restitution"] = s.get("proposed_restitution") or "percentage"
+                        s["validated_restitution"] = s.get("validated_restitution") or "percentage"
                         if s["status"] == "accepted":
-                            try:
-                                aff = calculate_affinity(s["sender_id"], s["receiver_id"], s["validated_classes"])
-                                s["score_global"] = aff.get("score_global", 0)
-                                s["affinity_result"] = aff
-                            except Exception:
-                                pass
+                            if s.get("result_json"):
+                                try:
+                                    s["affinity_result"] = json.loads(s["result_json"])
+                                    s["score_global"] = s["affinity_result"].get("score_global", 0)
+                                except Exception:
+                                    pass
+                            if "affinity_result" not in s:
+                                try:
+                                    aff = calculate_affinity(s["sender_id"], s["receiver_id"], s["validated_classes"], s["validated_restitution"])
+                                    s["score_global"] = aff.get("score_global", 0)
+                                    s["affinity_result"] = aff
+                                except Exception:
+                                    pass
                         sent.append(s)
 
                     conn.close()
                     return self._send_json({"received": received, "sent": sent})
+
+            # --- Historique des matchs acceptés entre deux abonnés ---
+            elif path == "/api/match-requests/history":
+                query_params = urllib.parse.parse_qs(parsed.query)
+                p1_param = query_params.get("p1", [None])[0]
+                p2_param = query_params.get("p2", [None])[0]
+                if not p1_param or not p2_param:
+                    conn.close()
+                    return self._send_json({"error": "Paramètres p1 et p2 requis"}, 400)
+                try:
+                    p1_id = int(p1_param)
+                    p2_id = int(p2_param)
+                except ValueError:
+                    conn.close()
+                    return self._send_json({"error": "Paramètres p1 et p2 doivent être des entiers"}, 400)
+
+                c.execute("""
+                    SELECT mr.*, 
+                           p1.pseudo as sender_pseudo, p1.avatar as sender_avatar,
+                           p2.pseudo as receiver_pseudo, p2.avatar as receiver_avatar,
+                           i1.ville as sender_ville, i2.ville as receiver_ville
+                    FROM match_requests mr
+                    JOIN profiles p1 ON mr.sender_id = p1.id
+                    JOIN profiles p2 ON mr.receiver_id = p2.id
+                    LEFT JOIN identity_cards i1 ON mr.sender_id = i1.profile_id
+                    LEFT JOIN identity_cards i2 ON mr.receiver_id = i2.profile_id
+                    WHERE ((mr.sender_id = ? AND mr.receiver_id = ?) OR (mr.sender_id = ? AND mr.receiver_id = ?))
+                      AND mr.status = 'accepted'
+                    ORDER BY COALESCE(mr.responded_at, mr.created_at) DESC
+                """, (p1_id, p2_id, p2_id, p1_id))
+                raw_matches = [dict(row) for row in c.fetchall()]
+                matches_history = []
+                for m in raw_matches:
+                    dist = calculate_distance_km(m.get("sender_ville") or "", m.get("receiver_ville") or "")
+                    m["distance_km"] = dist
+                    try:
+                        m["proposed_classes"] = json.loads(m["proposed_classes"]) if m["proposed_classes"] != "ALL" else "ALL"
+                        m["validated_classes"] = json.loads(m["validated_classes"]) if m["validated_classes"] != "ALL" else "ALL"
+                    except Exception:
+                        pass
+                    m["proposed_restitution"] = m.get("proposed_restitution") or "percentage"
+                    m["validated_restitution"] = m.get("validated_restitution") or "percentage"
+
+                    if m.get("result_json"):
+                        try:
+                            m["affinity_result"] = json.loads(m["result_json"])
+                            m["score_global"] = m["affinity_result"].get("score_global", 0)
+                        except Exception:
+                            pass
+                    if "affinity_result" not in m:
+                        try:
+                            aff = calculate_affinity(m["sender_id"], m["receiver_id"], m["validated_classes"], m["validated_restitution"])
+                            m["score_global"] = aff.get("score_global", 0)
+                            m["affinity_result"] = aff
+                        except Exception:
+                            pass
+                    matches_history.append(m)
+
+                conn.close()
+                return self._send_json({"matches": matches_history, "total": len(matches_history)})
 
             # --- Calcul Distance entre Villes ---
             elif path == "/api/distance":
@@ -3003,14 +3156,23 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                 conn.close()
                 return self._send_json({"error": "Impossible d'envoyer une demande de match à un compte administrateur."}, 400)
 
+            proposed_restitution = str(data.get("proposed_restitution", "percentage")).strip().lower()
+            if proposed_restitution not in ("percentage", "detail"):
+                proposed_restitution = "percentage"
+
             c.execute("""
-                INSERT INTO match_requests (sender_id, receiver_id, status, proposed_classes, validated_classes)
-                VALUES (?, ?, 'pending', ?, 'ALL')
-            """, (sender_id, receiver_id, proposed_classes))
+                INSERT INTO match_requests (sender_id, receiver_id, status, proposed_classes, validated_classes, proposed_restitution, validated_restitution)
+                VALUES (?, ?, 'pending', ?, 'ALL', ?, ?)
+            """, (sender_id, receiver_id, proposed_classes, proposed_restitution, proposed_restitution))
             req_id = c.lastrowid
             conn.commit()
-            conn.close()
-            return self._send_json({"success": True, "id": req_id, "message": "Demande de match transmise avec succès !"}, 201)
+            return self._send_json({
+                "success": True,
+                "id": req_id,
+                "proposed_classes": json.loads(proposed_classes) if proposed_classes != "ALL" else "ALL",
+                "proposed_restitution": proposed_restitution,
+                "message": "Demande de match transmise avec succès !"
+            }, 201)
 
         # Modification d'une question existante (POST fallback)
         elif path.startswith("/api/questions/") and len(path.split("/")) == 4:
@@ -3186,49 +3348,63 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                 }
             })
 
-        # Réponse à une demande de match (Acceptation / Refus avec classes convenues)
+        # Réponse à une demande de match (Acceptation / Refus avec classes convenues et mode de restitution)
         elif path.startswith("/api/match-requests/") and path.endswith("/respond"):
             req_id = int(path.split("/")[3])
             action = data.get("action", "").lower()
             validated_classes = data.get("validated_classes", "ALL")
             if isinstance(validated_classes, list):
                 validated_classes = json.dumps(validated_classes)
+            validated_restitution = str(data.get("validated_restitution", "percentage")).strip().lower()
+            if validated_restitution not in ("percentage", "detail"):
+                validated_restitution = "percentage"
                 
             new_status = "accepted" if action in ("accept", "accepted") else "declined"
-            c.execute("""
-                UPDATE match_requests
-                SET status = ?, validated_classes = ?, responded_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-            """, (new_status, validated_classes, req_id))
+            aff_result = None
+
+            if new_status == "accepted":
+                c.execute("SELECT sender_id, receiver_id FROM match_requests WHERE id = ?", (req_id,))
+                row = c.fetchone()
+                if not row:
+                    conn.close()
+                    return self._send_json({"error": "Demande de match introuvable."}, 404)
+                s_id, r_id = row
+                val_cl = None
+                try:
+                    val_cl = json.loads(validated_classes) if validated_classes != "ALL" else None
+                except:
+                    pass
+                try:
+                    aff_result = calculate_affinity(s_id, r_id, allowed_classes=val_cl, mode_restitution=validated_restitution)
+                except Exception as calc_err:
+                    print(f"[ERREUR MATCH] Échec du calcul d'affinité lors de la réponse au match {req_id}: {calc_err}")
+                    aff_result = None
+
+                res_json_str = json.dumps(aff_result, ensure_ascii=False) if aff_result else None
+                c.execute("""
+                    UPDATE match_requests
+                    SET status = ?, validated_classes = ?, validated_restitution = ?, result_json = ?, responded_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                """, (new_status, validated_classes, validated_restitution, res_json_str, req_id))
+            else:
+                c.execute("""
+                    UPDATE match_requests
+                    SET status = ?, responded_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                """, (new_status, req_id))
+
             if c.rowcount == 0:
                 conn.close()
                 return self._send_json({"error": "Demande de match introuvable."}, 404)
             conn.commit()
-
-            # Si accepté, calculer immédiatement le résultat d'affinité pour retour direct
-            aff_result = None
-            if new_status == "accepted":
-                c.execute("SELECT sender_id, receiver_id FROM match_requests WHERE id = ?", (req_id,))
-                row = c.fetchone()
-                if row:
-                    s_id, r_id = row
-                    val_cl = None
-                    try:
-                        val_cl = json.loads(validated_classes) if validated_classes != "ALL" else None
-                    except:
-                        pass
-                    try:
-                        aff_result = calculate_affinity(s_id, r_id, allowed_classes=val_cl)
-                    except Exception as calc_err:
-                        print(f"[ERREUR MATCH] Échec du calcul d'affinité lors de la réponse au match {req_id}: {calc_err}")
-                        aff_result = None
-
             conn.close()
+
             val_cl_parsed = json.loads(validated_classes) if validated_classes != "ALL" else "ALL"
             resp_data = {
                 "success": True,
                 "status": new_status,
                 "validated_classes": val_cl_parsed,
+                "validated_restitution": validated_restitution,
                 "message": f"Demande de match {new_status} avec succès."
             }
             if aff_result:

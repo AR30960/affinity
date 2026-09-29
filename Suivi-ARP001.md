@@ -171,6 +171,18 @@ L'application **Affinity** est un moteur de calcul d'affinités électives basé
     - Sécurisation de l'endpoint `PUT /api/match-requests/<id>/respond` avec gestion d'exception pour garantir une réponse HTTP 200 JSON résiliente en toutes circonstances.
     - Réinitialisation de la demande #6 à l'état `pending` pour validation immédiate par l'utilisateur.
 
+- **Fait - 29/09/2026** : ~~Tri des candidats par matchs réalisés & distance, restitution d'affinité en pourcentage ou en détail question par question d'un commun accord, et historique complet des matchs entre abonnés~~
+  - **Tri multicritère des candidats** : Ajout du sélecteur de tri `selectMatchSort` avec option par défaut combinée « 🤝 Matchs réalisés & 🚗 Distance » (priorité aux partenaires avec qui un match a déjà été validé, puis classement par proximité géographique en kilomètres calculée dynamiquement).
+  - **Niveaux de restitution négociés d'un commun accord** :
+    - *Mode Pourcentage* (par défaut) : Score global, pourcentages par thématique et sous-sujet, radar visuel, points de fusion (&ge;85%) et zones de vigilance sans dévoiler les réponses mot-à-mot.
+    - *Mode Détail question par question* : Accord bilatéral complet avec confrontation transparente des réponses respectives pour chaque question commune évaluée (Goûts G et multi-axes V, A, D, P), recherche textuelle et filtrage par thématique/type.
+  - **Validation complète ou partielle** :
+    - Lors de la proposition : choix des classes et du mode de restitution souhaité.
+    - Lors de la réponse : le destinataire peut accepter pleinement le mode détail ou n'autoriser qu'un accord partiel en pourcentage, ainsi qu'ajuster le périmètre des classes de sensibilité.
+  - **Historique bilatéral des matchs datés** :
+    - Nouvelle modale dédiée listant chronologiquement l'ensemble des matchs acceptés entre deux abonnés (`GET /api/match-requests/history`).
+    - Consultation instantanée en un clic du rapport de match archivé avec toutes ses jauges, axes et détails de restitution convenus.
+
 ---
 
 ## 4. NOUVELLES DEMANDES

@@ -1977,14 +1977,69 @@ function updateAffinityAccessUi() {
   renderMatchCandidates(state.matchGenderFilter || 'opposite');
 }
 
+// ==========================================
+// CALCUL DE DISTANCE CLIENT & COORDONNÉES
+// ==========================================
+const CITY_COORDINATES = {
+  "paris": [48.8566, 2.3522], "lyon": [45.7640, 4.8357], "marseille": [43.2965, 5.3698],
+  "toulouse": [43.6047, 1.4442], "nice": [43.7102, 7.2620], "nantes": [47.2184, -1.5536],
+  "strasbourg": [48.5734, 7.7521], "montpellier": [43.6108, 3.8767], "bordeaux": [44.8378, -0.5792],
+  "lille": [50.6292, 3.0573], "rennes": [48.1173, -1.6778], "reims": [49.2583, 4.0317],
+  "toulon": [43.1242, 5.9280], "saint-etienne": [45.4397, 4.3872], "le havre": [49.4944, 0.1079],
+  "grenoble": [45.1885, 5.7245], "dijon": [47.3220, 5.0415], "angers": [47.4784, -0.5632],
+  "villeurbanne": [45.7719, 4.8902], "nimes": [43.8367, 4.3601], "clermont-ferrand": [45.7772, 3.0870],
+  "aix-en-provence": [43.5297, 5.4474], "brest": [48.3904, -4.4861], "tours": [47.3941, 0.6848],
+  "amiens": [49.8941, 2.2957], "annecy": [45.8992, 6.1294], "metz": [49.1193, 6.1757],
+  "besancon": [47.2378, 6.0241], "perpignan": [42.6887, 2.8948], "orleans": [47.9029, 1.9093],
+  "caen": [49.1829, -0.3707], "mulhouse": [47.7508, 7.3359], "rouen": [49.4432, 1.0999],
+  "nancy": [48.6921, 6.1844], "avignon": [43.9493, 4.8055], "poitiers": [46.5802, 0.3404],
+  "la rochelle": [46.1603, -1.1511], "pau": [43.2951, -0.3708], "calais": [50.9513, 1.8587],
+  "cannes": [43.5528, 7.0174], "antibes": [43.5804, 7.1251], "valence": [44.9333, 4.8917],
+  "bruxelles": [50.8503, 4.3517], "geneve": [46.2044, 6.1432], "lausanne": [46.5197, 6.6323],
+  "luxembourg": [49.6116, 6.1319], "monaco": [43.7384, 7.4246]
+};
+
+function calculateDistanceKmClient(city1, city2) {
+  if (!city1 || !city2) return null;
+  const c1 = city1.trim().toLowerCase();
+  const c2 = city2.trim().toLowerCase();
+  if (c1 === c2) return 0;
+  let coord1 = null, coord2 = null;
+  for (const [name, pos] of Object.entries(CITY_COORDINATES)) {
+    if (name.includes(c1) || c1.includes(name)) { coord1 = pos; break; }
+  }
+  for (const [name, pos] of Object.entries(CITY_COORDINATES)) {
+    if (name.includes(c2) || c2.includes(name)) { coord2 = pos; break; }
+  }
+  if (!coord1 || !coord2) {
+    let h1 = 0, h2 = 0;
+    for (let i = 0; i < c1.length; i++) h1 = (h1 << 5) - h1 + c1.charCodeAt(i);
+    for (let i = 0; i < c2.length; i++) h2 = (h2 << 5) - h2 + c2.charCodeAt(i);
+    return (Math.abs(h1 - h2) % 420) + 60;
+  }
+  const toRad = x => (x * Math.PI) / 180;
+  const lat1 = toRad(coord1[0]), lon1 = toRad(coord1[1]);
+  const lat2 = toRad(coord2[0]), lon2 = toRad(coord2[1]);
+  const dlat = lat2 - lat1, dlon = lon2 - lon1;
+  const a = Math.sin(dlat / 2)**2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dlon / 2)**2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(6371 * c);
+}
+
 function setMatchGenderFilter(filterType) {
   state.matchGenderFilter = filterType || 'opposite';
   renderMatchCandidates(state.matchGenderFilter);
 }
 
-function renderMatchCandidates(filterType = 'opposite') {
+function renderMatchCandidates(filterType = null) {
   const grid = document.getElementById('matchCandidatesGrid');
   if (!grid) return;
+
+  if (!filterType) {
+    filterType = state.matchGenderFilter || 'opposite';
+  } else {
+    state.matchGenderFilter = filterType;
+  }
 
   const curProf = getActiveProfile();
   const p1Id = parseInt(document.getElementById('affProfile1')?.value, 10) || (curProf ? curProf.id : null);
@@ -2011,9 +2066,9 @@ function renderMatchCandidates(filterType = 'opposite') {
   }
 
   // Candidats éligibles :
-  // - Profils complétés (p.is_completed === true ou (p.has_identity && p.self_completion_pct >= 100 && p.partner_completion_pct >= 100))
+  // - Profils complétés
   // - Différents de P1
-  // - Non-admin (l'admin ne participe pas aux questionnaires / matches)
+  // - Rôle abonné (non-admin)
   const eligibleCompleted = (state.profiles || []).filter(p => {
     if (p.id === p1Id) return false;
     if (p.role === 'admin') return false;
@@ -2029,6 +2084,46 @@ function renderMatchCandidates(filterType = 'opposite') {
     filtered = eligibleCompleted.filter(p => p.sexe === p1Sexe);
   } else {
     filtered = eligibleCompleted;
+  }
+
+  const myVille = p1 ? (p1.habite_commune || p1.ville || '') : '';
+
+  // Calcul du nombre de matchs déjà réalisés et de la distance pour chaque candidat
+  filtered.forEach(p => {
+    const candidateVille = p.habite_commune || p.ville || '';
+    p.distance_km = calculateDistanceKmClient(myVille, candidateVille);
+
+    // Décompte des matchs acceptés entre p1 et p
+    const myMatches = state.myAcceptedMatches || [];
+    const acceptedCount = myMatches.filter(m => 
+      (m.sender_id === p.id && m.receiver_id === p1Id) ||
+      (m.sender_id === p1Id && m.receiver_id === p.id)
+    ).length;
+    p.matches_count = acceptedCount;
+  });
+
+  // Application du tri choisi
+  const sortChoice = document.getElementById('selectMatchSort')?.value || 'matches_and_distance';
+  if (sortChoice === 'matches_and_distance') {
+    // RÈGLE DEMANDÉE : trier par nombre de matchs déjà réalisés (décroissant) ET la distance qui les sépare (croissant)
+    filtered.sort((a, b) => {
+      if (b.matches_count !== a.matches_count) {
+        return b.matches_count - a.matches_count;
+      }
+      const distA = (a.distance_km !== null && a.distance_km !== undefined) ? a.distance_km : 99999;
+      const distB = (b.distance_km !== null && b.distance_km !== undefined) ? b.distance_km : 99999;
+      return distA - distB;
+    });
+  } else if (sortChoice === 'distance_only') {
+    filtered.sort((a, b) => {
+      const distA = (a.distance_km !== null && a.distance_km !== undefined) ? a.distance_km : 99999;
+      const distB = (b.distance_km !== null && b.distance_km !== undefined) ? b.distance_km : 99999;
+      return distA - distB;
+    });
+  } else if (sortChoice === 'matches_only') {
+    filtered.sort((a, b) => b.matches_count - a.matches_count);
+  } else if (sortChoice === 'pseudo') {
+    filtered.sort((a, b) => a.pseudo.localeCompare(b.pseudo));
   }
 
   const countBadge = document.getElementById('matchCandidatesCount');
@@ -2068,8 +2163,17 @@ function renderMatchCandidates(filterType = 'opposite') {
     const bioSnippet = p.bio ? `"${p.bio}"` : "Présentation non renseignée.";
     const rechercheSnippet = p.recherche_de ? `Recherche : <strong>${p.recherche_de}</strong>` : '';
 
+    const distStr = (p.distance_km === 0) 
+      ? '📍 Même commune &bull; 0 km' 
+      : (p.distance_km !== null ? `🚗 ${p.distance_km} km` : '📍 Distance non calculée');
+
+    const hasMatches = (p.matches_count > 0);
+    const matchesBadgeHtml = hasMatches 
+      ? `<div class="cmc-badge-matches active" title="Vous avez déjà réalisé ${p.matches_count} match(s) avec ce membre">🤝 ${p.matches_count} match${p.matches_count > 1 ? 's' : ''} déjà réalisé${p.matches_count > 1 ? 's' : ''}</div>`
+      : `<div class="cmc-badge-matches zero">✨ Aucun match pour l'instant</div>`;
+
     return `
-      <div class="candidate-match-card" id="candidateCard_${p.id}">
+      <div class="candidate-match-card ${hasMatches ? 'has-history-card' : ''}" id="candidateCard_${p.id}" onclick="handleCandidateCardClick(event, ${p.id}, ${p.matches_count})">
         <div>
           <div class="cmc-top">
             <div class="cmc-avatar">${p.pseudo.charAt(0).toUpperCase()}</div>
@@ -2079,7 +2183,10 @@ function renderMatchCandidates(filterType = 'opposite') {
                 <span class="uph-id-tag">${formatAffId(p.id)}</span>
               </div>
               <div class="cmc-sub-row">${subDetails}</div>
-              <div class="cmc-badge-complete">✓ Profil 100% complété</div>
+              <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:5px;">
+                <div class="cmc-badge-dist">${distStr}</div>
+                ${matchesBadgeHtml}
+              </div>
             </div>
           </div>
           <div class="cmc-body" style="margin-top:12px;">
@@ -2087,29 +2194,57 @@ function renderMatchCandidates(filterType = 'opposite') {
           </div>
           ${rechercheSnippet ? `<div class="cmc-recherche" style="margin-top:8px;">${rechercheSnippet}</div>` : ''}
         </div>
-        <div>
-          <button type="button" class="btn-start-match-direct" onclick="selectCandidateAndMatch(${p.id})">
-            <span>⚡</span> Lancer le Match avec ${p.pseudo}
-          </button>
+        <div class="cmc-actions-bottom" style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
+          ${hasMatches ? `
+            <button type="button" class="btn btn-sm btn-gradient" style="flex:1; justify-content:center;" onclick="event.stopPropagation(); openMatchesHistoryForProfile(${p.id})">
+              <span>📜</span> Historique des Matchs (${p.matches_count})
+            </button>
+            <button type="button" class="btn btn-sm btn-outline" style="justify-content:center;" title="Demander un nouveau match avec ce membre" onclick="event.stopPropagation(); openNewMatchRequestModal(${p.id})">
+              <span>💌</span> Nouveau Match
+            </button>
+          ` : `
+            <button type="button" class="btn btn-sm btn-primary" style="width:100%; justify-content:center;" onclick="event.stopPropagation(); openNewMatchRequestModal(${p.id})">
+              <span>💌</span> Demander un Match
+            </button>
+          `}
         </div>
       </div>
     `;
   }).join('');
 }
 
-async function selectCandidateAndMatch(candidateId) {
-  const aff2 = document.getElementById('affProfile2');
-  if (aff2) {
-    aff2.value = candidateId;
+// Clic sur une carte candidat :
+// - Si match(s) déjà réalisé(s) : ouvre directement l'historique complet
+// - Si aucun match : ouvre la demande de match
+function handleCandidateCardClick(event, candidateId, matchesCount) {
+  if (event.target.closest('button')) return;
+  if (matchesCount > 0) {
+    openMatchesHistoryForProfile(candidateId);
+  } else {
+    openNewMatchRequestModal(candidateId);
   }
-  updateAffinitySelectorsStatus();
-  await updateTargetProfilePreview();
-  await computeAffinityAction();
-  
-  // Défilement fluide vers la carte de résultat
-  const resultsCard = document.getElementById('affinityResultsContainer');
-  if (resultsCard) {
-    resultsCard.scrollIntoView({ behavior: 'smooth' });
+}
+
+async function selectCandidateAndMatch(candidateId) {
+  const curProf = getActiveProfile();
+  if (curProf && curProf.role === 'admin') {
+    const aff2 = document.getElementById('affProfile2');
+    if (aff2) aff2.value = candidateId;
+    updateAffinitySelectorsStatus();
+    await updateTargetProfilePreview();
+    await computeAffinityAction();
+    const resultsCard = document.getElementById('affinityResultsContainer');
+    if (resultsCard) resultsCard.scrollIntoView({ behavior: 'smooth' });
+  } else {
+    // Membre abonné : ouvre le tunnel de demande ou d'historique
+    const myMatches = state.myAcceptedMatches || [];
+    const p1Id = curProf ? curProf.id : null;
+    const count = myMatches.filter(m => (m.sender_id === candidateId && m.receiver_id === p1Id) || (m.sender_id === p1Id && m.receiver_id === candidateId)).length;
+    if (count > 0) {
+      openMatchesHistoryForProfile(candidateId);
+    } else {
+      openNewMatchRequestModal(candidateId);
+    }
   }
 }
 
@@ -5143,6 +5278,318 @@ async function handleAffinityOrMatchAction() {
   }
 }
 
+// ==========================================================================
+// SYSTÈME DE MODALES DE DEMANDE DE MATCH & HISTORIQUE DES MATCHS
+// ==========================================================================
+
+// Ouvrir la modale de demande de match pour un profil cible
+function openNewMatchRequestModal(partnerId) {
+  const curProf = getActiveProfile();
+  if (!curProf) {
+    alert('Veuillez vous connecter pour envoyer une demande de match.');
+    return;
+  }
+  if (curProf.role === 'guest') {
+    alert('🔒 Fonctionnalité réservée : Les invités ne peuvent pas envoyer de demande de match.');
+    return;
+  }
+  if (curProf.role === 'admin') {
+    alert('Un compte administrateur supervise la plateforme et effectue les calculs directs sans demande bilatérale.');
+    return;
+  }
+
+  const partner = (state.profiles || []).find(p => p.id === partnerId);
+  if (!partner) {
+    alert('Profil partenaire introuvable.');
+    return;
+  }
+
+  state.pendingTargetMatchPartnerId = partnerId;
+
+  // Remplissage infos profil ciblé
+  const modal = document.getElementById('modalNewMatchRequest');
+  const elPseudo = document.getElementById('nmrTargetPseudo');
+  const elAffId = document.getElementById('nmrTargetAffId');
+  const elAvatar = document.getElementById('nmrTargetAvatar');
+  const elLoc = document.getElementById('nmrTargetLocation');
+  const elDist = document.getElementById('nmrTargetDistanceBadge');
+  const elSub = document.getElementById('nmrTargetSubtitle');
+
+  if (elPseudo) elPseudo.textContent = partner.pseudo;
+  if (elAffId) elAffId.textContent = formatAffId(partner.id);
+  if (elAvatar) elAvatar.textContent = partner.pseudo.charAt(0).toUpperCase();
+  const partVille = partner.habite_commune || partner.ville || 'Localisation non précisée';
+  const myVille = curProf.habite_commune || curProf.ville || '';
+  if (elLoc) elLoc.textContent = partVille;
+  if (elSub) elSub.textContent = `Proposition de calcul d'affinité bilatérale avec ${partner.pseudo}`;
+
+  const distKm = calculateDistanceKmClient(myVille, partVille);
+  if (elDist) {
+    if (distKm === 0) {
+      elDist.textContent = `📍 Même commune (0 km)`;
+    } else if (distKm !== null) {
+      elDist.textContent = `🚗 ~${distKm} km (${myVille || '?'} ⇄ ${partVille})`;
+    } else {
+      elDist.textContent = `📍 Localisation distante`;
+    }
+  }
+
+  // Périmètres par défaut (classes 1 et 2 cochées, les autres découvrables)
+  setNmrClassesPreset('standards');
+
+  // Mode de restitution par défaut : 'percentage'
+  const radPct = document.getElementById('nmrCardRestitutionPercentage')?.querySelector('input');
+  if (radPct) radPct.checked = true;
+  updateNmrRestitutionCardStyle();
+
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeNewMatchRequestModal() {
+  const modal = document.getElementById('modalNewMatchRequest');
+  if (modal) modal.style.display = 'none';
+  state.pendingTargetMatchPartnerId = null;
+}
+
+function setNmrClassesPreset(preset) {
+  const cbs = document.querySelectorAll('input[name="nmrClass"]');
+  cbs.forEach(cb => {
+    const val = parseInt(cb.value, 10);
+    if (preset === 'standards') {
+      cb.checked = (val === 1 || val === 2);
+    } else if (preset === 'all') {
+      cb.checked = true;
+    }
+  });
+}
+
+function updateNmrRestitutionCardStyle() {
+  const radPct = document.getElementById('nmrCardRestitutionPercentage');
+  const radDet = document.getElementById('nmrCardRestitutionDetail');
+  const inpPct = radPct?.querySelector('input');
+  const inpDet = radDet?.querySelector('input');
+
+  if (radPct && inpPct) radPct.classList.toggle('active', inpPct.checked);
+  if (radDet && inpDet) radDet.classList.toggle('active', inpDet.checked);
+}
+
+async function submitNewMatchRequest() {
+  const partnerId = state.pendingTargetMatchPartnerId;
+  const curProf = getActiveProfile();
+  if (!curProf || !partnerId) {
+    alert('Session expirée ou partenaire invalide.');
+    return;
+  }
+
+  const cbs = Array.from(document.querySelectorAll('input[name="nmrClass"]:checked'));
+  const selectedClasses = cbs.map(cb => parseInt(cb.value, 10));
+  if (selectedClasses.length === 0) {
+    alert('Veuillez cocher au moins une classe de questionnaires pour laquelle vous souhaitez un calcul.');
+    return;
+  }
+
+  const restitutionEl = document.querySelector('input[name="nmrRestitutionMode"]:checked');
+  const chosenRestitution = restitutionEl ? restitutionEl.value : 'percentage';
+
+  const partner = (state.profiles || []).find(p => p.id === partnerId);
+  const pPseudo = partner ? partner.pseudo : `Membre #${partnerId}`;
+
+  const btnSubmit = document.getElementById('btnSubmitNewMatchRequest');
+  if (btnSubmit) {
+    btnSubmit.disabled = true;
+    btnSubmit.innerHTML = '<span>⏳</span> Transmission en cours...';
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/match-requests`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sender_id: curProf.id,
+        receiver_id: partnerId,
+        proposed_classes: selectedClasses,
+        proposed_restitution: chosenRestitution
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erreur lors de la transmission de la demande');
+
+    showToast(`💌 Demande de match envoyée à ${pPseudo} avec succès !`);
+    closeNewMatchRequestModal();
+    await loadMatchRequests();
+    renderMatchCandidates();
+
+    // Basculer sur le sous-onglet des demandes envoyées
+    switchMatchSubTab('sent');
+  } catch (err) {
+    alert('Erreur : ' + err.message);
+  } finally {
+    if (btnSubmit) {
+      btnSubmit.disabled = false;
+      btnSubmit.innerHTML = '<span>💌</span> Envoyer la Demande de Match';
+    }
+  }
+}
+
+// ==========================================================================
+// HISTORIQUE DES MATCHS AVEC UN ABONNÉ SPÉCIFIQUE
+// ==========================================================================
+async function openMatchesHistoryForProfile(partnerId) {
+  const curProf = getActiveProfile();
+  if (!curProf) return;
+
+  const partner = (state.profiles || []).find(p => p.id === partnerId);
+  if (!partner) {
+    alert('Profil partenaire introuvable.');
+    return;
+  }
+
+  state.activeHistoryPartnerId = partnerId;
+
+  const modal = document.getElementById('modalSubscriberMatchHistory');
+  const titleEl = document.getElementById('smhTitle');
+  const subEl = document.getElementById('smhSubtitle');
+  const avatarEl = document.getElementById('smhPartnerAvatar');
+  const listEl = document.getElementById('smhMatchesList');
+
+  if (titleEl) titleEl.textContent = `Historique des Matchs avec ${partner.pseudo}`;
+  if (avatarEl) avatarEl.textContent = partner.pseudo.charAt(0).toUpperCase();
+
+  if (listEl) {
+    listEl.innerHTML = `<div style="text-align:center; padding:25px; color:var(--text-dim);">⏳ Chargement de l'historique des matchs...</div>`;
+  }
+
+  if (modal) modal.style.display = 'flex';
+
+  try {
+    const res = await fetch(`${API_BASE}/api/match-requests/history?p1=${curProf.id}&p2=${partnerId}`);
+    if (!res.ok) throw new Error('Impossible de charger l\'historique des matchs.');
+    const data = await res.json();
+    const matches = data.matches || [];
+
+    state.currentPartnerMatchesHistory = matches;
+
+    if (subEl) {
+      subEl.textContent = `${matches.length} match${matches.length > 1 ? 's' : ''} réalisé${matches.length > 1 ? 's' : ''} d'un commun accord avec ${partner.pseudo} (${formatAffId(partner.id)})`;
+    }
+
+    if (matches.length === 0) {
+      if (listEl) {
+        listEl.innerHTML = `
+          <div style="text-align:center; padding:30px; background:rgba(255,255,255,0.03); border-radius:10px; border:1px dashed var(--border-color);">
+            <div style="font-size:32px; margin-bottom:8px;">🤝</div>
+            <strong style="color:var(--text-bright); font-size:14px;">Aucun match réalisé pour le moment</strong>
+            <p style="font-size:12.5px; color:var(--text-dim); margin:4px 0 14px 0;">Vous n'avez pas encore validé de calcul d'affinité bilatérale avec ${partner.pseudo}.</p>
+            <button type="button" class="btn btn-sm btn-primary" onclick="requestNewMatchFromHistory()">
+              <span>💌</span> Proposer un premier Match
+            </button>
+          </div>
+        `;
+      }
+      return;
+    }
+
+    const classeLabels = {
+      1: 'Classe 1 (Standards)', 2: 'Classe 2 (Personnelles)', 3: 'Classe 3 (Intimes)',
+      4: 'Classe 4 (Privées)', 5: 'Classe 5 (Hors normes)', 9: 'Classe 9 (Amorales)'
+    };
+
+    if (listEl) {
+      listEl.innerHTML = matches.map((m, idx) => {
+        const rawDate = m.responded_at || m.created_at;
+        const d = new Date(rawDate);
+        const dateFr = !isNaN(d.getTime()) 
+          ? d.toLocaleDateString('fr-FR', { weekday: 'short', year: 'numeric', month: 'long', day: 'numeric' })
+          : 'Date inconnue';
+        const timeFr = !isNaN(d.getTime()) 
+          ? d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+          : '';
+
+        const score = m.score_global ?? (m.affinity_result ? m.affinity_result.score_global : 0);
+        let scoreBadgeClass = 'b-high';
+        if (score < 50) scoreBadgeClass = 'b-low';
+        else if (score < 75) scoreBadgeClass = 'b-med';
+
+        const classes = Array.isArray(m.validated_classes) ? m.validated_classes : [1, 2];
+        const classesTags = classes.map(cl => `<span class="smh-class-tag">${classeLabels[cl] || `Classe ${cl}`}</span>`).join('');
+
+        const isDetail = (m.validated_restitution === 'detail');
+        const restBadge = isDetail 
+          ? `<span class="smh-rest-badge detail" title="Validation complète : détail question par question">🔍 Détail question par question</span>`
+          : `<span class="smh-rest-badge percentage" title="Validation : pourcentages par thématique et sujet">📊 Pourcentage (thématique &amp; sujet)</span>`;
+
+        return `
+          <div class="smh-match-card" onclick="displayMatchResultFromHistory(${m.id})">
+            <div class="smh-mc-header">
+              <div class="smh-mc-date-wrap">
+                <span class="smh-mc-icon">📅</span>
+                <div>
+                  <div class="smh-mc-date">${dateFr} &agrave; ${timeFr}</div>
+                  <div class="smh-mc-seq">Match #${matches.length - idx} &bull; ${restBadge}</div>
+                </div>
+              </div>
+              <div class="smh-mc-score ${scoreBadgeClass}">
+                <span class="score-num">${score}%</span>
+                <span class="score-lbl">Affinité</span>
+              </div>
+            </div>
+
+            <div class="smh-mc-classes">
+              <span style="font-size:11.5px; color:var(--text-dim); margin-right:4px;">Classes incluses :</span>
+              ${classesTags}
+            </div>
+
+            <div class="smh-mc-footer">
+              <span style="font-size:12px; color:var(--accent-teal); font-weight:600;">👉 Cliquez pour accéder au résultat complet</span>
+              <button type="button" class="btn btn-xs btn-primary" onclick="event.stopPropagation(); displayMatchResultFromHistory(${m.id})">
+                <span>📊</span> Voir le Résultat
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+  } catch (err) {
+    if (listEl) {
+      listEl.innerHTML = `<div style="text-align:center; padding:20px; color:#f87171;">Erreur lors du chargement : ${err.message}</div>`;
+    }
+  }
+}
+
+function closeSubscriberMatchHistoryModal() {
+  const modal = document.getElementById('modalSubscriberMatchHistory');
+  if (modal) modal.style.display = 'none';
+  state.activeHistoryPartnerId = null;
+}
+
+function requestNewMatchFromHistory() {
+  const partnerId = state.activeHistoryPartnerId;
+  closeSubscriberMatchHistoryModal();
+  if (partnerId) {
+    openNewMatchRequestModal(partnerId);
+  }
+}
+
+// Clic sur un match : affiche immédiatement son résultat complet
+function displayMatchResultFromHistory(matchId) {
+  const matches = state.currentPartnerMatchesHistory || [];
+  const match = matches.find(m => m.id === matchId);
+  if (!match || !match.affinity_result) {
+    alert('Résultat de ce match introuvable.');
+    return;
+  }
+
+  closeSubscriberMatchHistoryModal();
+
+  // Affichage direct du résultat dans le conteneur du calculateur
+  viewAcceptedMatchResult(match.affinity_result, {
+    matchDate: match.responded_at || match.created_at,
+    restitutionMode: match.validated_restitution || 'percentage',
+    partnerPseudo: match.receiver_id === getActiveProfile()?.id ? match.sender_pseudo : match.receiver_pseudo
+  });
+}
+
 async function sendMatchRequest() {
   const p1Id = parseInt(document.getElementById('affProfile1')?.value, 10);
   const p2Id = parseInt(document.getElementById('affProfile2')?.value, 10);
@@ -5151,42 +5598,7 @@ async function sendMatchRequest() {
     alert('Veuillez sélectionner un autre profil que le vôtre pour envoyer une demande de match.');
     return;
   }
-
-  const p1 = state.profiles.find(p => p.id === p1Id);
-  const p2 = state.profiles.find(p => p.id === p2Id);
-
-  if (!p1?.has_identity || !p2?.has_identity) {
-    alert('Le profil des deux membres doit être complété avant de pouvoir initier une demande de match.');
-    return;
-  }
-
-  // Classes de questions proposées par le demandeur (par défaut [1, 2] ou son périmètre)
-  let proposedClasses = [1, 2];
-  if (p1.question_access && Array.isArray(p1.question_access.allowed_classes)) {
-    proposedClasses = p1.question_access.allowed_classes;
-  }
-
-  try {
-    const res = await fetch(`${API_BASE}/api/match-requests`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sender_id: p1Id,
-        receiver_id: p2Id,
-        proposed_classes: proposedClasses
-      })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Erreur lors de l\'envoi de la demande');
-
-    showToast(`💌 Demande de match envoyée à ${p2.pseudo} (${formatAffId(p2.id)}) !`);
-    await loadMatchRequests();
-
-    // Basculer sur l'onglet Envoyées
-    document.getElementById('btnTabRequestsSent')?.click();
-  } catch (err) {
-    alert('Erreur : ' + err.message);
-  }
+  openNewMatchRequestModal(p2Id);
 }
 
 async function loadMatchRequests() {
@@ -5195,6 +5607,11 @@ async function loadMatchRequests() {
     const res = await fetch(`${API_BASE}/api/profiles/${state.activeProfileId}/match-requests`);
     if (!res.ok) return;
     const data = await res.json();
+    state.matchRequests = data;
+    state.myAcceptedMatches = [
+      ...(data.received || []).filter(r => r.status === 'accepted'),
+      ...(data.sent || []).filter(s => s.status === 'accepted')
+    ];
     renderMatchRequests(data);
   } catch (err) {
     console.error('Erreur chargement match requests:', err);
@@ -5238,7 +5655,7 @@ function renderMatchRequests(data) {
     4: 'Classe 4 (Privées)', 5: 'Classe 5 (Hors normes)', 9: 'Classe 9 (Amorales)'
   };
 
-  // 1. Demandes Reçues
+  // 1. Demandes Reçues (Destinataire : validation complète ou partielle)
   if (receivedList) {
     if (received.length === 0) {
       receivedList.innerHTML = '<div class="empty-requests-msg">📬 Vous n\'avez reçu aucune demande de match pour le moment.</div>';
@@ -5249,9 +5666,9 @@ function renderMatchRequests(data) {
         const isDeclined = req.status === 'declined';
 
         const statusLabel = isPending 
-          ? '<span class="mrc-status-badge pending">⏳ En attente de votre réponse</span>' 
+          ? '<span class="mrc-status-badge pending">⏳ En attente de votre validation</span>' 
           : (isAccepted 
-              ? '<span class="mrc-status-badge accepted">✅ Match Accepté</span>' 
+              ? '<span class="mrc-status-badge accepted">✅ Match Accepté &amp; Réalisé</span>' 
               : '<span class="mrc-status-badge declined">❌ Refusée</span>');
 
         const classesToShow = isAccepted ? req.validated_classes : req.proposed_classes;
@@ -5265,6 +5682,9 @@ function renderMatchRequests(data) {
         const distText = req.distance_km !== null 
           ? `🚗 ${req.distance_km} km (${req.sender_ville || '?'} ⇄ ${req.my_ville || '?'})`
           : `📍 ${req.sender_ville || 'Ville non renseignée'}`;
+
+        const isDetailProposed = (req.proposed_restitution === 'detail');
+        const isDetailAccepted = (req.validated_restitution === 'detail');
 
         const affResJson = req.affinity_result ? JSON.stringify(req.affinity_result).replace(/'/g, '&#39;') : '';
 
@@ -5281,26 +5701,58 @@ function renderMatchRequests(data) {
               <div>${statusLabel}</div>
             </div>
 
-            <div class="mrc-classes-scope">
-              <span class="mrc-scope-lbl">Périmètres de questions considérés :</span>
+            <!-- Validation complète ou partielle des Classes -->
+            <div class="mrc-classes-scope" style="margin-top:12px;">
+              <span class="mrc-scope-lbl">
+                ${isPending ? 'Classes proposées par l\'émetteur (décochez pour valider partiellement) :' : 'Périmètres de questionnaires convenus :'}
+              </span>
               <div class="mrc-classes-tags" id="reqClassesBox_${req.id}">
                 ${classesHtml}
               </div>
             </div>
 
+            <!-- Validation complète ou partielle du Mode de Restitution -->
+            <div class="mrc-restitution-scope" style="margin-top:10px; padding:10px 12px; background:rgba(255,255,255,0.02); border-radius:6px; border:1px solid rgba(255,255,255,0.06);">
+              ${isPending ? `
+                <span class="mrc-scope-lbl" style="display:block; margin-bottom:6px;">Niveau de restitution du résultat :</span>
+                ${isDetailProposed ? `
+                  <div style="display:flex; flex-direction:column; gap:6px;">
+                    <label style="font-size:12.5px; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                      <input type="radio" name="reqRestitution_${req.id}" value="detail" checked>
+                      <span>🔍 <strong>Valider en détail question par question</strong> (Accord complet)</span>
+                    </label>
+                    <label style="font-size:12.5px; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                      <input type="radio" name="reqRestitution_${req.id}" value="percentage">
+                      <span>📊 <strong>N'autoriser qu'en pourcentage par thématique et sujet</strong> (Accord partiel)</span>
+                    </label>
+                  </div>
+                ` : `
+                  <div style="font-size:12.5px; color:var(--text-bright); display:flex; align-items:center; gap:6px;">
+                    <span>📊</span> <span>Résultat prévu : <strong>En pourcentage par thématique et sujet</strong></span>
+                    <input type="hidden" name="reqRestitution_${req.id}" value="percentage">
+                  </div>
+                `}
+              ` : `
+                <div style="font-size:12px; color:var(--text-dim);">
+                  Niveau de résultat convenu : 
+                  <strong style="color:var(--text-bright);">${isDetailAccepted ? '🔍 En détail question par question' : '📊 En pourcentage par thématique et sujet'}</strong>
+                </div>
+              `}
+            </div>
+
             ${isPending ? `
-              <div class="mrc-actions-row">
+              <div class="mrc-actions-row" style="margin-top:14px;">
                 <button class="btn btn-sm btn-outline" onclick="respondMatchRequestAction(${req.id}, 'declined')">
                   ❌ Décliner
                 </button>
                 <button class="btn btn-sm btn-gradient" onclick="respondMatchRequestAction(${req.id}, 'accepted')">
-                  ✅ Accepter le Match avec ces périmètres
+                  ✅ Valider le Match (avec ces réglages)
                 </button>
               </div>
             ` : ''}
 
             ${isAccepted && req.affinity_result ? `
-              <div class="mrc-actions-row" style="justify-content: space-between; align-items:center;">
+              <div class="mrc-actions-row" style="justify-content: space-between; align-items:center; margin-top:14px;">
                 <span style="font-size:13px; color:var(--accent-emerald); font-weight:700;">
                   🎉 Affinité calculée : ${req.affinity_result.score_global}%
                 </span>
@@ -5342,6 +5794,9 @@ function renderMatchRequests(data) {
           ? `🚗 ${req.distance_km} km (${req.my_ville || '?'} ⇄ ${req.receiver_ville || '?'})`
           : `📍 ${req.receiver_ville || 'Ville non renseignée'}`;
 
+        const isDetailAccepted = (req.validated_restitution === 'detail');
+        const isDetailProposed = (req.proposed_restitution === 'detail');
+
         const affResJson = req.affinity_result ? JSON.stringify(req.affinity_result).replace(/'/g, '&#39;') : '';
 
         return `
@@ -5357,15 +5812,24 @@ function renderMatchRequests(data) {
               <div>${statusLabel}</div>
             </div>
 
-            <div class="mrc-classes-scope">
-              <span class="mrc-scope-lbl">${isAccepted ? 'Périmètres validés d\'un commun accord :' : 'Périmètres de questions proposés :'}</span>
+            <div class="mrc-classes-scope" style="margin-top:12px;">
+              <span class="mrc-scope-lbl">${isAccepted ? 'Périmètres validés d\'un commun accord :' : 'Périmètres de questions demandés :'}</span>
               <div class="mrc-classes-tags">
                 ${classesHtml}
               </div>
             </div>
 
+            <div style="margin-top:8px; font-size:12px; color:var(--text-dim);">
+              Niveau de restitution : 
+              <strong style="color:var(--text-bright);">
+                ${isAccepted 
+                  ? (isDetailAccepted ? '🔍 En détail question par question' : '📊 En pourcentage par thématique et sujet')
+                  : (isDetailProposed ? '🔍 En détail question par question (Sollicité)' : '📊 En pourcentage par thématique et sujet')}
+              </strong>
+            </div>
+
             ${isAccepted && req.affinity_result ? `
-              <div class="mrc-actions-row" style="justify-content: space-between; align-items:center;">
+              <div class="mrc-actions-row" style="justify-content: space-between; align-items:center; margin-top:14px;">
                 <span style="font-size:13px; color:var(--accent-cyan); font-weight:700;">
                   🎉 Match Validé &bull; Score d'affinité : ${req.affinity_result.score_global}%
                 </span>
@@ -5383,6 +5847,8 @@ function renderMatchRequests(data) {
 
 async function respondMatchRequestAction(requestId, action) {
   let validatedClasses = [1, 2];
+  let validatedRestitution = 'percentage';
+
   if (action === 'accepted') {
     const cbs = Array.from(document.querySelectorAll(`input[name="reqClass_${requestId}"]`));
     const selected = cbs.filter(cb => cb.checked).map(cb => parseInt(cb.value, 10));
@@ -5391,6 +5857,11 @@ async function respondMatchRequestAction(requestId, action) {
       return;
     }
     validatedClasses = selected;
+
+    const restEl = document.querySelector(`input[name="reqRestitution_${requestId}"]:checked`) || document.querySelector(`input[name="reqRestitution_${requestId}"]`);
+    if (restEl) {
+      validatedRestitution = restEl.value;
+    }
   }
 
   try {
@@ -5399,14 +5870,16 @@ async function respondMatchRequestAction(requestId, action) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action,
-        validated_classes: validatedClasses
+        validated_classes: validatedClasses,
+        validated_restitution: validatedRestitution
       })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Erreur lors de la réponse');
 
-    showToast(action === 'accepted' ? '🎉 Match accepté avec succès ! Les affinités sont maintenant accessibles.' : 'Demande déclinée.');
+    showToast(action === 'accepted' ? '🎉 Match validé avec succès ! Les affinités sont désormais accessibles.' : 'Demande déclinée.');
     await loadMatchRequests();
+    renderMatchCandidates();
 
     if (action === 'accepted' && data.affinity_result) {
       viewAcceptedMatchResult(data.affinity_result);
@@ -5416,7 +5889,7 @@ async function respondMatchRequestAction(requestId, action) {
   }
 }
 
-function viewAcceptedMatchResult(affinityResult) {
+function viewAcceptedMatchResult(affinityResult, options = {}) {
   const alertBox = document.getElementById('affinityRuleAlert');
   const resultsCard = document.getElementById('affinityResultsContainer');
 
@@ -5424,7 +5897,7 @@ function viewAcceptedMatchResult(affinityResult) {
   if (resultsCard) resultsCard.style.display = 'flex';
 
   state.lastAffinityResult = affinityResult;
-  renderAffinityResults(affinityResult);
+  renderAffinityResults(affinityResult, options);
 
   // Synchroniser les sélecteurs
   if (affinityResult.profile1?.id && affinityResult.profile2?.id) {
@@ -5880,6 +6353,211 @@ function renderAffinityResults(data) {
   } else {
     vigilanceList.innerHTML = `<div class="empty-state-mini"><p>Aucune divergence majeure &le; 35% constatée.</p></div>`;
   }
+
+  // 5. Restitution : Pourcentages par Thématique & par Sujet
+  const mode = options.restitutionMode || data.restitution_mode || 'percentage';
+  const restBadge = document.getElementById('restitutionModeBadge');
+  if (restBadge) {
+    restBadge.textContent = (mode === 'detail') 
+      ? 'Mode Accordé : 🔍 Détail question par question' 
+      : 'Mode Accordé : 📊 Pourcentage par thématique & sujet';
+  }
+
+  renderThematiquesAndSujets(data);
+
+  // 6. Restitution : Comparaison Détaillée Question par Question (uniquement si mode 'detail')
+  renderQuestionsDetailSection(data, mode);
+}
+
+// Rendu des barres de progression en pourcentage par thématique et sujet
+function renderThematiquesAndSujets(data) {
+  const container = document.getElementById('themasSujetsList');
+  if (!container) return;
+
+  const thematiques = data.thematiques || {};
+  const sujetsMap = data.sujets || {};
+
+  const entries = Object.entries(thematiques);
+  if (entries.length === 0) {
+    container.innerHTML = `<div style="padding:15px; color:var(--text-dim); font-size:12.5px; text-align:center;">Aucune donnée thématique à afficher.</div>`;
+    return;
+  }
+
+  container.innerHTML = entries.map(([thName, thScore]) => {
+    const sujetsForTh = sujetsMap[thName] || {};
+    const sujetsEntries = Object.entries(sujetsForTh);
+
+    const getScoreColor = (sc) => {
+      if (sc >= 80) return 'var(--accent-teal)';
+      if (sc >= 60) return 'var(--accent-cyan)';
+      if (sc >= 40) return '#f59e0b';
+      return '#ef4444';
+    };
+
+    const sujetsHtml = sujetsEntries.map(([sName, sScore]) => {
+      const col = getScoreColor(sScore);
+      return `
+        <div class="sujet-progress-row" style="margin-top:7px; font-size:12px;">
+          <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+            <span style="color:var(--text-main);">${sName}</span>
+            <strong style="color:${col};">${sScore}%</strong>
+          </div>
+          <div style="height:5px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:hidden;">
+            <div style="height:100%; width:${sScore}%; background:${col}; border-radius:3px; transition:width 0.6s ease;"></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="thema-detail-card" style="background:rgba(255,255,255,0.03); border:1px solid var(--border-color); border-radius:10px; padding:14px; margin-bottom:12px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:8px;">
+          <span style="font-weight:700; font-size:13.5px; color:var(--text-bright);">${thName}</span>
+          <span class="badge-soft" style="font-weight:700; font-size:12.5px; color:${getScoreColor(thScore)};">${thScore}%</span>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          ${sujetsEntries.length > 0 ? sujetsHtml : `<span style="font-size:11.5px; color:var(--text-dim); font-style:italic;">Pas de sous-sujets individualisés</span>`}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Rendu et filtrage de la section détaillée question par question
+function renderQuestionsDetailSection(data, mode) {
+  const sec = document.getElementById('questionsDetailSection');
+  if (!sec) return;
+
+  const questions = data.questions_details || [];
+  if (mode !== 'detail' || questions.length === 0) {
+    sec.style.display = 'none';
+    return;
+  }
+
+  sec.style.display = 'block';
+  state.currentQuestionsDetails = questions;
+  state.currentQuestionsAffinityResult = data;
+
+  // Remplir le sélecteur de thématiques
+  const selectThema = document.getElementById('selectThemaQuestionDetail');
+  if (selectThema) {
+    const uniqueThemas = [...new Set(questions.map(q => q.thematique).filter(Boolean))].sort();
+    selectThema.innerHTML = `<option value="ALL">Toutes les thématiques (${questions.length} questions)</option>` +
+      uniqueThemas.map(th => `<option value="${th}">${th}</option>`).join('');
+  }
+
+  filterQuestionsDetailView();
+}
+
+function filterQuestionsDetailView() {
+  const container = document.getElementById('questionsDetailList');
+  if (!container) return;
+
+  const questions = state.currentQuestionsDetails || [];
+  const searchVal = (document.getElementById('inputSearchQuestionDetail')?.value || '').trim().toLowerCase();
+  const selectedThema = document.getElementById('selectThemaQuestionDetail')?.value || 'ALL';
+  const selectedType = document.getElementById('selectTypeQuestionDetail')?.value || 'ALL';
+
+  const data = state.currentQuestionsAffinityResult || {};
+  const p1Pseudo = data.profile1?.pseudo || 'Demandeur';
+  const p2Pseudo = data.profile2?.pseudo || 'Partenaire';
+
+  const filtered = questions.filter(q => {
+    if (selectedThema !== 'ALL' && q.thematique !== selectedThema) return false;
+    if (selectedType === 'G' && q.type !== 'G') return false;
+    if (selectedType === 'MULTI' && q.type === 'G') return false;
+    if (searchVal) {
+      const matchText = (q.texte || '').toLowerCase();
+      const matchSujet = (q.sujet || '').toLowerCase();
+      const matchThema = (q.thematique || '').toLowerCase();
+      if (!matchText.includes(searchVal) && !matchSujet.includes(searchVal) && !matchThema.includes(searchVal)) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-dim); font-size:13px;">Aucune question ne correspond à vos filtres de recherche.</div>`;
+    return;
+  }
+
+  const formatAnswerText = (val, axis = '') => {
+    if (val === undefined || val === null || val === 0) return `<span style="color:var(--text-dim); font-style:italic;">Non renseigné</span>`;
+    const num = parseFloat(val);
+    if (num === 9) return `<span class="ans-tag ans-9">9 : Pas du tout / Jamais</span>`;
+    if (num >= 4) return `<span class="ans-tag ans-high">${num} : Très fort / Souvent</span>`;
+    if (num >= 3) return `<span class="ans-tag ans-med">${num} : Modéré / Régulier</span>`;
+    return `<span class="ans-tag ans-low">${num} : Faible / Rarement</span>`;
+  };
+
+  container.innerHTML = filtered.map(q => {
+    let scoreBadgeCls = 'b-high';
+    if (q.score < 50) scoreBadgeCls = 'b-low';
+    else if (q.score < 75) scoreBadgeCls = 'b-med';
+
+    let answersComparisonHtml = '';
+
+    if (q.type === 'G') {
+      const p1Val = q.p1_answers?.G;
+      const p2Val = q.p2_answers?.G;
+      answersComparisonHtml = `
+        <div class="q-answers-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:8px;">
+          <div class="q-ans-box" style="padding:8px 10px; background:rgba(255,255,255,0.03); border-radius:6px; font-size:12px;">
+            <div style="font-weight:700; color:var(--accent-teal); margin-bottom:2px;">${p1Pseudo} :</div>
+            <div>${formatAnswerText(p1Val)}</div>
+          </div>
+          <div class="q-ans-box" style="padding:8px 10px; background:rgba(255,255,255,0.03); border-radius:6px; font-size:12px;">
+            <div style="font-weight:700; color:var(--accent-cyan); margin-bottom:2px;">${p2Pseudo} :</div>
+            <div>${formatAnswerText(p2Val)}</div>
+          </div>
+        </div>
+      `;
+    } else {
+      // Axes V, A, D, P
+      const renderAxeRow = (label, p1Val, p2Val) => `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.04); font-size:12px;">
+          <span style="color:var(--text-dim); min-width:85px;">${label} :</span>
+          <div style="flex:1; display:flex; justify-content:space-around;">
+            <div>${formatAnswerText(p1Val)}</div>
+            <div style="color:var(--text-dim);">&harr;</div>
+            <div>${formatAnswerText(p2Val)}</div>
+          </div>
+        </div>
+      `;
+
+      answersComparisonHtml = `
+        <div style="margin-top:8px; background:rgba(255,255,255,0.02); border-radius:6px; padding:6px 10px;">
+          <div style="display:flex; justify-content:space-around; font-size:11.5px; font-weight:700; margin-bottom:4px; padding-bottom:4px; border-bottom:1px solid rgba(255,255,255,0.08);">
+            <span style="color:var(--accent-teal);">${p1Pseudo}</span>
+            <span style="color:var(--accent-cyan);">${p2Pseudo}</span>
+          </div>
+          ${renderAxeRow('Vécu (Passé)', q.p1_answers?.V, q.p2_answers?.V)}
+          ${renderAxeRow('Actuel (Présent)', q.p1_answers?.A, q.p2_answers?.A)}
+          ${renderAxeRow('Synergie D ⇄ P', q.p1_answers?.D, q.p2_answers?.P)}
+          ${renderAxeRow('Synergie P ⇄ D', q.p1_answers?.P, q.p2_answers?.D)}
+        </div>
+      `;
+    }
+
+    return `
+      <div class="q-detail-card" style="background:rgba(255,255,255,0.03); border:1px solid var(--border-color); border-radius:8px; padding:12px 14px; margin-bottom:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:6px;">
+          <div>
+            <div style="font-size:11px; color:var(--text-dim); margin-bottom:2px;">
+              <span class="badge-soft" style="font-size:10.5px; padding:1px 6px;">#${q.id}</span>
+              &bull; ${q.thematique} &bull; ${q.sujet} &bull; Classe ${q.classe} (${q.type === 'G' ? 'Goûts' : 'Multi-axes'})
+            </div>
+            <div style="font-size:13px; font-weight:600; color:var(--text-bright); line-height:1.4;">${q.texte}</div>
+          </div>
+          <div class="q-score-badge ${scoreBadgeCls}" style="flex-shrink:0; font-weight:700; font-size:13px; padding:4px 9px; border-radius:6px; background:rgba(255,255,255,0.08);">
+            ${q.score}%
+          </div>
+        </div>
+        ${answersComparisonHtml}
+      </div>
+    `;
+  }).join('');
 }
 
 // Rendu du diagnostic préalable de compatibilité identité
