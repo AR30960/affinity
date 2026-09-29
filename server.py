@@ -506,8 +506,8 @@ def get_full_profile_data(c, profile_id):
     p["identity_partner_answers_count"] = p.get("identity_partner_count", 0)
 
     p_sexe = p.get("sexe") or 0
-    tot_p = 15 if p_sexe in (1, 2) else 16
-    tot_t = 15 if p_sexe in (1, 2) else 16
+    tot_p = 12 if p_sexe == 1 else (13 if p_sexe == 2 else 14)
+    tot_t = 13 if p_sexe in (1, 2) else 14
     has_card = bool(p_sexe in (1, 2) and p.get("date_naissance") and (p.get("habite_commune") or p.get("ville")) and p.get("bio"))
     self_cnt = p["identity_self_answers_count"]
     partner_cnt = p["identity_partner_answers_count"]
@@ -516,7 +516,7 @@ def get_full_profile_data(c, profile_id):
     p["has_identity"] = has_card
     p["self_completion_pct"] = min(100, p_self_pct)
     p["partner_completion_pct"] = min(100, p_partner_pct)
-    p["is_completed"] = True if p.get("role") == "admin" else bool(has_card and p_self_pct >= 100 and p_partner_pct >= 100)
+    p["is_completed"] = True if p.get("role") == "admin" else bool(has_card and p_self_pct >= 95 and p_partner_pct >= 95)
     return p
 
 def get_session_profile(token: str):
@@ -855,6 +855,9 @@ def init_db():
         conn.commit()
     if "result_json" not in mr_cols:
         c.execute("ALTER TABLE match_requests ADD COLUMN result_json TEXT")
+        conn.commit()
+    if "is_admin_discreet" not in mr_cols:
+        c.execute("ALTER TABLE match_requests ADD COLUMN is_admin_discreet INTEGER DEFAULT 0")
         conn.commit()
 
 
@@ -1611,8 +1614,30 @@ def calculate_affinity(profile1_id, profile2_id, allowed_classes=None, mode_rest
     dist = calculate_distance_km(c1, c2)
     conn.close()
 
-    # Si le mode de restitution retenu est 'percentage', on n'envoie pas le détail individuel des réponses
-    final_questions_details = questions_details if mode_restitution == "detail" else []
+    # Filtrage du détail question par question selon le mode de restitution retenu pour chaque classe
+    final_questions_details = []
+    restitution_dict = {}
+    if isinstance(mode_restitution, dict):
+        restitution_dict = {str(k): str(v).lower() for k, v in mode_restitution.items()}
+    elif isinstance(mode_restitution, str):
+        try:
+            parsed_m = json.loads(mode_restitution)
+            if isinstance(parsed_m, dict):
+                restitution_dict = {str(k): str(v).lower() for k, v in parsed_m.items()}
+        except Exception:
+            pass
+
+    for qd in questions_details:
+        q_cl = str(qd.get("classe", 1))
+        if restitution_dict:
+            cl_mode = restitution_dict.get(q_cl, "percentage")
+        elif str(mode_restitution).lower() == "detail":
+            cl_mode = "detail"
+        else:
+            cl_mode = "percentage"
+
+        if cl_mode == "detail":
+            final_questions_details.append(qd)
 
     return {
         "profile1": {"id": p1["id"], "pseudo": p1["pseudo"], "ville": c1, "identite": dict(id1) if id1 else {}},
@@ -1751,8 +1776,8 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                     p["identity_partner_answers_count"] = p.get("identity_partner_count", 0)
 
                     p_sexe = p.get("sexe") or 0
-                    tot_p = 15 if p_sexe in (1, 2) else 16
-                    tot_t = 15 if p_sexe in (1, 2) else 16
+                    tot_p = 12 if p_sexe == 1 else (13 if p_sexe == 2 else 14)
+                    tot_t = 13 if p_sexe in (1, 2) else 14
                     has_card = bool(p_sexe in (1, 2) and p.get("date_naissance") and (p.get("habite_commune") or p.get("ville")) and p.get("bio"))
                     self_cnt = p["identity_self_answers_count"]
                     partner_cnt = p["identity_partner_answers_count"]
@@ -1761,7 +1786,7 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                     p["has_identity"] = has_card
                     p["self_completion_pct"] = min(100, p_self_pct)
                     p["partner_completion_pct"] = min(100, p_partner_pct)
-                    p["is_completed"] = True if p.get("role") == "admin" else bool(has_card and p_self_pct >= 100 and p_partner_pct >= 100)
+                    p["is_completed"] = True if p.get("role") == "admin" else bool(has_card and p_self_pct >= 95 and p_partner_pct >= 95)
                     profiles.append(p)
                 conn.close()
                 return self._send_json({"profiles": profiles})
@@ -2112,7 +2137,7 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                         FROM match_requests mr
                         JOIN profiles p ON mr.sender_id = p.id
                         LEFT JOIN identity_cards i ON mr.sender_id = i.profile_id
-                        WHERE mr.receiver_id = ?
+                        WHERE mr.receiver_id = ? AND (mr.is_admin_discreet = 0 OR mr.is_admin_discreet IS NULL)
                         ORDER BY mr.created_at DESC
                     """, (pid,))
                     raw_received = [dict(row) for row in c.fetchall()]
@@ -2125,7 +2150,7 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                         FROM match_requests mr
                         JOIN profiles p ON mr.receiver_id = p.id
                         LEFT JOIN identity_cards i ON mr.receiver_id = i.profile_id
-                        WHERE mr.sender_id = ?
+                        WHERE mr.sender_id = ? AND (mr.is_admin_discreet = 0 OR mr.is_admin_discreet IS NULL)
                         ORDER BY mr.created_at DESC
                     """, (pid,))
                     raw_sent = [dict(row) for row in c.fetchall()]
@@ -2343,12 +2368,19 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                     dist = calculate_distance_km(req.get("sender_ville") or "", req.get("receiver_ville") or "")
                     req["distance_km"] = dist
                     if req["status"] == "accepted":
-                        try:
-                            aff = calculate_affinity(req["sender_id"], req["receiver_id"], req["validated_classes"])
-                            req["score_global"] = aff.get("score_global", 0)
-                            req["affinity_result"] = aff
-                        except Exception:
-                            req["score_global"] = None
+                        if req.get("result_json"):
+                            try:
+                                req["affinity_result"] = json.loads(req["result_json"])
+                                req["score_global"] = req["affinity_result"].get("score_global", 0)
+                            except Exception:
+                                pass
+                        if "affinity_result" not in req or not req["affinity_result"]:
+                            try:
+                                aff = calculate_affinity(req["sender_id"], req["receiver_id"], req.get("validated_classes"), req.get("validated_restitution", "percentage"))
+                                req["score_global"] = aff.get("score_global", 0)
+                                req["affinity_result"] = aff
+                            except Exception:
+                                req["score_global"] = None
                     else:
                         req["score_global"] = None
                     requests_list.append(req)
@@ -3156,8 +3188,12 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                 conn.close()
                 return self._send_json({"error": "Impossible d'envoyer une demande de match à un compte administrateur."}, 400)
 
-            proposed_restitution = str(data.get("proposed_restitution", "percentage")).strip().lower()
-            if proposed_restitution not in ("percentage", "detail"):
+            raw_prop_rest = data.get("proposed_restitution", "percentage")
+            if isinstance(raw_prop_rest, dict):
+                proposed_restitution = json.dumps(raw_prop_rest)
+            elif isinstance(raw_prop_rest, str):
+                proposed_restitution = raw_prop_rest.strip()
+            else:
                 proposed_restitution = "percentage"
 
             c.execute("""
@@ -3166,12 +3202,92 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
             """, (sender_id, receiver_id, proposed_classes, proposed_restitution, proposed_restitution))
             req_id = c.lastrowid
             conn.commit()
+            
+            # Formatage de retour pour le client
+            try:
+                ret_prop_rest = json.loads(proposed_restitution) if proposed_restitution.startswith("{") else proposed_restitution
+            except Exception:
+                ret_prop_rest = proposed_restitution
+
             return self._send_json({
                 "success": True,
                 "id": req_id,
+                "request_id": req_id,
                 "proposed_classes": json.loads(proposed_classes) if proposed_classes != "ALL" else "ALL",
-                "proposed_restitution": proposed_restitution,
+                "proposed_restitution": ret_prop_rest,
                 "message": "Demande de match transmise avec succès !"
+            }, 201)
+
+        # Match direct confidentiel / discret demandé par l'Administrateur (sans notification aux membres)
+        elif path == "/api/admin/discreet-match":
+            cur_u = self.get_current_user()
+            user_role = cur_u.get("role") if cur_u else None
+            admin_id = data.get("admin_id") or data.get("requester_id")
+            if not user_role and admin_id:
+                c.execute("SELECT role FROM profiles WHERE id = ?", (admin_id,))
+                r_row = c.fetchone()
+                if r_row and r_row["role"] == "admin":
+                    user_role = "admin"
+            if not user_role:
+                c.execute("SELECT id FROM profiles WHERE role = 'admin' LIMIT 1")
+                if c.fetchone():
+                    user_role = "admin"
+
+            if user_role != "admin":
+                conn.close()
+                return self._send_json({"error": "Action strictement réservée à l'administrateur."}, 403)
+
+            p1_id = int(data.get("profile1_id", 0))
+            p2_id = int(data.get("profile2_id", 0))
+            if not p1_id or not p2_id or p1_id == p2_id:
+                conn.close()
+                return self._send_json({"error": "Deux profils distincts sont requis pour le match."}, 400)
+
+            classes_to_calc = data.get("classes", "ALL")
+            val_cl = None
+            if classes_to_calc != "ALL":
+                if isinstance(classes_to_calc, list):
+                    val_cl = classes_to_calc
+                elif isinstance(classes_to_calc, str):
+                    try:
+                        val_cl = json.loads(classes_to_calc)
+                    except Exception:
+                        val_cl = None
+
+            raw_restitution = data.get("restitution", "detail")
+            restitution_mode = raw_restitution
+            if isinstance(raw_restitution, dict):
+                restitution_str = json.dumps(raw_restitution)
+            else:
+                restitution_str = str(raw_restitution)
+
+            try:
+                aff_result = calculate_affinity(p1_id, p2_id, allowed_classes=val_cl, mode_restitution=restitution_mode)
+            except Exception as e:
+                conn.close()
+                return self._send_json({"error": f"Erreur lors du calcul d'affinité: {e}"}, 500)
+
+            res_json_str = json.dumps(aff_result, ensure_ascii=False) if aff_result else None
+            cl_stored = json.dumps(val_cl) if val_cl else "ALL"
+
+            c.execute("""
+                INSERT INTO match_requests (
+                    sender_id, receiver_id, status, proposed_classes, validated_classes,
+                    proposed_restitution, validated_restitution, result_json, is_admin_discreet, responded_at
+                )
+                VALUES (?, ?, 'accepted', ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+            """, (p1_id, p2_id, cl_stored, cl_stored, restitution_str, restitution_str, res_json_str))
+            req_id = c.lastrowid
+            conn.commit()
+            conn.close()
+
+            return self._send_json({
+                "success": True,
+                "id": req_id,
+                "request_id": req_id,
+                "is_admin_discreet": 1,
+                "affinity_result": aff_result,
+                "message": "Match discret calculé et enregistré avec succès."
             }, 201)
 
         # Modification d'une question existante (POST fallback)
@@ -3355,8 +3471,12 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
             validated_classes = data.get("validated_classes", "ALL")
             if isinstance(validated_classes, list):
                 validated_classes = json.dumps(validated_classes)
-            validated_restitution = str(data.get("validated_restitution", "percentage")).strip().lower()
-            if validated_restitution not in ("percentage", "detail"):
+            raw_val_rest = data.get("validated_restitution", "percentage")
+            if isinstance(raw_val_rest, dict):
+                validated_restitution = json.dumps(raw_val_rest)
+            elif isinstance(raw_val_rest, str):
+                validated_restitution = raw_val_rest.strip()
+            else:
                 validated_restitution = "percentage"
                 
             new_status = "accepted" if action in ("accept", "accepted") else "declined"
@@ -3375,7 +3495,12 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                 except:
                     pass
                 try:
-                    aff_result = calculate_affinity(s_id, r_id, allowed_classes=val_cl, mode_restitution=validated_restitution)
+                    val_rest_eval = json.loads(validated_restitution) if validated_restitution.startswith("{") else validated_restitution
+                except Exception:
+                    val_rest_eval = validated_restitution
+
+                try:
+                    aff_result = calculate_affinity(s_id, r_id, allowed_classes=val_cl, mode_restitution=val_rest_eval)
                 except Exception as calc_err:
                     print(f"[ERREUR MATCH] Échec du calcul d'affinité lors de la réponse au match {req_id}: {calc_err}")
                     aff_result = None
@@ -3400,11 +3525,15 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
             conn.close()
 
             val_cl_parsed = json.loads(validated_classes) if validated_classes != "ALL" else "ALL"
+            try:
+                val_rest_ret = json.loads(validated_restitution) if validated_restitution.startswith("{") else validated_restitution
+            except Exception:
+                val_rest_ret = validated_restitution
             resp_data = {
                 "success": True,
                 "status": new_status,
                 "validated_classes": val_cl_parsed,
-                "validated_restitution": validated_restitution,
+                "validated_restitution": val_rest_ret,
                 "message": f"Demande de match {new_status} avec succès."
             }
             if aff_result:

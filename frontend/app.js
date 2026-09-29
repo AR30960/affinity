@@ -1765,10 +1765,10 @@ function applyRolePermissionsUi() {
     simSwitchBox.style.display = (isRealAdmin() && isCurrentAdmin() && !state.simulatedRole) ? 'flex' : 'none';
   }
 
-  // 4b. Bouton Lancer un Match dans le header (strictement réservé aux Abonnés et Administrateurs)
+  // 4b. Bouton Lancer un Match dans le header (strictement réservé à l'Administrateur réel non simulé)
   const btnQuickMatch = document.getElementById('btnQuickMatch');
   if (btnQuickMatch) {
-    btnQuickMatch.style.display = isCurrentSubscriberOrAdmin() ? 'inline-flex' : 'none';
+    btnQuickMatch.style.display = (isRealAdmin() && isCurrentAdmin() && !state.simulatedRole) ? 'inline-flex' : 'none';
   }
 
   // 5. Calculateur d'Affinité (Verrouillé si Invité)
@@ -1914,11 +1914,12 @@ function isCurrentProfileCompleted() {
   const curProf = getActiveProfile();
   if (!curProf) return false;
   if (curProf.role === 'admin') return true;
+  if (curProf.is_completed === true) return true;
 
-  // 1. Complétude des caractéristiques d'identité (Classe 8)
+  // 1. Complétude des caractéristiques d'identité (Classe 8 : seuil de 95% pour tolérer les questions non applicables)
   const sPct = state.selfCompletionPct ?? curProf.self_completion_pct ?? 0;
   const pPct = state.partnerCompletionPct ?? curProf.partner_completion_pct ?? 0;
-  if (sPct < 100 || pPct < 100) return false;
+  if (sPct < 95 || pPct < 95) return false;
 
   // 2. Fiche de base (sexe, date de naissance, localisation, bio)
   const hasBasic = Boolean(
@@ -1936,6 +1937,19 @@ function updateAffinityAccessUi() {
   
   if (!guestLock || !calcContent) return;
 
+  // Header : masquer strictement le bouton Lancer un Match pour Abonnés et Invités
+  const btnQuickMatch = document.getElementById('btnQuickMatch');
+  if (btnQuickMatch) {
+    btnQuickMatch.style.display = isCurrentAdmin() ? 'inline-flex' : 'none';
+  }
+
+  // Masquer les anciens panneaux manuels résiduels
+  const selectorPanel = document.getElementById('affinitySelectorPanel');
+  if (selectorPanel) selectorPanel.style.display = 'none';
+
+  const previewCard = document.getElementById('targetProfilePreviewCard');
+  if (previewCard) previewCard.style.display = 'none';
+
   // 1. Rôle Invité : bloqué par le panneau Invité
   if (role === 'guest') {
     guestLock.style.display = 'block';
@@ -1944,12 +1958,28 @@ function updateAffinityAccessUi() {
     return;
   }
 
-  // 2. Rôle Administrateur : accès direct et supervision
+  // 2. Rôle Administrateur : Espace Superviseur dédié (Section profils disponibles supprimée)
   if (isCurrentAdmin()) {
     guestLock.style.display = 'none';
     if (incompleteLock) incompleteLock.style.display = 'none';
     calcContent.style.display = 'block';
-    renderMatchCandidates(state.matchGenderFilter || 'opposite');
+
+    // RÈGLE DEMANDÉE : Pour l'administrateur, la section profils complétés disponibles doit être supprimée
+    const candidatesSection = document.getElementById('matchCandidatesSection');
+    if (candidatesSection) candidatesSection.style.display = 'none';
+
+    // Afficher la section Superviseur des matchs (simulations discrètes & historique exhaustif)
+    const adminSupervision = document.getElementById('adminMatchSupervisionSection');
+    if (adminSupervision) {
+      adminSupervision.style.display = 'block';
+      populateAdminDiscreetProfileSelectors();
+      loadAdminSupervisionMatches();
+    }
+
+    // Masquer le module de demandes bilatérales abonnés
+    const subMatchSection = document.getElementById('subscriberMatchSection');
+    if (subMatchSection) subMatchSection.style.display = 'none';
+
     return;
   }
 
@@ -1970,10 +2000,26 @@ function updateAffinityAccessUi() {
     return;
   }
 
-  // 4. Abonné avec profil 100% complété : accès autorisé au matching
+  // 4. Abonné avec profil 100% complété : Galerie des candidats disponibles & Demandes
   guestLock.style.display = 'none';
   if (incompleteLock) incompleteLock.style.display = 'none';
   calcContent.style.display = 'block';
+
+  // Afficher la galerie des profils candidats complétés pour l'abonné
+  const candidatesSection = document.getElementById('matchCandidatesSection');
+  if (candidatesSection) candidatesSection.style.display = 'block';
+
+  // Masquer la section Superviseur administrateur
+  const adminSupervision = document.getElementById('adminMatchSupervisionSection');
+  if (adminSupervision) adminSupervision.style.display = 'none';
+
+  // Afficher les demandes de match de l'abonné
+  const subMatchSection = document.getElementById('subscriberMatchSection');
+  if (subMatchSection) {
+    subMatchSection.style.display = 'block';
+    loadMatchRequests();
+  }
+
   renderMatchCandidates(state.matchGenderFilter || 'opposite');
 }
 
@@ -2072,7 +2118,7 @@ function renderMatchCandidates(filterType = null) {
   const eligibleCompleted = (state.profiles || []).filter(p => {
     if (p.id === p1Id) return false;
     if (p.role === 'admin') return false;
-    const isComp = Boolean(p.is_completed || (p.has_identity && (p.self_completion_pct ?? 0) >= 100 && (p.partner_completion_pct ?? 0) >= 100));
+    const isComp = Boolean(p.is_completed || (p.has_identity && (p.self_completion_pct ?? 0) >= 95 && (p.partner_completion_pct ?? 0) >= 95));
     return isComp;
   });
 
@@ -5337,11 +5383,6 @@ function openNewMatchRequestModal(partnerId) {
   // Périmètres par défaut (classes 1 et 2 cochées, les autres découvrables)
   setNmrClassesPreset('standards');
 
-  // Mode de restitution par défaut : 'percentage'
-  const radPct = document.getElementById('nmrCardRestitutionPercentage')?.querySelector('input');
-  if (radPct) radPct.checked = true;
-  updateNmrRestitutionCardStyle();
-
   if (modal) modal.style.display = 'flex';
 }
 
@@ -5349,6 +5390,45 @@ function closeNewMatchRequestModal() {
   const modal = document.getElementById('modalNewMatchRequest');
   if (modal) modal.style.display = 'none';
   state.pendingTargetMatchPartnerId = null;
+}
+
+function updateNmrClassItemState(classId) {
+  const cb = document.querySelector(`input[name="nmrClass"][value="${classId}"]`);
+  const item = document.getElementById(`nmrItemClass${classId}`);
+  if (item && cb) {
+    item.classList.toggle('disabled', !cb.checked);
+    const btns = item.querySelectorAll('.nmr-btn-mode');
+    btns.forEach(b => {
+      b.disabled = !cb.checked;
+      b.style.opacity = cb.checked ? '1' : '0.4';
+      b.style.pointerEvents = cb.checked ? 'auto' : 'none';
+    });
+  }
+}
+
+function setNmrClassMode(classId, mode) {
+  const btnPct = document.getElementById(`nmrMode_${classId}_pct`);
+  const btnDet = document.getElementById(`nmrMode_${classId}_det`);
+  if (btnPct && btnDet) {
+    if (mode === 'percentage') {
+      btnPct.classList.add('active');
+      btnDet.classList.remove('active');
+    } else {
+      btnDet.classList.add('active');
+      btnPct.classList.remove('active');
+    }
+  }
+  // S'assurer que la classe est activée si on clique sur son mode
+  const cb = document.querySelector(`input[name="nmrClass"][value="${classId}"]`);
+  if (cb && !cb.checked) {
+    cb.checked = true;
+    updateNmrClassItemState(classId);
+  }
+}
+
+function setNmrAllRestitution(mode) {
+  const classes = ['1', '2', '3', '4', '5', '9'];
+  classes.forEach(c => setNmrClassMode(c, mode));
 }
 
 function setNmrClassesPreset(preset) {
@@ -5360,17 +5440,8 @@ function setNmrClassesPreset(preset) {
     } else if (preset === 'all') {
       cb.checked = true;
     }
+    updateNmrClassItemState(cb.value);
   });
-}
-
-function updateNmrRestitutionCardStyle() {
-  const radPct = document.getElementById('nmrCardRestitutionPercentage');
-  const radDet = document.getElementById('nmrCardRestitutionDetail');
-  const inpPct = radPct?.querySelector('input');
-  const inpDet = radDet?.querySelector('input');
-
-  if (radPct && inpPct) radPct.classList.toggle('active', inpPct.checked);
-  if (radDet && inpDet) radDet.classList.toggle('active', inpDet.checked);
 }
 
 async function submitNewMatchRequest() {
@@ -5388,8 +5459,13 @@ async function submitNewMatchRequest() {
     return;
   }
 
-  const restitutionEl = document.querySelector('input[name="nmrRestitutionMode"]:checked');
-  const chosenRestitution = restitutionEl ? restitutionEl.value : 'percentage';
+  // RÈGLE DEMANDÉE : Le niveau de restitution doit pouvoir être positionné pour chaque classe
+  const proposedRestitution = {};
+  selectedClasses.forEach(cl => {
+    const btnDet = document.getElementById(`nmrMode_${cl}_det`);
+    const isDet = btnDet && btnDet.classList.contains('active');
+    proposedRestitution[String(cl)] = isDet ? 'detail' : 'percentage';
+  });
 
   const partner = (state.profiles || []).find(p => p.id === partnerId);
   const pPseudo = partner ? partner.pseudo : `Membre #${partnerId}`;
@@ -5408,7 +5484,7 @@ async function submitNewMatchRequest() {
         sender_id: curProf.id,
         receiver_id: partnerId,
         proposed_classes: selectedClasses,
-        proposed_restitution: chosenRestitution
+        proposed_restitution: proposedRestitution
       })
     });
     const data = await res.json();
@@ -5572,6 +5648,7 @@ function requestNewMatchFromHistory() {
 }
 
 // Clic sur un match : affiche immédiatement son résultat complet
+// Clic sur un match dans l'historique abonné : ouvre la fenêtre modale dédiée
 function displayMatchResultFromHistory(matchId) {
   const matches = state.currentPartnerMatchesHistory || [];
   const match = matches.find(m => m.id === matchId);
@@ -5582,12 +5659,65 @@ function displayMatchResultFromHistory(matchId) {
 
   closeSubscriberMatchHistoryModal();
 
-  // Affichage direct du résultat dans le conteneur du calculateur
-  viewAcceptedMatchResult(match.affinity_result, {
+  // RÈGLE DEMANDÉE : C'est un clic sur une ligne de l'historique qui affiche une fenêtre spécifique avec les résultats
+  openMatchResultsModal(match.affinity_result, {
     matchDate: match.responded_at || match.created_at,
     restitutionMode: match.validated_restitution || 'percentage',
-    partnerPseudo: match.receiver_id === getActiveProfile()?.id ? match.sender_pseudo : match.receiver_pseudo
+    partnerPseudo: match.receiver_id === getActiveProfile()?.id ? match.sender_pseudo : match.receiver_pseudo,
+    title: `Résultat du Match : ${match.sender_pseudo} ⇄ ${match.receiver_pseudo}`,
+    subtitle: `Calcul d'affinité bilatérale validé d'un commun accord`
   });
+}
+
+// ==========================================================================
+// FENÊTRE MODALE SPÉCIFIQUE DÉDIÉE DE RÉSULTATS DE MATCH
+// ==========================================================================
+function openMatchResultsModal(affinityResult, options = {}) {
+  const modal = document.getElementById('modalMatchResultsView');
+  if (!modal) return;
+
+  const p1 = affinityResult.profile1 || {};
+  const p2 = affinityResult.profile2 || {};
+  const p1Pseudo = p1.pseudo || 'Membre 1';
+  const p2Pseudo = p2.pseudo || 'Membre 2';
+
+  const titleEl = document.getElementById('mrvTitle');
+  const subEl = document.getElementById('mrvSubtitle');
+  const badgeEl = document.getElementById('mrvBadgeType');
+
+  if (titleEl) {
+    titleEl.textContent = options.title || `Rapport d'Affinité : ${p1Pseudo} ⇄ ${p2Pseudo}`;
+  }
+  if (subEl) {
+    const dStr = options.matchDate ? new Date(options.matchDate).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' }) : new Date().toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' });
+    subEl.textContent = options.subtitle || `Calcul élective bilatérale &bull; Enregistré le ${dStr}`;
+  }
+
+  if (badgeEl) {
+    if (options.isDiscreet) {
+      badgeEl.style.display = 'inline-block';
+      badgeEl.className = 'role-badge badge-discreet';
+      badgeEl.textContent = '🕵️ Match discret Admin';
+    } else {
+      badgeEl.style.display = 'none';
+    }
+  }
+
+  // Rendu des graphiques et scores dans le container situé dans la modale
+  state.lastAffinityResult = affinityResult;
+  renderAffinityResults(affinityResult, options);
+
+  modal.style.display = 'flex';
+}
+
+function closeMatchResultsModal() {
+  const modal = document.getElementById('modalMatchResultsView');
+  if (modal) modal.style.display = 'none';
+}
+
+function viewAcceptedMatchResult(affinityResult, options = {}) {
+  // Rediriger systématiquement vers la fenêtre dédiée
+  openMatchResultsModal(affinityResult, options);
 }
 
 async function sendMatchRequest() {
@@ -5637,6 +5767,32 @@ function switchMatchSubTab(tab) {
   }
 }
 
+function setReqClassMode(requestId, classId, mode) {
+  const btnPct = document.getElementById(`btnReqModePct_${requestId}_${classId}`);
+  const btnDet = document.getElementById(`btnReqModeDet_${requestId}_${classId}`);
+  if (btnPct && btnDet) {
+    if (mode === 'percentage') {
+      btnPct.classList.add('active');
+      btnDet.classList.remove('active');
+    } else {
+      btnDet.classList.add('active');
+      btnPct.classList.remove('active');
+    }
+  }
+}
+
+function toggleReqClassRow(requestId, classId) {
+  const cb = document.querySelector(`input[name="reqClass_${requestId}"][value="${classId}"]`);
+  const btnPct = document.getElementById(`btnReqModePct_${requestId}_${classId}`);
+  const btnDet = document.getElementById(`btnReqModeDet_${requestId}_${classId}`);
+  if (cb && btnPct && btnDet) {
+    btnPct.disabled = !cb.checked;
+    btnDet.disabled = !cb.checked;
+    btnPct.style.opacity = cb.checked ? '1' : '0.4';
+    btnDet.style.opacity = cb.checked ? '1' : '0.4';
+  }
+}
+
 function renderMatchRequests(data) {
   const receivedList = document.getElementById('listReceivedMatches') || document.getElementById('matchRequestsReceivedList');
   const sentList = document.getElementById('listSentMatches') || document.getElementById('matchRequestsSentList');
@@ -5655,7 +5811,7 @@ function renderMatchRequests(data) {
     4: 'Classe 4 (Privées)', 5: 'Classe 5 (Hors normes)', 9: 'Classe 9 (Amorales)'
   };
 
-  // 1. Demandes Reçues (Destinataire : validation complète ou partielle)
+  // 1. Demandes Reçues (Destinataire : validation complète ou partielle par classe)
   if (receivedList) {
     if (received.length === 0) {
       receivedList.innerHTML = '<div class="empty-requests-msg">📬 Vous n\'avez reçu aucune demande de match pour le moment.</div>';
@@ -5671,22 +5827,57 @@ function renderMatchRequests(data) {
               ? '<span class="mrc-status-badge accepted">✅ Match Accepté &amp; Réalisé</span>' 
               : '<span class="mrc-status-badge declined">❌ Refusée</span>');
 
-        const classesToShow = isAccepted ? req.validated_classes : req.proposed_classes;
-        const classesHtml = (classesToShow || [1, 2]).map(cl => `
-          <label class="mrc-tag ${isAccepted ? 'selected' : ''}">
-            ${isPending ? `<input type="checkbox" name="reqClass_${req.id}" value="${cl}" checked style="margin-right:4px;">` : ''}
-            ${classeLabels[cl] || `Classe ${cl}`}
-          </label>
-        `).join('');
+        const proposedClasses = req.proposed_classes || [1, 2];
+        const validatedClasses = req.validated_classes || proposedClasses;
+
+        // Dictionnaire des modes proposés par classe
+        const proposedRestObj = (typeof req.proposed_restitution === 'object' && req.proposed_restitution !== null)
+          ? req.proposed_restitution
+          : {};
+        const defaultProposedMode = (typeof req.proposed_restitution === 'string') ? req.proposed_restitution : 'percentage';
+
+        // Lignes de configuration par classe
+        let classesConfigHtml = '';
+        if (isPending) {
+          classesConfigHtml = proposedClasses.map(cl => {
+            const propMode = proposedRestObj[String(cl)] || defaultProposedMode;
+            return `
+              <div class="mrc-class-config-row" style="display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:rgba(255,255,255,0.02); border-radius:6px; margin-bottom:6px; border:1px solid rgba(255,255,255,0.06); gap:10px;">
+                <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; cursor:pointer; margin:0; flex:1;">
+                  <input type="checkbox" name="reqClass_${req.id}" value="${cl}" checked style="accent-color:var(--accent-teal);" onchange="toggleReqClassRow(${req.id}, ${cl})">
+                  <span style="color:var(--text-bright); font-weight:600;">${classeLabels[cl] || `Classe ${cl}`}</span>
+                </label>
+                <div class="nmr-rest-group" style="display:flex; gap:3px;">
+                  <button type="button" class="btn btn-xs nmr-btn-mode ${propMode === 'percentage' ? 'active' : ''}" id="btnReqModePct_${req.id}_${cl}" onclick="setReqClassMode(${req.id}, ${cl}, 'percentage')">📊 %</button>
+                  <button type="button" class="btn btn-xs nmr-btn-mode ${propMode === 'detail' ? 'active' : ''}" id="btnReqModeDet_${req.id}_${cl}" onclick="setReqClassMode(${req.id}, ${cl}, 'detail')">🔍 Détail</button>
+                </div>
+              </div>
+            `;
+          }).join('');
+        } else {
+          // Accord déjà conclu
+          const validatedRestObj = (typeof req.validated_restitution === 'object' && req.validated_restitution !== null)
+            ? req.validated_restitution
+            : {};
+          const defaultValMode = (typeof req.validated_restitution === 'string') ? req.validated_restitution : 'percentage';
+
+          classesConfigHtml = validatedClasses.map(cl => {
+            const valMode = validatedRestObj[String(cl)] || defaultValMode;
+            const modeBadge = valMode === 'detail' 
+              ? '<span class="smh-rest-badge detail" style="font-size:11px;">🔍 Détail</span>' 
+              : '<span class="smh-rest-badge percentage" style="font-size:11px;">📊 %</span>';
+            return `
+              <span class="mrc-tag selected" style="display:inline-flex; align-items:center; gap:6px; margin-right:6px; margin-bottom:6px;">
+                <span>${classeLabels[cl] || `Classe ${cl}`}</span>
+                ${modeBadge}
+              </span>
+            `;
+          }).join('');
+        }
 
         const distText = req.distance_km !== null 
           ? `🚗 ${req.distance_km} km (${req.sender_ville || '?'} ⇄ ${req.my_ville || '?'})`
           : `📍 ${req.sender_ville || 'Ville non renseignée'}`;
-
-        const isDetailProposed = (req.proposed_restitution === 'detail');
-        const isDetailAccepted = (req.validated_restitution === 'detail');
-
-        const affResJson = req.affinity_result ? JSON.stringify(req.affinity_result).replace(/'/g, '&#39;') : '';
 
         return `
           <div class="match-request-card">
@@ -5701,43 +5892,16 @@ function renderMatchRequests(data) {
               <div>${statusLabel}</div>
             </div>
 
-            <!-- Validation complète ou partielle des Classes -->
-            <div class="mrc-classes-scope" style="margin-top:12px;">
-              <span class="mrc-scope-lbl">
-                ${isPending ? 'Classes proposées par l\'émetteur (décochez pour valider partiellement) :' : 'Périmètres de questionnaires convenus :'}
+            <!-- Validation des classes et du mode de restitution individuel -->
+            <div class="mrc-classes-scope" style="margin-top:14px;">
+              <span class="mrc-scope-lbl" style="display:block; margin-bottom:8px;">
+                ${isPending 
+                  ? 'Classes proposées (cochez les classes autorisées et ajustez 📊 % ou 🔍 Détail pour chacune) :' 
+                  : 'Périmètres de questionnaires validés :'}
               </span>
-              <div class="mrc-classes-tags" id="reqClassesBox_${req.id}">
-                ${classesHtml}
+              <div class="mrc-classes-list-box" id="reqClassesBox_${req.id}">
+                ${classesConfigHtml}
               </div>
-            </div>
-
-            <!-- Validation complète ou partielle du Mode de Restitution -->
-            <div class="mrc-restitution-scope" style="margin-top:10px; padding:10px 12px; background:rgba(255,255,255,0.02); border-radius:6px; border:1px solid rgba(255,255,255,0.06);">
-              ${isPending ? `
-                <span class="mrc-scope-lbl" style="display:block; margin-bottom:6px;">Niveau de restitution du résultat :</span>
-                ${isDetailProposed ? `
-                  <div style="display:flex; flex-direction:column; gap:6px;">
-                    <label style="font-size:12.5px; display:flex; align-items:center; gap:6px; cursor:pointer;">
-                      <input type="radio" name="reqRestitution_${req.id}" value="detail" checked>
-                      <span>🔍 <strong>Valider en détail question par question</strong> (Accord complet)</span>
-                    </label>
-                    <label style="font-size:12.5px; display:flex; align-items:center; gap:6px; cursor:pointer;">
-                      <input type="radio" name="reqRestitution_${req.id}" value="percentage">
-                      <span>📊 <strong>N'autoriser qu'en pourcentage par thématique et sujet</strong> (Accord partiel)</span>
-                    </label>
-                  </div>
-                ` : `
-                  <div style="font-size:12.5px; color:var(--text-bright); display:flex; align-items:center; gap:6px;">
-                    <span>📊</span> <span>Résultat prévu : <strong>En pourcentage par thématique et sujet</strong></span>
-                    <input type="hidden" name="reqRestitution_${req.id}" value="percentage">
-                  </div>
-                `}
-              ` : `
-                <div style="font-size:12px; color:var(--text-dim);">
-                  Niveau de résultat convenu : 
-                  <strong style="color:var(--text-bright);">${isDetailAccepted ? '🔍 En détail question par question' : '📊 En pourcentage par thématique et sujet'}</strong>
-                </div>
-              `}
             </div>
 
             ${isPending ? `
@@ -5756,8 +5920,8 @@ function renderMatchRequests(data) {
                 <span style="font-size:13px; color:var(--accent-emerald); font-weight:700;">
                   🎉 Affinité calculée : ${req.affinity_result.score_global}%
                 </span>
-                <button class="btn btn-sm btn-primary" onclick='viewAcceptedMatchResult(${affResJson})'>
-                  📊 Voir le rapport complet
+                <button class="btn btn-sm btn-primary" onclick="openMatchResultsModal(state.myAcceptedMatches.find(m => m.id === ${req.id})?.affinity_result || ${JSON.stringify(req.affinity_result).replace(/"/g, '&quot;')}, { title: 'Résultat du Match : ${req.sender_pseudo} ⇄ ${req.receiver_pseudo}', subtitle: 'Accord bilatéral validé' })">
+                  📊 Voir le rapport complet dans la fenêtre dédiée
                 </button>
               </div>
             ` : ''}
@@ -5784,20 +5948,29 @@ function renderMatchRequests(data) {
               : '<span class="mrc-status-badge declined">❌ Refusée</span>');
 
         const classesToShow = isAccepted ? req.validated_classes : req.proposed_classes;
-        const classesHtml = (classesToShow || [1, 2]).map(cl => `
-          <span class="mrc-tag ${isAccepted ? 'selected' : ''}">
-            ${classeLabels[cl] || `Classe ${cl}`}
-          </span>
-        `).join('');
+        const restObj = isAccepted 
+          ? ((typeof req.validated_restitution === 'object' && req.validated_restitution !== null) ? req.validated_restitution : {})
+          : ((typeof req.proposed_restitution === 'object' && req.proposed_restitution !== null) ? req.proposed_restitution : {});
+        const defaultMode = isAccepted 
+          ? ((typeof req.validated_restitution === 'string') ? req.validated_restitution : 'percentage')
+          : ((typeof req.proposed_restitution === 'string') ? req.proposed_restitution : 'percentage');
+
+        const classesHtml = (classesToShow || [1, 2]).map(cl => {
+          const mode = restObj[String(cl)] || defaultMode;
+          const modeBadge = mode === 'detail' 
+            ? '<span class="smh-rest-badge detail" style="font-size:11px;">🔍 Détail</span>' 
+            : '<span class="smh-rest-badge percentage" style="font-size:11px;">📊 %</span>';
+          return `
+            <span class="mrc-tag ${isAccepted ? 'selected' : ''}" style="display:inline-flex; align-items:center; gap:6px; margin-right:6px; margin-bottom:6px;">
+              <span>${classeLabels[cl] || `Classe ${cl}`}</span>
+              ${modeBadge}
+            </span>
+          `;
+        }).join('');
 
         const distText = req.distance_km !== null 
           ? `🚗 ${req.distance_km} km (${req.my_ville || '?'} ⇄ ${req.receiver_ville || '?'})`
           : `📍 ${req.receiver_ville || 'Ville non renseignée'}`;
-
-        const isDetailAccepted = (req.validated_restitution === 'detail');
-        const isDetailProposed = (req.proposed_restitution === 'detail');
-
-        const affResJson = req.affinity_result ? JSON.stringify(req.affinity_result).replace(/'/g, '&#39;') : '';
 
         return `
           <div class="match-request-card">
@@ -5814,18 +5987,9 @@ function renderMatchRequests(data) {
 
             <div class="mrc-classes-scope" style="margin-top:12px;">
               <span class="mrc-scope-lbl">${isAccepted ? 'Périmètres validés d\'un commun accord :' : 'Périmètres de questions demandés :'}</span>
-              <div class="mrc-classes-tags">
+              <div class="mrc-classes-tags" style="margin-top:6px;">
                 ${classesHtml}
               </div>
-            </div>
-
-            <div style="margin-top:8px; font-size:12px; color:var(--text-dim);">
-              Niveau de restitution : 
-              <strong style="color:var(--text-bright);">
-                ${isAccepted 
-                  ? (isDetailAccepted ? '🔍 En détail question par question' : '📊 En pourcentage par thématique et sujet')
-                  : (isDetailProposed ? '🔍 En détail question par question (Sollicité)' : '📊 En pourcentage par thématique et sujet')}
-              </strong>
             </div>
 
             ${isAccepted && req.affinity_result ? `
@@ -5833,8 +5997,8 @@ function renderMatchRequests(data) {
                 <span style="font-size:13px; color:var(--accent-cyan); font-weight:700;">
                   🎉 Match Validé &bull; Score d'affinité : ${req.affinity_result.score_global}%
                 </span>
-                <button class="btn btn-sm btn-gradient" onclick='viewAcceptedMatchResult(${affResJson})'>
-                  📊 Découvrir le rapport de Match
+                <button class="btn btn-sm btn-gradient" onclick="openMatchResultsModal(state.myAcceptedMatches.find(m => m.id === ${req.id})?.affinity_result || ${JSON.stringify(req.affinity_result).replace(/"/g, '&quot;')}, { title: 'Résultat du Match : ${req.receiver_pseudo}', subtitle: 'Demande acceptée' })">
+                  📊 Découvrir le rapport dans la fenêtre dédiée
                 </button>
               </div>
             ` : ''}
@@ -5847,21 +6011,23 @@ function renderMatchRequests(data) {
 
 async function respondMatchRequestAction(requestId, action) {
   let validatedClasses = [1, 2];
-  let validatedRestitution = 'percentage';
+  let validatedRestitution = {};
 
   if (action === 'accepted') {
     const cbs = Array.from(document.querySelectorAll(`input[name="reqClass_${requestId}"]`));
     const selected = cbs.filter(cb => cb.checked).map(cb => parseInt(cb.value, 10));
     if (selected.length === 0) {
-      alert('Veuillez cocher au moins un périmètre (classe) de questions à prendre en compte.');
+      alert('Veuillez cocher au moins une classe de questions à inclure dans le calcul.');
       return;
     }
     validatedClasses = selected;
 
-    const restEl = document.querySelector(`input[name="reqRestitution_${requestId}"]:checked`) || document.querySelector(`input[name="reqRestitution_${requestId}"]`);
-    if (restEl) {
-      validatedRestitution = restEl.value;
-    }
+    // RÈGLE DEMANDÉE : Le niveau de restitution doit pouvoir être positionné pour chaque classe
+    validatedClasses.forEach(cl => {
+      const btnDet = document.getElementById(`btnReqModeDet_${requestId}_${cl}`);
+      const isDet = btnDet && btnDet.classList.contains('active');
+      validatedRestitution[String(cl)] = isDet ? 'detail' : 'percentage';
+    });
   }
 
   try {
@@ -5877,253 +6043,294 @@ async function respondMatchRequestAction(requestId, action) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Erreur lors de la réponse');
 
-    showToast(action === 'accepted' ? '🎉 Match validé avec succès ! Les affinités sont désormais accessibles.' : 'Demande déclinée.');
+    showToast(action === 'accepted' ? '🎉 Match validé avec succès ! Les résultats sont prêts.' : 'Demande déclinée.');
     await loadMatchRequests();
     renderMatchCandidates();
 
     if (action === 'accepted' && data.affinity_result) {
-      viewAcceptedMatchResult(data.affinity_result);
+      openMatchResultsModal(data.affinity_result, {
+        title: '🎉 Match Réalisé d\'un Commun Accord',
+        subtitle: 'Validation bilatérale des périmètres de calcul'
+      });
     }
   } catch (err) {
     alert('Erreur : ' + err.message);
   }
 }
 
-function viewAcceptedMatchResult(affinityResult, options = {}) {
-  const alertBox = document.getElementById('affinityRuleAlert');
-  const resultsCard = document.getElementById('affinityResultsContainer');
+// ==========================================================================
+// ESPACE SUPERVISEUR ADMINISTRATEUR DES MATCHS & MATCHS DISCRETS
+// ==========================================================================
 
-  if (alertBox) alertBox.style.display = 'none';
-  if (resultsCard) resultsCard.style.display = 'flex';
+function populateAdminDiscreetProfileSelectors() {
+  const p1Select = document.getElementById('selectAdminDiscreetP1');
+  const p2Select = document.getElementById('selectAdminDiscreetP2');
+  if (!p1Select || !p2Select) return;
 
-  state.lastAffinityResult = affinityResult;
-  renderAffinityResults(affinityResult, options);
+  const profiles = state.profiles || [];
+  // RÈGLE DEMANDÉE : Il peut demander un match entre deux abonnés ou invités sans que ceux-ci en soit informé
+  const eligible = profiles.filter(p => p.role === 'subscriber' || p.role === 'guest');
 
-  // Synchroniser les sélecteurs
-  if (affinityResult.profile1?.id && affinityResult.profile2?.id) {
-    const aff1 = document.getElementById('affProfile1');
-    const aff2 = document.getElementById('affProfile2');
-    if (aff1) aff1.value = affinityResult.profile1.id;
-    if (aff2) aff2.value = affinityResult.profile2.id;
-    updateAffinitySelectorsStatus();
-    updateTargetProfilePreview();
-  }
+  const optionsHtml = eligible.map(p => {
+    const roleBadge = p.role === 'subscriber' ? '⭐ Abonné' : '👤 Invité';
+    const loc = p.habite_commune || p.ville || 'Localisation non renseignée';
+    return `<option value="${p.id}">[${formatAffId(p.id)}] ${p.pseudo} (${roleBadge} &bull; ${loc})</option>`;
+  }).join('');
 
-  resultsCard.scrollIntoView({ behavior: 'smooth' });
+  p1Select.innerHTML = `<option value="">-- Sélectionnez le premier membre --</option>` + optionsHtml;
+  p2Select.innerHTML = `<option value="">-- Sélectionnez le second membre --</option>` + optionsHtml;
+
+  // Pré-sélectionner Alyssa et AR30 si disponibles
+  const ar30 = eligible.find(p => p.pseudo.toLowerCase() === 'ar30');
+  const alyssa = eligible.find(p => p.pseudo.toLowerCase() === 'alyssa');
+  if (ar30) p1Select.value = ar30.id;
+  if (alyssa) p2Select.value = alyssa.id;
 }
 
-// ==========================================================================
-// COCKPIT SUPERVISEUR DES MATCHS & HISTORIQUE RÉEL (ADMINISTRATEUR)
-// ==========================================================================
-function switchAdminMatchTab(tab) {
-  const btnHist = document.getElementById('btnTabAdminHistory');
-  const btnSub = document.getElementById('btnTabAdminSubscriberRequests');
-  const paneHist = document.getElementById('paneAdminHistory');
-  const paneSub = document.getElementById('paneAdminSubscriberRequests');
+async function loadAdminSupervisionMatches() {
+  if (!isCurrentAdmin()) return;
 
-  if (tab === 'history') {
-    btnHist?.classList.add('active');
-    btnSub?.classList.remove('active');
-    if (paneHist) paneHist.style.display = 'block';
-    if (paneSub) paneSub.style.display = 'none';
-  } else {
-    btnSub?.classList.add('active');
-    btnHist?.classList.remove('active');
-    if (paneSub) paneSub.style.display = 'block';
-    if (paneHist) paneHist.style.display = 'none';
+  const listEl = document.getElementById('adminSupervisionMatchesList');
+  if (listEl) {
+    listEl.innerHTML = `<div style="text-align:center; padding:25px; color:var(--text-dim);">⏳ Chargement de l'ensemble des matchs...</div>`;
   }
-}
-
-async function loadAdminMatchHubData() {
-  if (!isRealAdmin()) return;
 
   try {
-    const [resHist, resSub] = await Promise.all([
-      fetch(`${API_BASE}/api/admin/match-history`),
-      fetch(`${API_BASE}/api/admin/subscriber-match-requests`)
-    ]);
+    const res = await fetch(`${API_BASE}/api/admin/subscriber-match-requests`);
+    if (!res.ok) throw new Error('Impossible de charger les matchs');
+    const data = await res.json();
+    const reqs = data.requests || [];
 
-    if (resHist.ok) {
-      const dataHist = await resHist.json();
-      state.adminMatchHistory = dataHist.history || [];
-      const badgeH = document.getElementById('badgeAdminHistoryCount');
-      if (badgeH) badgeH.textContent = `${state.adminMatchHistory.length}`;
-      renderAdminHistoryTable(state.adminMatchHistory);
-    }
+    state.adminSupervisionMatches = reqs;
 
-    if (resSub.ok) {
-      const dataSub = await resSub.json();
-      state.adminSubscriberRequests = dataSub.requests || [];
-      const badgeS = document.getElementById('badgeAdminSubscriberReqsCount');
-      if (badgeS) badgeS.textContent = `${state.adminSubscriberRequests.length}`;
-      renderAdminSubscriberRequestsTable(state.adminSubscriberRequests);
-    }
+    // Compteurs
+    const countAll = reqs.length;
+    const countDiscreet = reqs.filter(r => r.is_admin_discreet === 1).length;
+    const countSub = countAll - countDiscreet;
+
+    const elCountAll = document.getElementById('adminSupervisionCountAll');
+    const elCountDiscreet = document.getElementById('adminSupervisionCountDiscreet');
+    const elCountSub = document.getElementById('adminSupervisionCountSubscriber');
+
+    if (elCountAll) elCountAll.textContent = `${countAll}`;
+    if (elCountDiscreet) elCountDiscreet.textContent = `${countDiscreet}`;
+    if (elCountSub) elCountSub.textContent = `${countSub}`;
+
+    filterAdminSupervisionMatches();
   } catch (err) {
-    console.error("Erreur chargement Admin Match Hub:", err);
+    if (listEl) {
+      listEl.innerHTML = `<div style="text-align:center; padding:20px; color:#ef4444;">Erreur lors du chargement : ${err.message}</div>`;
+    }
   }
 }
 
-function renderAdminHistoryTable(historyList) {
-  const tbody = document.getElementById('adminHistoryTableBody');
-  if (!tbody) return;
+function filterAdminSupervisionMatches() {
+  const filterVal = document.getElementById('selectAdminMatchFilter')?.value || 'ALL';
+  const allMatches = state.adminSupervisionMatches || [];
 
-  if (!historyList || historyList.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="padding:25px; text-align:center; color:var(--text-dim);">Aucun calcul enregistré dans l'historique pour le moment. Lancez une comparaison ci-dessus pour la consigner.</td></tr>`;
-    return;
+  let filtered = allMatches;
+  if (filterVal === 'discreet') {
+    filtered = allMatches.filter(r => r.is_admin_discreet === 1);
+  } else if (filterVal === 'accepted') {
+    filtered = allMatches.filter(r => r.status === 'accepted');
+  } else if (filterVal === 'pending') {
+    filtered = allMatches.filter(r => r.status === 'pending');
+  } else if (filterVal === 'declined') {
+    filtered = allMatches.filter(r => r.status === 'declined');
   }
 
-  tbody.innerHTML = historyList.map(h => {
-    const dStr = h.created_at ? new Date(h.created_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : 'Date inconnue';
-    
-    // Badge diagnostic identité
-    let compatBadge = '<span class="status-badge" style="background:rgba(255,255,255,0.06); color:var(--text-dim);">Non évalué</span>';
-    if (h.identity_compat_level === 'COMPATIBLE') {
-      compatBadge = '<span class="status-badge" style="background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); font-weight:700;">✅ Compatible</span>';
-    } else if (h.identity_compat_level === 'PARTIEL') {
-      compatBadge = `<span class="status-badge" style="background:rgba(245,158,11,0.15); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); font-weight:700;">⚠️ Partiel (${h.identity_compat_score || 0}%)</span>`;
-    } else if (h.identity_compat_level === 'INCOMPATIBLE') {
-      compatBadge = '<span class="status-badge" style="background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3); font-weight:700;">❌ Incompatible</span>';
-    }
+  renderAdminSupervisionTable(filtered);
+}
 
-    const distInfo = h.distance_km !== null && h.distance_km !== undefined ? ` &bull; 🚗 ${h.distance_km} km` : '';
+function renderAdminSupervisionTable(matches) {
+  const listEl = document.getElementById('adminSupervisionMatchesList');
+  if (!listEl) return;
 
-    return `
-      <tr style="border-bottom:1px solid var(--border-color); transition: background 0.15s ease;">
-        <td style="padding:10px 12px; color:var(--text-dim); white-space:nowrap;">${dStr}</td>
-        <td style="padding:10px 12px;">
-          <strong style="color:var(--text-bright);">${h.p1_pseudo}</strong>
-          <span style="color:var(--accent-cyan); font-weight:bold; margin:0 6px;">⇄</span>
-          <strong style="color:var(--text-bright);">${h.p2_pseudo}</strong>
-          <div style="font-size:11px; color:var(--text-dim); margin-top:2px;">${formatAffId(h.profile1_id)} ⇄ ${formatAffId(h.profile2_id)}${distInfo}</div>
-        </td>
-        <td style="padding:10px 12px; text-align:center;">
-          <span style="font-size:15px; font-weight:800; color:var(--accent-cyan);">${h.score_global ?? 0}%</span>
-        </td>
-        <td style="padding:10px 12px; text-align:center;">${compatBadge}</td>
-        <td style="padding:10px 12px; text-align:center;">
-          <span class="badge-soft" style="font-size:12px; font-weight:600;">${h.total_questions_communes ?? 0} commune(s)</span>
-        </td>
-        <td style="padding:10px 12px; text-align:right; white-space:nowrap;">
-          <button class="btn btn-xs btn-primary" onclick="viewAdminHistoryResult(${h.id})" title="Afficher le rapport complet de ce match" style="margin-right:6px;">
-            👁️ Voir
-          </button>
-          <button class="btn btn-xs btn-outline" onclick="deleteAdminHistoryEntry(${h.id})" title="Supprimer ce résultat de l'historique" style="color:#ef4444; border-color:rgba(239,68,68,0.4);">
-            🗑️ Supprimer
-          </button>
-        </td>
-      </tr>
+  if (!matches || matches.length === 0) {
+    listEl.innerHTML = `
+      <div style="text-align:center; padding:35px; background:rgba(255,255,255,0.02); border-radius:10px; border:1px dashed var(--border-color);">
+        <div style="font-size:32px; margin-bottom:8px;">🔍</div>
+        <strong style="color:var(--text-bright); font-size:14px;">Aucun match correspondant au filtre sélectionné</strong>
+        <p style="font-size:12px; color:var(--text-dim); margin-top:4px;">Utilisez le lanceur discret ci-dessus pour réaliser une simulation immédiate.</p>
+      </div>
     `;
-  }).join('');
-}
-
-function renderAdminSubscriberRequestsTable(requestsList) {
-  const tbody = document.getElementById('adminSubscriberRequestsTableBody');
-  if (!tbody) return;
-
-  if (!requestsList || requestsList.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="padding:25px; text-align:center; color:var(--text-dim);">Aucune demande de match entre abonnés enregistrée pour le moment.</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = requestsList.map(req => {
-    const dStr = req.created_at ? new Date(req.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'Date inconnue';
+  const classeLabels = {
+    1: 'C1', 2: 'C2', 3: 'C3', 4: 'C4', 5: 'C5', 9: 'C9'
+  };
 
-    let statusBadge = '<span class="status-badge" style="background:rgba(245,158,11,0.15); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); font-weight:700;">⏳ En attente</span>';
-    if (req.status === 'accepted') {
-      statusBadge = '<span class="status-badge" style="background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); font-weight:700;">✅ Validé</span>';
-    } else if (req.status === 'declined') {
-      statusBadge = '<span class="status-badge" style="background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3); font-weight:700;">❌ Refusé</span>';
-    }
+  listEl.innerHTML = matches.map(m => {
+    const isDiscreet = (m.is_admin_discreet === 1);
+    const dStr = m.created_at ? new Date(m.created_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : 'Date inconnue';
 
-    let matchResHtml = '<span style="color:var(--text-dim); font-size:12px;">En attente d\'accord</span>';
-    if (req.status === 'accepted') {
-      if (req.score_global !== null && req.score_global !== undefined) {
-        matchResHtml = `
-          <div style="display:flex; align-items:center; justify-content:center; gap:8px;">
-            <strong style="color:var(--accent-cyan); font-size:14px;">${req.score_global}%</strong>
-            <button class="btn btn-xs btn-outline" onclick="viewSubscriberMatchResult(${req.id})" title="Voir le rapport">👁️ Rapport</button>
-          </div>
-        `;
-      } else {
-        matchResHtml = `<span style="color:var(--accent-emerald); font-size:12px;">Validé (calcul prêt)</span>`;
+    // RÈGLE DEMANDÉE : Ce type de match doit être repérable dans la liste historique de l'administrateur
+    let typeBadgeHtml = '';
+    if (isDiscreet) {
+      typeBadgeHtml = `
+        <span class="role-badge badge-discreet" style="background: rgba(245, 158, 11, 0.2); border: 1px solid #f59e0b; color: #fbbf24; font-weight: 700; padding: 3px 8px; border-radius: 4px; font-size: 11px;">
+          🕵️ Match discret Admin
+        </span>
+      `;
+    } else {
+      let statusBadge = '<span class="status-badge" style="background:rgba(245,158,11,0.15); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); font-size:11px; padding:2px 7px; border-radius:4px;">⏳ En attente</span>';
+      if (m.status === 'accepted') {
+        statusBadge = '<span class="status-badge" style="background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); font-size:11px; padding:2px 7px; border-radius:4px;">✅ Validé</span>';
+      } else if (m.status === 'declined') {
+        statusBadge = '<span class="status-badge" style="background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3); font-size:11px; padding:2px 7px; border-radius:4px;">❌ Refusé</span>';
       }
-    } else if (req.status === 'declined') {
-      matchResHtml = '<span style="color:#ef4444; font-size:12px;">Non calculé (refusé)</span>';
+      typeBadgeHtml = `
+        <span style="font-size:11px; color:var(--text-dim); margin-right:6px;">🤝 Demande abonnés</span>
+        ${statusBadge}
+      `;
     }
 
+    const distInfo = (m.distance_km !== null && m.distance_km !== undefined) ? ` &bull; 🚗 ${m.distance_km} km` : '';
+    const scoreVal = m.score_global ?? (m.affinity_result ? m.affinity_result.score_global : null);
+    const scoreBadge = (scoreVal !== null) 
+      ? `<span style="font-size:15px; font-weight:800; color:var(--accent-cyan);">${scoreVal}%</span>`
+      : `<span style="font-size:12px; color:var(--text-dim);">Non calculé</span>`;
+
+    const rowClass = isDiscreet ? 'admin-match-row is-discreet' : 'admin-match-row';
+    const borderStyle = isDiscreet ? 'border: 1px solid rgba(245, 158, 11, 0.45); background: rgba(245, 158, 11, 0.03);' : 'border: 1px solid var(--border-color); background: rgba(255,255,255,0.02);';
+
     return `
-      <tr style="border-bottom:1px solid var(--border-color); transition: background 0.15s ease;">
-        <td style="padding:10px 12px; color:var(--text-dim); white-space:nowrap;">${dStr}</td>
-        <td style="padding:10px 12px;">
-          <strong style="color:var(--text-bright);">${req.sender_pseudo}</strong>
-          <span style="font-size:11px; color:var(--text-dim); margin-left:4px;">(${formatAffId(req.sender_id)})</span>
-        </td>
-        <td style="padding:10px 12px;">
-          <strong style="color:var(--text-bright);">${req.receiver_pseudo}</strong>
-          <span style="font-size:11px; color:var(--text-dim); margin-left:4px;">(${formatAffId(req.receiver_id)})</span>
-        </td>
-        <td style="padding:10px 12px; text-align:center;">${statusBadge}</td>
-        <td style="padding:10px 12px; text-align:center;">${matchResHtml}</td>
-        <td style="padding:10px 12px; text-align:right;">
-          <button class="btn btn-xs btn-outline" onclick="deleteAdminSubscriberRequest(${req.id})" title="Supprimer cette demande" style="color:#ef4444; border-color:rgba(239,68,68,0.4);">
-            🗑️ Supprimer
+      <div class="${rowClass}" style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-radius:8px; gap:12px; flex-wrap:wrap; ${borderStyle} cursor:pointer;" onclick="viewAdminSupervisionMatch(${m.id})">
+        <!-- Date et Type -->
+        <div style="min-width: 140px;">
+          <div style="font-size:11.5px; color:var(--text-dim); font-weight:600;">📅 ${dStr}</div>
+          <div style="margin-top:4px;">${typeBadgeHtml}</div>
+        </div>
+
+        <!-- Membres P1 ⇄ P2 -->
+        <div style="flex:1; min-width:200px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <strong style="color:var(--text-bright); font-size:14px;">${m.sender_pseudo}</strong>
+            <span style="font-size:11px; color:var(--text-dim);">(${formatAffId(m.sender_id)})</span>
+            <span style="color:var(--accent-cyan); font-weight:bold;">⇄</span>
+            <strong style="color:var(--text-bright); font-size:14px;">${m.receiver_pseudo}</strong>
+            <span style="font-size:11px; color:var(--text-dim);">(${formatAffId(m.receiver_id)})</span>
+          </div>
+          <div style="font-size:11.5px; color:var(--text-dim); margin-top:3px;">
+            ${m.sender_ville || 'Ville non précisée'} ⇄ ${m.receiver_ville || 'Ville non précisée'}${distInfo}
+          </div>
+        </div>
+
+        <!-- Score d'affinité -->
+        <div style="text-align:center; min-width:80px;">
+          <div style="font-size:11px; color:var(--text-dim); margin-bottom:2px;">Affinité</div>
+          ${scoreBadge}
+        </div>
+
+        <!-- Actions -->
+        <div style="display:flex; align-items:center; gap:8px;" onclick="event.stopPropagation();">
+          <button type="button" class="btn btn-xs btn-primary" onclick="viewAdminSupervisionMatch(${m.id})" title="Voir le rapport complet de ce match">
+            <span>👁️</span> Détail
           </button>
-        </td>
-      </tr>
+          <button type="button" class="btn btn-xs btn-outline" onclick="deleteAdminSupervisionMatch(${m.id})" title="Supprimer ce match de la supervision" style="color:#ef4444; border-color:rgba(239,68,68,0.4);">
+            🗑️
+          </button>
+        </div>
+      </div>
     `;
   }).join('');
 }
 
-async function viewAdminHistoryResult(historyId) {
-  const item = (state.adminMatchHistory || []).find(h => h.id === historyId);
-  if (!item || !item.result_json) {
-    alert("Données du résultat indisponibles pour cette entrée.");
+async function launchAdminDiscreetMatch() {
+  const p1Id = parseInt(document.getElementById('selectAdminDiscreetP1')?.value, 10);
+  const p2Id = parseInt(document.getElementById('selectAdminDiscreetP2')?.value, 10);
+
+  if (!p1Id || !p2Id) {
+    alert('Veuillez sélectionner deux membres pour exécuter la simulation discrète.');
     return;
   }
+  if (p1Id === p2Id) {
+    alert('Veuillez sélectionner deux membres différents.');
+    return;
+  }
+
+  const btn = document.getElementById('btnAdminLaunchDiscreet');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span>⏳</span> Simulation confidentielle en cours...';
+  }
+
   try {
-    const result = JSON.parse(item.result_json);
-    const resultsCard = document.getElementById('affinityResultsContainer');
-    const alertBox = document.getElementById('affinityRuleAlert');
-    if (alertBox) alertBox.style.display = 'none';
-    if (resultsCard) resultsCard.style.display = 'flex';
-    state.lastAffinityResult = result;
-    renderAffinityResults(result);
+    const res = await fetch(`${API_BASE}/api/admin/discreet-match`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        profile1_id: p1Id,
+        profile2_id: p2Id,
+        classes: [1, 2, 3, 4, 5, 9],
+        restitution: 'detail'
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erreur lors du calcul discret');
 
-    // Ajuster sélecteurs
-    const aff1 = document.getElementById('affProfile1');
-    const aff2 = document.getElementById('affProfile2');
-    if (aff1 && result.profile1?.id) aff1.value = result.profile1.id;
-    if (aff2 && result.profile2?.id) aff2.value = result.profile2.id;
-    updateAffinitySelectorsStatus();
+    showToast(`🕵️ Match discret calculé et enregistré avec succès (${data.affinity_result?.score_global ?? 0}% d'affinité) !`);
+    await loadAdminSupervisionMatches();
 
-    resultsCard.scrollIntoView({ behavior: 'smooth' });
-    showToast(`Rapport de match affiché : ${item.p1_pseudo} ⇄ ${item.p2_pseudo}`);
+    // RÈGLE DEMANDÉE : C'est un clic sur une ligne qui affiche une fenêtre spécifique avec les résultats
+    openMatchResultsModal(data.affinity_result, {
+      title: `🕵️ Match Discret : ${data.p1_pseudo} ⇄ ${data.p2_pseudo}`,
+      subtitle: `Calcul confidentiel superviseur &bull; Aucun membre n'en a été informé`,
+      isDiscreet: true
+    });
   } catch (err) {
-    alert("Erreur lors de la lecture du rapport archivé : " + err.message);
+    alert('Erreur : ' + err.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<span>🕵️</span> Calculer et enregistrer ce match discret';
+    }
   }
 }
 
-async function viewSubscriberMatchResult(requestId) {
-  const req = (state.adminSubscriberRequests || []).find(r => r.id === requestId);
-  if (!req) return;
-  if (req.affinity_result) {
-    viewAcceptedMatchResult(req.affinity_result);
+async function viewAdminSupervisionMatch(matchId) {
+  const match = (state.adminSupervisionMatches || []).find(m => m.id === matchId);
+  if (!match) return;
+
+  const isDiscreet = (match.is_admin_discreet === 1);
+  const title = isDiscreet 
+    ? `🕵️ Match Discret : ${match.sender_pseudo} ⇄ ${match.receiver_pseudo}`
+    : `Rapport de Match : ${match.sender_pseudo} ⇄ ${match.receiver_pseudo}`;
+  const subtitle = isDiscreet
+    ? `Simulation superviseur confidentielle &bull; Membres non informés`
+    : `Demande de match bilatérale supervisée (${match.status})`;
+
+  if (match.affinity_result) {
+    openMatchResultsModal(match.affinity_result, {
+      matchDate: match.responded_at || match.created_at,
+      restitutionMode: match.validated_restitution || 'percentage',
+      title,
+      subtitle,
+      isDiscreet
+    });
   } else {
+    // Calcul à la volée pour l'administrateur
     try {
       const res = await fetch(`${API_BASE}/api/affinity/calculate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          profile1_id: req.sender_id,
-          profile2_id: req.receiver_id,
+          profile1_id: match.sender_id,
+          profile2_id: match.receiver_id,
           requester_id: state.realAdminId || 1
         })
       });
       const data = await res.json();
       if (res.ok) {
-        viewAcceptedMatchResult(data);
+        openMatchResultsModal(data, {
+          matchDate: match.created_at,
+          title,
+          subtitle,
+          isDiscreet
+        });
       } else {
-        alert("Impossible de calculer le match : " + (data.message || data.error));
+        alert("Impossible de calculer l'affinité : " + (data.message || data.error));
       }
     } catch (err) {
       alert("Erreur : " + err.message);
@@ -6131,33 +6338,18 @@ async function viewSubscriberMatchResult(requestId) {
   }
 }
 
-async function deleteAdminHistoryEntry(historyId) {
-  if (!confirm("Voulez-vous vraiment supprimer ce résultat de calcul de votre historique ?")) return;
+async function deleteAdminSupervisionMatch(matchId) {
+  if (!confirm("Voulez-vous vraiment supprimer cet enregistrement de match ?")) return;
 
   try {
-    const res = await fetch(`${API_BASE}/api/admin/match-history/${historyId}`, {
+    const res = await fetch(`${API_BASE}/api/admin/subscriber-match-requests/${matchId}`, {
       method: 'DELETE'
     });
-    if (!res.ok) throw new Error("Erreur suppression");
-    showToast("Résultat supprimé de votre historique.");
-    await loadAdminMatchHubData();
+    if (!res.ok) throw new Error("Erreur lors de la suppression");
+    showToast("Match supprimé de la supervision.");
+    await loadAdminSupervisionMatches();
   } catch (err) {
-    alert("Erreur lors de la suppression : " + err.message);
-  }
-}
-
-async function deleteAdminSubscriberRequest(requestId) {
-  if (!confirm("Voulez-vous vraiment supprimer cette demande de match entre abonnés ?")) return;
-
-  try {
-    const res = await fetch(`${API_BASE}/api/admin/subscriber-match-requests/${requestId}`, {
-      method: 'DELETE'
-    });
-    if (!res.ok) throw new Error("Erreur suppression");
-    showToast("Demande de match supprimée.");
-    await loadAdminMatchHubData();
-  } catch (err) {
-    alert("Erreur lors de la suppression : " + err.message);
+    alert("Erreur : " + err.message);
   }
 }
 

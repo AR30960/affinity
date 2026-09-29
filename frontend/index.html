@@ -165,7 +165,7 @@
           <button id="btnNewProfileModal" class="btn btn-secondary" style="display: none;">
             <span>+</span> Nouveau Profil
           </button>
-          <button id="btnQuickMatch" class="btn btn-primary">
+          <button id="btnQuickMatch" class="btn btn-primary" style="display: none;">
             <span>🔮</span> Lancer un Match
           </button>
         </div>
@@ -997,8 +997,87 @@
             </div>
           </div>
 
-          <!-- Panneau classique de sélection (Pour ajustement manuel ou administration) -->
-          <div class="affinity-selector-panel" id="affinitySelectorPanel">
+          <!-- Section Superviseur Administrateur (Uniquement visible par l'administrateur) -->
+          <div id="adminMatchSupervisionSection" class="admin-supervision-section" style="display: none;">
+            <!-- 1. Lanceur de match discret administrateur -->
+            <div class="admin-discreet-match-card" style="background: linear-gradient(135deg, rgba(23,31,46,0.92) 0%, rgba(30,41,59,0.95) 100%); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 12px; padding: 22px; margin-bottom: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <span style="font-size: 26px;">🕵️</span>
+                  <div>
+                    <h4 style="margin: 0; font-size: 16.5px; color: #fbbf24;">Lancer un Match Discret entre deux membres (Superviseur)</h4>
+                    <p style="margin: 3px 0 0 0; font-size: 12px; color: var(--text-dim);">
+                      Ce calcul d'affinité est exécuté en toute confidentialité, <strong>sans en informer les deux membres</strong> (aucune notification ni demande transmise).
+                    </p>
+                  </div>
+                </div>
+                <span class="role-badge" style="background: rgba(245, 158, 11, 0.18); border: 1px solid rgba(245, 158, 11, 0.45); color: #fbbf24; font-weight: 700;">
+                  🔒 Simulation Confidentielle
+                </span>
+              </div>
+
+              <!-- Sélecteurs des deux profils -->
+              <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: center; margin-bottom: 16px;">
+                <div>
+                  <label for="selectAdminDiscreetP1" style="display: block; font-size: 11.5px; font-weight: 700; color: var(--text-muted); margin-bottom: 6px;">
+                    👤 Premier Membre (Abonné ou Invité) :
+                  </label>
+                  <select id="selectAdminDiscreetP1" class="custom-select select-lg" style="width: 100%;"></select>
+                </div>
+                <div style="font-size: 22px; color: #fbbf24; padding-top: 18px; text-align: center;">⚡</div>
+                <div>
+                  <label for="selectAdminDiscreetP2" style="display: block; font-size: 11.5px; font-weight: 700; color: var(--text-muted); margin-bottom: 6px;">
+                    👤 Second Membre (Abonné ou Invité) :
+                  </label>
+                  <select id="selectAdminDiscreetP2" class="custom-select select-lg" style="width: 100%;"></select>
+                </div>
+              </div>
+
+              <!-- Barre d'action rapide -->
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 14px;">
+                <div style="font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 8px;">
+                  <span>📚 <strong>Périmètre :</strong> Toutes les classes communes (C1 à C9)</span>
+                  <span>&bull;</span>
+                  <span>🔍 <strong>Restitution :</strong> Détail intégral question par question</span>
+                </div>
+                <button type="button" class="btn btn-warning" id="btnAdminLaunchDiscreet" onclick="launchAdminDiscreetMatch()" style="background: linear-gradient(135deg, #d97706, #f59e0b); color: black; font-weight: 700; border: none; padding: 9px 20px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
+                  <span>🕵️</span> Calculer et enregistrer ce match discret
+                </button>
+              </div>
+            </div>
+
+            <!-- 2. Supervision de TOUS les Matchs demandés & réalisés -->
+            <div class="admin-all-matches-card" style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+                <div>
+                  <h4 style="margin: 0; font-size: 16px; color: var(--text-bright); display: flex; align-items: center; gap: 8px;">
+                    <span>📋</span> Tous les Matchs Demandés &amp; Réalisés
+                  </h4>
+                  <p style="margin: 3px 0 0 0; font-size: 12px; color: var(--text-dim);">
+                    Supervision complète des demandes entre membres et des simulations discrètes. Cliquez sur une ligne pour voir le détail.
+                  </p>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <select id="selectAdminMatchFilter" class="custom-select select-sm" onchange="filterAdminSupervisionMatches()" style="font-size: 12px; padding: 5px 9px;">
+                    <option value="ALL">Tous les statuts &amp; types</option>
+                    <option value="discreet">🕵️ Matchs discrets Admin uniquement</option>
+                    <option value="accepted">✅ Matchs validés</option>
+                    <option value="pending">⏳ En attente</option>
+                    <option value="declined">❌ Refusés</option>
+                  </select>
+                  <button type="button" class="btn btn-sm btn-outline" onclick="loadAdminSupervisionMatches()">🔄 Actualiser</button>
+                </div>
+              </div>
+
+              <!-- Liste des matchs supervisés -->
+              <div id="adminSupervisionMatchesList" style="display: flex; flex-direction: column; gap: 10px;">
+                <!-- Injecté par JavaScript -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Panneau classique de sélection (Masqué par défaut) -->
+          <div class="affinity-selector-panel" id="affinitySelectorPanel" style="display: none;">
             <div class="selector-column">
               <label for="affProfile1">Profil demandeur (Vous) :</label>
               <select id="affProfile1" class="custom-select select-lg"></select>
@@ -1083,149 +1162,7 @@
             </div>
           </div>
 
-          <!-- Result Container -->
-          <div id="affinityResultsContainer" class="affinity-results-card" style="display:none;">
-            <!-- Section Préalable : Diagnostic de Compatibilité Identité (Moi & L'Autre) -->
-            <div id="matchIdentityPreCheckCard" class="match-identity-precheck-card">
-              <div class="mipc-header">
-                <div class="mipc-title-group">
-                  <span class="mipc-icon">💎</span>
-                  <div>
-                    <h4>Diagnostic Préalable d'Identité</h4>
-                    <p id="matchIdentityPreCheckSub">Concordance des caractéristiques physiques et styles avec les tolérances attendues</p>
-                  </div>
-                </div>
-                <div id="matchIdentityPreCheckBadge" class="mipc-badge">Compatible ✅</div>
-              </div>
-              <div class="mipc-body" id="matchIdentityPreCheckBody"></div>
-            </div>
-            <div class="result-hero-row">
-              <div class="gauge-column">
-                <div class="gauge-wrapper">
-                  <svg viewBox="0 0 200 200" class="gauge-svg">
-                    <circle class="gauge-bg" cx="100" cy="100" r="85"></circle>
-                    <circle id="gaugeScoreCircle" class="gauge-bar" cx="100" cy="100" r="85"></circle>
-                  </svg>
-                  <div class="gauge-center-text">
-                    <span id="gaugeValue" class="gauge-score">0%</span>
-                    <span class="gauge-subtitle">Affinité Globale</span>
-                  </div>
-                </div>
-                <div class="match-summary-text" id="matchVerdict">Calcul en cours...</div>
-              </div>
 
-              <div class="details-column">
-                <div class="detail-block">
-                  <div class="detail-header">
-                    <span>(G) Goûts Généraux</span>
-                    <span id="scoreG" class="detail-score">--%</span>
-                  </div>
-                  <div class="progress-bar-bg"><div id="barG" class="progress-bar-fill"></div></div>
-                </div>
-
-                <div class="detail-block">
-                  <div class="detail-header">
-                    <span>(V) Le Vécu (Passé)</span>
-                    <span id="scoreV" class="detail-score">--%</span>
-                  </div>
-                  <div class="progress-bar-bg"><div id="barV" class="progress-bar-fill"></div></div>
-                </div>
-
-                <div class="detail-block">
-                  <div class="detail-header">
-                    <span>(A) Actuel (Présent)</span>
-                    <span id="scoreA" class="detail-score">--%</span>
-                  </div>
-                  <div class="progress-bar-bg"><div id="barA" class="progress-bar-fill"></div></div>
-                </div>
-
-                <div class="detail-block">
-                  <div class="detail-header">
-                    <span>(D ⇄ P) Synergie Découverte &amp; Partage</span>
-                    <span id="scoreDP" class="detail-score">--%</span>
-                  </div>
-                  <div class="progress-bar-bg"><div id="barDP" class="progress-bar-fill"></div></div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Radar Chart Container -->
-            <div class="radar-section">
-              <h3>Profil Radar par Thématique</h3>
-              <div class="radar-container" id="radarContainer">
-                <svg id="radarSvg" viewBox="0 0 400 400" width="100%" height="320"></svg>
-              </div>
-            </div>
-
-            <!-- Points de Fusion & Zones de Vigilance -->
-            <div class="fusion-vigilance-grid">
-              <div class="fusion-card">
-                <div class="fv-header">
-                  <span class="fv-icon">🔥</span>
-                  <h4>Points de Fusion (Synergies Fortes)</h4>
-                </div>
-                <div id="fusionList" class="fv-list">
-                  <!-- Rempli en JS -->
-                </div>
-              </div>
-
-              <div class="vigilance-card">
-                <div class="fv-header">
-                  <span class="fv-icon">⚠️</span>
-                  <h4>Zones de Vigilance (Divergences)</h4>
-                </div>
-                <div id="vigilanceList" class="fv-list">
-                  <!-- Rempli en JS -->
-                </div>
-              </div>
-            </div>
-
-            <!-- Section 1 : Pourcentages d'Affinité par Thématique et par Sujet -->
-            <div class="themas-sujets-section" id="themasSujetsSection" style="margin-top: 30px; width: 100%;">
-              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:10px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 10px;">
-                <div style="display:flex; align-items:center; gap:8px;">
-                  <span style="font-size:18px;">📊</span>
-                  <div>
-                    <h4 style="margin:0; font-size:15px; color:var(--text-bright);">Scores en Pourcentage par Thématique et Sujet</h4>
-                    <p style="margin:2px 0 0 0; font-size:12px; color:var(--text-dim);">Décomposition fine de l'affinité sur chaque centre d'intérêt et thématique.</p>
-                  </div>
-                </div>
-                <span id="restitutionModeBadge" class="badge-soft" style="font-size:11.5px; padding:3px 9px; font-weight:600;">Mode : Pourcentage</span>
-              </div>
-              <div id="themasSujetsList" class="themas-sujets-container">
-                <!-- Rempli par JavaScript -->
-              </div>
-            </div>
-
-            <!-- Section 2 : Comparaison Détaillée Question par Question (Quand validé en mode détail) -->
-            <div class="questions-detail-section" id="questionsDetailSection" style="display:none; margin-top: 30px; width: 100%; border-top: 1px dashed rgba(255,255,255,0.15); padding-top: 24px;">
-              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
-                <div>
-                  <div style="display:flex; align-items:center; gap:8px;">
-                    <span style="font-size:18px;">🔍</span>
-                    <h4 style="margin:0; font-size:15px; color:var(--text-bright);">Détail Comparatif Question par Question</h4>
-                  </div>
-                  <p style="margin:3px 0 0 0; font-size:12px; color:var(--text-dim);">
-                    Validation bilatérale accordée : Confrontation transparente des réponses pour chaque question commune.
-                  </p>
-                </div>
-                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                  <input type="text" id="inputSearchQuestionDetail" class="form-input" placeholder="🔍 Rechercher dans les questions..." oninput="filterQuestionsDetailView()" style="font-size:12px; padding:5px 10px; width:190px;">
-                  <select id="selectThemaQuestionDetail" class="custom-select" onchange="filterQuestionsDetailView()" style="font-size:12px; padding:5px 10px;">
-                    <option value="ALL">Toutes les thématiques</option>
-                  </select>
-                  <select id="selectTypeQuestionDetail" class="custom-select" onchange="filterQuestionsDetailView()" style="font-size:12px; padding:5px 10px;">
-                    <option value="ALL">Tous les types (G, V, A, D, P)</option>
-                    <option value="G">Goûts généraux (G)</option>
-                    <option value="MULTI">Multi-axes (V, A, D, P)</option>
-                  </select>
-                </div>
-              </div>
-              <div id="questionsDetailList" class="questions-detail-cards-list">
-                <!-- Rempli par JavaScript -->
-              </div>
-            </div>
-          </div>
 
           <!-- Module Bilatéral : Mes Demandes de Match (Réservé aux Abonnés non-admin) -->
           <div id="subscriberMatchSection" class="match-requests-wrapper" style="margin-top: 35px; border-top: 1px solid var(--border-color); padding-top: 25px;">
@@ -2769,77 +2706,113 @@
           </div>
         </div>
 
-        <!-- 1. Choix des classes de calcul -->
-        <div style="margin-bottom: 22px;">
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+        <!-- 1. Choix des classes de calcul et du niveau de restitution par classe -->
+        <div style="margin-bottom: 20px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
             <label style="font-weight:700; font-size:13.5px; color:var(--text-bright); display:flex; align-items:center; gap:6px;">
-              <span>📚</span> Classes de questionnaires à inclure :
+              <span>📚</span> Classes &amp; Niveau de Restitution par classe :
             </label>
-            <div style="display:flex; gap:6px;">
-              <button type="button" class="btn btn-xs btn-outline" onclick="setNmrClassesPreset('standards')">Classes 1 &amp; 2</button>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              <button type="button" class="btn btn-xs btn-outline" onclick="setNmrAllRestitution('percentage')">📊 Tout en %</button>
+              <button type="button" class="btn btn-xs btn-outline" onclick="setNmrAllRestitution('detail')">🔍 Tout en Détail</button>
+              <button type="button" class="btn btn-xs btn-outline" onclick="setNmrClassesPreset('standards')">C1 &amp; C2</button>
               <button type="button" class="btn btn-xs btn-outline" onclick="setNmrClassesPreset('all')">Toutes</button>
             </div>
           </div>
-          <p style="font-size:12px; color:var(--text-dim); margin:0 0 10px 0;">
-            Cochez les classes de sensibilité pour lesquelles vous souhaitez que le calcul d'affinité soit effectué.
+          <p style="font-size:12px; color:var(--text-dim); margin:0 0 12px 0;">
+            Sélectionnez les classes à inclure et définissez pour chacune le mode souhaité : <strong>% (thématique/sujet)</strong> ou <strong>Détail (question par question)</strong>.
           </p>
-          <div class="nmr-classes-grid" id="nmrClassesGrid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap:8px;">
-            <label class="nmr-class-checkbox-label">
-              <input type="checkbox" name="nmrClass" value="1" checked>
-              <span><strong>Classe 1 :</strong> Standards (Vie, Goûts)</span>
-            </label>
-            <label class="nmr-class-checkbox-label">
-              <input type="checkbox" name="nmrClass" value="2" checked>
-              <span><strong>Classe 2 :</strong> Personnelles (Projets)</span>
-            </label>
-            <label class="nmr-class-checkbox-label">
-              <input type="checkbox" name="nmrClass" value="3">
-              <span><strong>Classe 3 :</strong> Intimes (Sensibilité)</span>
-            </label>
-            <label class="nmr-class-checkbox-label">
-              <input type="checkbox" name="nmrClass" value="4">
-              <span><strong>Classe 4 :</strong> Privées (Désirs)</span>
-            </label>
-            <label class="nmr-class-checkbox-label">
-              <input type="checkbox" name="nmrClass" value="5">
-              <span><strong>Classe 5 :</strong> Hors normes (Singularités)</span>
-            </label>
-            <label class="nmr-class-checkbox-label">
-              <input type="checkbox" name="nmrClass" value="9">
-              <span><strong>Classe 9 :</strong> Amorales (Limites &amp; Tabous)</span>
-            </label>
-          </div>
-        </div>
 
-        <!-- 2. Choix du niveau de restitution (Pourcentage par thématique/sujet OU Détail question par question) -->
-        <div style="margin-bottom: 10px;">
-          <label style="font-weight:700; font-size:13.5px; color:var(--text-bright); display:flex; align-items:center; gap:6px; margin-bottom:8px;">
-            <span>🎯</span> Niveau de restitution souhaité pour le résultat :
-          </label>
-          <div class="nmr-restitution-options" style="display:flex; flex-direction:column; gap:10px;">
-            <label class="nmr-restitution-card active" id="nmrCardRestitutionPercentage">
-              <input type="radio" name="nmrRestitutionMode" value="percentage" checked onchange="updateNmrRestitutionCardStyle()">
-              <div style="flex:1;">
-                <div style="font-weight:700; font-size:13px; color:var(--text-bright); margin-bottom:3px; display:flex; align-items:center; gap:6px;">
-                  <span>📊</span> En pourcentage par thématique et sujet
+          <div class="nmr-classes-list" id="nmrClassesList" style="display:flex; flex-direction:column; gap:8px;">
+            <!-- Classe 1 -->
+            <div class="nmr-class-item" id="nmrItemClass1" style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:rgba(255,255,255,0.03); border:1px solid var(--border-color); border-radius:8px; gap:10px;">
+              <label style="display:flex; align-items:center; gap:10px; cursor:pointer; margin:0; flex:1;">
+                <input type="checkbox" name="nmrClass" value="1" checked onchange="updateNmrClassItemState('1')">
+                <div>
+                  <strong style="color:var(--text-bright); font-size:13px;">Classe 1 : Standards</strong>
+                  <div style="font-size:11.5px; color:var(--text-dim);">Vie quotidienne, goûts généraux, centres d'intérêt</div>
                 </div>
-                <div style="font-size:12px; color:var(--text-dim); line-height:1.4;">
-                  Score global, radar visuel, pourcentages détaillés pour chaque thématique et sous-sujet, points de fusion (&ge;85%) et zones de vigilance sans dévoiler les réponses mot-à-mot.
-                </div>
+              </label>
+              <div class="nmr-rest-group" style="display:flex; gap:4px;">
+                <button type="button" class="btn btn-xs nmr-btn-mode active" id="nmrMode_1_pct" onclick="setNmrClassMode('1', 'percentage')">📊 %</button>
+                <button type="button" class="btn btn-xs nmr-btn-mode" id="nmrMode_1_det" onclick="setNmrClassMode('1', 'detail')">🔍 Détail</button>
               </div>
-            </label>
+            </div>
 
-            <label class="nmr-restitution-card" id="nmrCardRestitutionDetail">
-              <input type="radio" name="nmrRestitutionMode" value="detail" onchange="updateNmrRestitutionCardStyle()">
-              <div style="flex:1;">
-                <div style="font-weight:700; font-size:13px; color:var(--text-bright); margin-bottom:3px; display:flex; align-items:center; gap:6px;">
-                  <span>🔍</span> En détail question par question
+            <!-- Classe 2 -->
+            <div class="nmr-class-item" id="nmrItemClass2" style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:rgba(255,255,255,0.03); border:1px solid var(--border-color); border-radius:8px; gap:10px;">
+              <label style="display:flex; align-items:center; gap:10px; cursor:pointer; margin:0; flex:1;">
+                <input type="checkbox" name="nmrClass" value="2" checked onchange="updateNmrClassItemState('2')">
+                <div>
+                  <strong style="color:var(--text-bright); font-size:13px;">Classe 2 : Personnelles</strong>
+                  <div style="font-size:11.5px; color:var(--text-dim);">Personnalité, valeurs de vie, mode relationnel</div>
                 </div>
-                <div style="font-size:12px; color:var(--text-dim); line-height:1.4;">
-                  Tous les pourcentages par thématique et sujet, enrichis de la confrontation transparente de vos réponses respectives sur chaque question commune évaluée.
-                </div>
+              </label>
+              <div class="nmr-rest-group" style="display:flex; gap:4px;">
+                <button type="button" class="btn btn-xs nmr-btn-mode active" id="nmrMode_2_pct" onclick="setNmrClassMode('2', 'percentage')">📊 %</button>
+                <button type="button" class="btn btn-xs nmr-btn-mode" id="nmrMode_2_det" onclick="setNmrClassMode('2', 'detail')">🔍 Détail</button>
               </div>
-            </label>
+            </div>
+
+            <!-- Classe 3 -->
+            <div class="nmr-class-item" id="nmrItemClass3" style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:rgba(255,255,255,0.03); border:1px solid var(--border-color); border-radius:8px; gap:10px;">
+              <label style="display:flex; align-items:center; gap:10px; cursor:pointer; margin:0; flex:1;">
+                <input type="checkbox" name="nmrClass" value="3" onchange="updateNmrClassItemState('3')">
+                <div>
+                  <strong style="color:var(--text-bright); font-size:13px;">Classe 3 : Intimes</strong>
+                  <div style="font-size:11.5px; color:var(--text-dim);">Sensibilité émotionnelle, vulnérabilités et attaches</div>
+                </div>
+              </label>
+              <div class="nmr-rest-group" style="display:flex; gap:4px;">
+                <button type="button" class="btn btn-xs nmr-btn-mode active" id="nmrMode_3_pct" onclick="setNmrClassMode('3', 'percentage')">📊 %</button>
+                <button type="button" class="btn btn-xs nmr-btn-mode" id="nmrMode_3_det" onclick="setNmrClassMode('3', 'detail')">🔍 Détail</button>
+              </div>
+            </div>
+
+            <!-- Classe 4 -->
+            <div class="nmr-class-item" id="nmrItemClass4" style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:rgba(255,255,255,0.03); border:1px solid var(--border-color); border-radius:8px; gap:10px;">
+              <label style="display:flex; align-items:center; gap:10px; cursor:pointer; margin:0; flex:1;">
+                <input type="checkbox" name="nmrClass" value="4" onchange="updateNmrClassItemState('4')">
+                <div>
+                  <strong style="color:var(--text-bright); font-size:13px;">Classe 4 : Privées</strong>
+                  <div style="font-size:11.5px; color:var(--text-dim);">Confidences, désirs et attentes partagées</div>
+                </div>
+              </label>
+              <div class="nmr-rest-group" style="display:flex; gap:4px;">
+                <button type="button" class="btn btn-xs nmr-btn-mode active" id="nmrMode_4_pct" onclick="setNmrClassMode('4', 'percentage')">📊 %</button>
+                <button type="button" class="btn btn-xs nmr-btn-mode" id="nmrMode_4_det" onclick="setNmrClassMode('4', 'detail')">🔍 Détail</button>
+              </div>
+            </div>
+
+            <!-- Classe 5 -->
+            <div class="nmr-class-item" id="nmrItemClass5" style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:rgba(255,255,255,0.03); border:1px solid var(--border-color); border-radius:8px; gap:10px;">
+              <label style="display:flex; align-items:center; gap:10px; cursor:pointer; margin:0; flex:1;">
+                <input type="checkbox" name="nmrClass" value="5" onchange="updateNmrClassItemState('5')">
+                <div>
+                  <strong style="color:var(--text-bright); font-size:13px;">Classe 5 : Hors normes (À caractère sexuel)</strong>
+                  <div style="font-size:11.5px; color:var(--text-dim);">Sexualité, préférences physiques et dynamiques intimes</div>
+                </div>
+              </label>
+              <div class="nmr-rest-group" style="display:flex; gap:4px;">
+                <button type="button" class="btn btn-xs nmr-btn-mode active" id="nmrMode_5_pct" onclick="setNmrClassMode('5', 'percentage')">📊 %</button>
+                <button type="button" class="btn btn-xs nmr-btn-mode" id="nmrMode_5_det" onclick="setNmrClassMode('5', 'detail')">🔍 Détail</button>
+              </div>
+            </div>
+
+            <!-- Classe 9 -->
+            <div class="nmr-class-item" id="nmrItemClass9" style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:rgba(255,255,255,0.03); border:1px solid var(--border-color); border-radius:8px; gap:10px;">
+              <label style="display:flex; align-items:center; gap:10px; cursor:pointer; margin:0; flex:1;">
+                <input type="checkbox" name="nmrClass" value="9" onchange="updateNmrClassItemState('9')">
+                <div>
+                  <strong style="color:var(--text-bright); font-size:13px;">Classe 9 : Amorales (Fantasmes / Tabous)</strong>
+                  <div style="font-size:11.5px; color:var(--text-dim);">Explorations spécifiques et limites personnelles</div>
+                </div>
+              </label>
+              <div class="nmr-rest-group" style="display:flex; gap:4px;">
+                <button type="button" class="btn btn-xs nmr-btn-mode active" id="nmrMode_9_pct" onclick="setNmrClassMode('9', 'percentage')">📊 %</button>
+                <button type="button" class="btn btn-xs nmr-btn-mode" id="nmrMode_9_det" onclick="setNmrClassMode('9', 'detail')">🔍 Détail</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -2878,6 +2851,179 @@
         <button type="button" class="btn btn-primary" id="btnSmhNewMatch" onclick="requestNewMatchFromHistory()">
           <span>💌</span> Proposer un nouveau Match
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALE SPÉCIFIQUE : FENÊTRE DÉDIÉE DE RÉSULTAT DE MATCH -->
+  <div id="modalMatchResultsView" class="modal-backdrop" style="display: none; z-index: 2200;">
+    <div class="modal-card modal-xl" style="max-width: 980px; width: 95%; max-height: 92vh; display: flex; flex-direction: column; padding: 0; overflow: hidden; background: var(--bg-card); border: 1px solid var(--border-color); box-shadow: 0 25px 60px rgba(0,0,0,0.8);">
+      <div class="modal-header" style="padding: 16px 24px; border-bottom: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.95); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="font-size: 26px;">⚡</span>
+          <div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <h3 style="margin: 0; font-size: 17.5px; color: var(--text-bright);" id="mrvTitle">Rapport d'Affinité Élective</h3>
+              <span id="mrvBadgeType" class="role-badge" style="display:none;"></span>
+            </div>
+            <p style="margin: 2px 0 0 0; font-size: 12px; color: var(--text-dim);" id="mrvSubtitle">Confrontation des réponses et projection relationnelle</p>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <button type="button" class="btn btn-sm btn-outline" onclick="window.print()">🖨️ Imprimer</button>
+          <button type="button" class="btn-close-modal" onclick="closeMatchResultsModal()">✕</button>
+        </div>
+      </div>
+
+      <div class="modal-body" style="padding: 24px; overflow-y: auto; flex: 1;">
+        <!-- Result Container déplacé dans la fenêtre spécifique -->
+        <div id="affinityResultsContainer" class="affinity-results-card" style="display: block; margin: 0; padding: 0; border: none; background: transparent; box-shadow: none;">
+          <!-- Section Préalable : Diagnostic de Compatibilité Identité (Moi & L'Autre) -->
+          <div id="matchIdentityPreCheckCard" class="match-identity-precheck-card">
+            <div class="mipc-header">
+              <div class="mipc-title-group">
+                <span class="mipc-icon">💎</span>
+                <div>
+                  <h4>Diagnostic Préalable d'Identité</h4>
+                  <p id="matchIdentityPreCheckSub">Concordance des caractéristiques physiques et styles avec les tolérances attendues</p>
+                </div>
+              </div>
+              <div id="matchIdentityPreCheckBadge" class="mipc-badge">Compatible ✅</div>
+            </div>
+            <div class="mipc-body" id="matchIdentityPreCheckBody"></div>
+          </div>
+
+          <div class="result-hero-row">
+            <div class="gauge-column">
+              <div class="gauge-wrapper">
+                <svg viewBox="0 0 200 200" class="gauge-svg">
+                  <circle class="gauge-bg" cx="100" cy="100" r="85"></circle>
+                  <circle id="gaugeScoreCircle" class="gauge-bar" cx="100" cy="100" r="85"></circle>
+                </svg>
+                <div class="gauge-center-text">
+                  <span id="gaugeValue" class="gauge-score">0%</span>
+                  <span class="gauge-subtitle">Affinité Globale</span>
+                </div>
+              </div>
+              <div class="match-summary-text" id="matchVerdict">Calcul en cours...</div>
+            </div>
+
+            <div class="details-column">
+              <div class="detail-block">
+                <div class="detail-header">
+                  <span>(G) Goûts Généraux</span>
+                  <span id="scoreG" class="detail-score">--%</span>
+                </div>
+                <div class="progress-bar-bg"><div id="barG" class="progress-bar-fill"></div></div>
+              </div>
+
+              <div class="detail-block">
+                <div class="detail-header">
+                  <span>(V) Le Vécu (Passé)</span>
+                  <span id="scoreV" class="detail-score">--%</span>
+                </div>
+                <div class="progress-bar-bg"><div id="barV" class="progress-bar-fill"></div></div>
+              </div>
+
+              <div class="detail-block">
+                <div class="detail-header">
+                  <span>(A) Actuel (Présent)</span>
+                  <span id="scoreA" class="detail-score">--%</span>
+                </div>
+                <div class="progress-bar-bg"><div id="barA" class="progress-bar-fill"></div></div>
+              </div>
+
+              <div class="detail-block">
+                <div class="detail-header">
+                  <span>(D ⇄ P) Synergie Découverte &amp; Partage</span>
+                  <span id="scoreDP" class="detail-score">--%</span>
+                </div>
+                <div class="progress-bar-bg"><div id="barDP" class="progress-bar-fill"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Radar Chart Container -->
+          <div class="radar-section">
+            <h3>Profil Radar par Thématique</h3>
+            <div class="radar-container" id="radarContainer">
+              <svg id="radarSvg" viewBox="0 0 400 400" width="100%" height="320"></svg>
+            </div>
+          </div>
+
+          <!-- Points de Fusion & Zones de Vigilance -->
+          <div class="fusion-vigilance-grid">
+            <div class="fusion-card">
+              <div class="fv-header">
+                <span class="fv-icon">🔥</span>
+                <h4>Points de Fusion (Synergies Fortes)</h4>
+              </div>
+              <div id="fusionList" class="fv-list">
+                <!-- Rempli en JS -->
+              </div>
+            </div>
+
+            <div class="vigilance-card">
+              <div class="fv-header">
+                <span class="fv-icon">⚠️</span>
+                <h4>Zones de Vigilance (Divergences)</h4>
+              </div>
+              <div id="vigilanceList" class="fv-list">
+                <!-- Rempli en JS -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 1 : Pourcentages d'Affinité par Thématique et par Sujet -->
+          <div class="themas-sujets-section" id="themasSujetsSection" style="margin-top: 30px; width: 100%;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:10px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 10px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:18px;">📊</span>
+                <div>
+                  <h4 style="margin:0; font-size:15px; color:var(--text-bright);">Scores en Pourcentage par Thématique et Sujet</h4>
+                  <p style="margin:2px 0 0 0; font-size:12px; color:var(--text-dim);">Décomposition fine de l'affinité sur chaque centre d'intérêt et thématique.</p>
+                </div>
+              </div>
+              <span id="restitutionModeBadge" class="badge-soft" style="font-size:11.5px; padding:3px 9px; font-weight:600;">Mode : Pourcentage</span>
+            </div>
+            <div id="themasSujetsList" class="themas-sujets-container">
+              <!-- Rempli par JavaScript -->
+            </div>
+          </div>
+
+          <!-- Section 2 : Comparaison Détaillée Question par Question (Quand validé en mode détail) -->
+          <div class="questions-detail-section" id="questionsDetailSection" style="display:none; margin-top: 30px; width: 100%; border-top: 1px dashed rgba(255,255,255,0.15); padding-top: 24px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+              <div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-size:18px;">🔍</span>
+                  <h4 style="margin:0; font-size:15px; color:var(--text-bright);">Détail Comparatif Question par Question</h4>
+                </div>
+                <p style="margin:3px 0 0 0; font-size:12px; color:var(--text-dim);">
+                  Validation bilatérale accordée : Confrontation transparente des réponses pour chaque question commune.
+                </p>
+              </div>
+              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <input type="text" id="inputSearchQuestionDetail" class="form-input" placeholder="🔍 Rechercher dans les questions..." oninput="filterQuestionsDetailView()" style="font-size:12px; padding:5px 10px; width:190px;">
+                <select id="selectThemaQuestionDetail" class="custom-select" onchange="filterQuestionsDetailView()" style="font-size:12px; padding:5px 10px;">
+                  <option value="ALL">Toutes les thématiques</option>
+                </select>
+                <select id="selectTypeQuestionDetail" class="custom-select" onchange="filterQuestionsDetailView()" style="font-size:12px; padding:5px 10px;">
+                  <option value="ALL">Tous les types (G, V, A, D, P)</option>
+                  <option value="G">Goûts généraux (G)</option>
+                  <option value="MULTI">Multi-axes (V, A, D, P)</option>
+                </select>
+              </div>
+            </div>
+            <div id="questionsDetailList" class="questions-detail-cards-list">
+              <!-- Rempli par JavaScript -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="padding: 12px 24px; display: flex; justify-content: flex-end; border-top: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.95); flex-shrink: 0;">
+        <button type="button" class="btn btn-primary" onclick="closeMatchResultsModal()">Fermer la fenêtre</button>
       </div>
     </div>
   </div>

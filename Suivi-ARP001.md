@@ -186,6 +186,25 @@ L'application **Affinity** est un moteur de calcul d'affinités électives basé
     - Préservation intégrale du diagnostic préalable d'identité physique et de critères.
     - Épuration du titre en `Diagnostic Préalable d'Identité` (suppression de `: Critères Moi & L'Autre`).
 
+- **Fait - 29/09/2026** : ~~Pour les abonnés et invités enlever le bouton en haut à droite "Lancer un Match". Vérifier la liste Profils complétés disponibles qui est vide pour AR30 alors que pour moi au moins Alyssa devrait apparaitre. Dans la demande de match le niveau de restitution doit pouvoir être positionné pour chaque classe. Le résultat d'un match ne doit pas être présenté sur la fenêtre avec les profils disponibles et la demande de match. C'est un clique sur une ligne de l'historique qui doit m'afficher une fenêtre spécifique avec les résultats. Pour l'administrateur la section profils complétés disponibles pour un match doit être supprimée. Dans cette fenêtre on liste tous les matchs demandés et réalisés et en cliquant sur un match l'administrateur voit le détail. Il peut également demander un match entre deux abonnés ou invités sans que ceux-ci en soit informé. Ce type de match doit être repérable dans la liste historique de l'administrateur.~~
+  - **1. Masquage strict du bouton « Lancer un Match »** : Réservé exclusivement à l'administrateur dans le bandeau supérieur ; masqué de manière inconditionnelle pour tous les abonnés et invités.
+  - **2. Correction de la complétude d'identité & apparition d'Alyssa pour AR30** :
+    - Réajustement du dénominateur des questions applicables de classe 8 (Identité) : `tot_p = 12` pour un Homme, `13` pour une Femme (au lieu d'un diviseur fixe erroné de 15).
+    - AR30 (ID 23) et Alyssa (ID 25) atteignent désormais tous les deux 100% de complétude (`is_completed: True`). Alyssa apparaît immédiatement dans la liste des profils complétés disponibles du sexe opposé pour AR30.
+  - **3. Niveau de restitution positionnable individuellement par classe** :
+    - *À l'émission de la demande* : Chaque classe de questionnaires cochée (C1, C2, C3, C4, C5, C9) dispose de ses boutons dédiés `📊 %` (pourcentage thématique & sujet) et `🔍 Détail` (confrontation question par question).
+    - *À la réception de la demande* : Le membre destinataire visualise et peut ajuster pour chaque classe le périmètre autorisé et le niveau de restitution convenu.
+    - *Au calcul du moteur* : `calculate_affinity()` prend en compte le dictionnaire de restitution par classe et restreint la restitution détaillée exclusivement aux classes ayant reçu un accord `detail`.
+  - **4. Déportation des résultats dans une fenêtre spécifique dédiée** :
+    - Suppression de l'affichage incrusté sous les profils disponibles et formulaires.
+    - Création de la fenêtre modale plein écran `#modalMatchResultsView` dédiée au résultat complet (jauge globale, radar, axes V/A/D/P, diagnostic préalable d'identité, points de fusion et confrontation détaillée question par question avec option d'impression).
+    - L'accès au résultat se fait désormais exclusivement au clic sur une ligne de l'historique des matchs, sur une demande acceptée ou depuis la supervision administrateur.
+  - **5. Espace Superviseur Administrateur complet & Matchs Discrets** :
+    - *Suppression de la section profils complétés* pour l'administrateur, remplacée par le centre de supervision des matchs.
+    - *Supervision globale* : Tableau exhaustif de tous les matchs demandés et réalisés entre membres (avec date/heure, membres P1 ⇄ P2, distance, score d'affinité, bouton détail ouvrant la fenêtre de résultat et suppression).
+    - *Matchs discrets confidentiels* : L'administrateur peut sélectionner n'importe quelle paire de membres (abonnés ou invités) et lancer un calcul d'affinité immédiat sans qu'aucun des deux membres n'en soit informé (aucune notification ni demande transmise).
+    - *Repérabilité immédiate* : Ces calculs sont distinctement marqués dans la liste administrateur par le badge `🕵️ Match discret Admin` avec mise en évidence visuelle ambrée.
+
 ---
 
 ## 4. NOUVELLES DEMANDES
