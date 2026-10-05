@@ -19,6 +19,8 @@ __pycache__/
 # Fichiers temporaires et tests locaux
 scratch/
 test_affinity_temp.db
+*.db-shm
+*.db-wal
 *.log
 ~$*.docx
 ~$*.doc

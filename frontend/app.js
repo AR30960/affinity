@@ -953,6 +953,24 @@ let state = {
   lastAffinityResult: null
 };
 
+// État et variables de l'historique d'audit des utilisateurs (Administration)
+let uahSearchDebounceTimer = null;
+let currentUahItems = [];
+
+const uahState = {
+  pseudo: 'all',
+  category: 'all',
+  dateFrom: '',
+  dateTo: '',
+  periodShortcut: 'all',
+  search: '',
+  page: 1,
+  pageSize: 25,
+  totalFiltered: 0,
+  totalPages: 1
+};
+window.uahState = uahState;
+
 // Initialisation au chargement du DOM
 document.addEventListener('DOMContentLoaded', () => {
   initEventListeners();
@@ -1373,7 +1391,7 @@ function switchTab(tabName) {
     'affinity': { title: 'Demande de Match & Radar d\'Affinité', sub: 'Calcul multidimensionnel, synergie croisée et points de fusion' },
     'questions-bank': { title: 'Banque de Questions', sub: 'Gestion des jeux, des classes et des thématiques' },
     'devices-preview': { title: 'Multi-Plateforme (Mobile & Montre)', sub: 'Simulation en direct sur Smartphone et Smartwatch' },
-    'admin': { title: 'Administration & Rôles', sub: 'Supervision des privilèges : Administrateur, Abonné, Invité' },
+    'admin': { title: 'Administration', sub: 'Supervision des membres, des demandes d\'accès, de l\'historique et des sauvegardes' },
     'roles-guide': { title: 'Guide des Rôles & Protocole de Match', sub: 'Documentation détaillée des fonctionnalités pour Invités, Abonnés et Administrateurs' }
   };
 
@@ -1406,9 +1424,8 @@ function switchTab(tabName) {
   } else if (tabName === 'devices-preview') {
     updateDevicesPreview();
   } else if (tabName === 'admin') {
-    renderAdminUsersTable();
-    loadAdminAccessRequests();
-    loadAdminBackupStatus();
+    switchAdminSubTab(state.adminSubTab || 'users');
+    loadAdminAccessRequests(); // Met à jour le badge des demandes d'accès en attente
   }
 }
 
@@ -4078,6 +4095,18 @@ async function loadAdminAccessRequests() {
     const data = await res.json();
     const reqs = data.requests || [];
     const pendingReqs = reqs.filter(r => r.status === 'pending');
+    
+    // Mise à jour du badge de notification sur le bouton d'onglet
+    const pendingBadge = document.getElementById('adminPendingRequestsBadge');
+    if (pendingBadge) {
+      if (pendingReqs.length > 0) {
+        pendingBadge.textContent = pendingReqs.length;
+        pendingBadge.style.display = 'inline-flex';
+      } else {
+        pendingBadge.style.display = 'none';
+      }
+    }
+
     const batchBtn = document.getElementById('btnBatchApproveRequests');
     if (batchBtn) {
       if (pendingReqs.length > 0) {
@@ -8584,5 +8613,1139 @@ async function loadAdminBackupStatus() {
 
 window.triggerManualLocalBackup = triggerManualLocalBackup;
 window.loadAdminBackupStatus = loadAdminBackupStatus;
+
+// ==========================================================================
+// HISTORIQUE COMPLET DES RÉPONSES ET MODIFICATIONS UTILISATEURS (ADMIN AUDIT)
+// ==========================================================================
+
+async function loadAdminActivityHistory() {
+  const tbody = document.getElementById('adminUserActionsTableBody');
+  if (!tbody) return;
+
+  try {
+    const params = new URLSearchParams();
+    if (uahState.pseudo && uahState.pseudo !== 'all') {
+      params.append('pseudo', uahState.pseudo);
+    }
+    if (uahState.category && uahState.category !== 'all') {
+      params.append('category', uahState.category);
+    }
+    if (uahState.dateFrom) {
+      params.append('date_from', uahState.dateFrom);
+    }
+    if (uahState.dateTo) {
+      params.append('date_to', uahState.dateTo);
+    }
+    if (uahState.search && uahState.search.trim()) {
+      params.append('search', uahState.search.trim());
+    }
+
+    const offset = (uahState.page - 1) * uahState.pageSize;
+    params.append('limit', uahState.pageSize);
+    params.append('offset', offset);
+
+    const res = await fetch(`${API_BASE}/api/admin/user-actions-history?${params.toString()}`);
+    if (!res.ok) {
+      console.warn("Erreur chargement historique :", res.status);
+      return;
+    }
+    const data = await res.json();
+    currentUahItems = data.items || [];
+    uahState.totalFiltered = data.filtered_count || 0;
+    uahState.totalPages = Math.max(1, Math.ceil(uahState.totalFiltered / uahState.pageSize));
+
+    // Mise à jour des cartes de métriques
+    const stats = data.stats || {};
+    const elRep = document.getElementById('uahStatReponses');
+    const elMod = document.getElementById('uahStatModifs');
+    const elUsr = document.getElementById('uahStatUsers');
+    const elFlt = document.getElementById('uahStatFiltered');
+    if (elRep) elRep.textContent = stats.total_reponses ?? 0;
+    if (elMod) elMod.textContent = stats.total_modifications ?? 0;
+    if (elUsr) elUsr.textContent = stats.active_users_count ?? (data.users ? data.users.length : 0);
+    if (elFlt) elFlt.textContent = `${data.filtered_count || 0} / ${data.total_count || 0}`;
+
+    // Peupler le menu déroulant des pseudos
+    populateUahPseudoDropdown(data.users || []);
+
+    // Affichage des lignes dans le tableau
+    renderAdminActivityHistory(currentUahItems, offset);
+
+  } catch (err) {
+    console.error("Échec du chargement de l'historique d'audit :", err);
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:20px; color:#EF4444;">Erreur lors du chargement de l'historique : ${err.message}</td></tr>`;
+  }
+}
+
+function populateUahPseudoDropdown(users) {
+  const select = document.getElementById('uahFilterPseudo');
+  if (!select) return;
+
+  const currentVal = uahState.pseudo;
+  const optionsHtml = ['<option value="all">Tous les membres</option>'];
+
+  users.forEach(u => {
+    const code = u.code_profil ? ` (${u.code_profil})` : '';
+    const isSelected = (u.pseudo === currentVal) ? 'selected' : '';
+    optionsHtml.push(`<option value="${escapeHtml(u.pseudo)}" ${isSelected}>${escapeHtml(u.pseudo)}${code} [${u.actions_count || 0}]</option>`);
+  });
+
+  select.innerHTML = optionsHtml.join('');
+  if (currentVal && select.querySelector(`option[value="${CSS.escape(currentVal)}"]`)) {
+    select.value = currentVal;
+  }
+}
+
+// ==========================================================================
+// NAVIGATION PAR SOUS-ONGLETS DE LA CONSOLE D'ADMINISTRATION
+// ==========================================================================
+function switchAdminSubTab(subTabName) {
+  state.adminSubTab = subTabName;
+
+  // Activer le bouton de navigation sélectionné
+  document.querySelectorAll('.admin-subnav-btn').forEach(btn => {
+    if (btn.getAttribute('data-subtab') === subTabName) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+
+  // Afficher le sous-panneau correspondant et masquer les autres
+  const panes = {
+    'users': document.getElementById('adminSubpaneUsers'),
+    'requests': document.getElementById('adminSubpaneRequests'),
+    'history': document.getElementById('adminSubpaneHistory'),
+    'backups': document.getElementById('adminSubpaneBackups'),
+    'roles': document.getElementById('adminSubpaneRoles')
+  };
+
+  Object.entries(panes).forEach(([key, pane]) => {
+    if (!pane) return;
+    if (key === subTabName) {
+      pane.style.display = 'block';
+    } else {
+      pane.style.display = 'none';
+    }
+  });
+
+  // Chargements contextuels selon l'onglet activé
+  if (subTabName === 'users') {
+    renderAdminUsersTable();
+  } else if (subTabName === 'requests') {
+    loadAdminAccessRequests();
+  } else if (subTabName === 'history') {
+    loadAdminActivityHistory();
+  } else if (subTabName === 'backups') {
+    loadAdminBackupStatus();
+  }
+}
+window.switchAdminSubTab = switchAdminSubTab;
+
+// ==========================================================================
+// RÉFÉRENTIEL DES CODES & ÉCHELLES DE RÉPONSE D'AFFINITY
+// ==========================================================================
+function getAffinityScaleInfo(axis, val) {
+  const v = parseInt(val, 10);
+  if (isNaN(v)) return { label: String(val), code: val, isExclusion: false, meaning: '' };
+
+  const ax = (axis || '').toUpperCase();
+
+  // 1. Axes V (Vécu) et A (Actuel / Présent) : Pratique et fréquence
+  if (ax === 'V' || ax === 'A') {
+    switch (v) {
+      case 1: return { label: 'Peu', code: 1, isExclusion: false, meaning: 'Pratique occasionnelle ou minime' };
+      case 2: return { label: 'Régulièrement', code: 2, isExclusion: false, meaning: 'Pratique périodique et habituelle' };
+      case 3: return { label: 'Souvent', code: 3, isExclusion: false, meaning: 'Fait partie intégrante des habitudes régulières' };
+      case 4: return { label: 'Très souvent', code: 4, isExclusion: false, meaning: 'Très ancré dans le quotidien' };
+      case 5: return { label: 'Accro', code: 5, isExclusion: false, meaning: 'Passion dévorante et omniprésente' };
+      case 6: return { label: 'Forte intensité', code: 6, isExclusion: false, meaning: 'Pratique très soutenue' };
+      case 7: return { label: 'Intensif', code: 7, isExclusion: false, meaning: 'Niveau d\'intensité élevé (pratique intensive)' };
+      case 8: return { label: 'Quasi-permanent', code: 8, isExclusion: false, meaning: 'Au cœur du mode de vie' };
+      case 9: return { label: 'Jamais', code: 9, isExclusion: true, meaning: 'Code d\'absence totale : Jamais expérimenté ni pratiqué' };
+      case 0: return { label: 'Non renseigné', code: 0, isExclusion: false, meaning: 'Non renseigné' };
+      default: return { label: `Niveau ${v}`, code: v, isExclusion: false, meaning: `Degré d'intensité ${v}` };
+    }
+  }
+
+  // 2. Axes D (Désiré / Découverte) et P (Partage / Attendu chez l'autre) : Tolérance et désir
+  if (ax === 'D' || ax === 'P') {
+    switch (v) {
+      case 1: return { label: 'Me gêne', code: 1, isExclusion: false, meaning: 'Réticence ou inconfort face à ce sujet' };
+      case 2: return { label: 'Faire plaisir', code: 2, isExclusion: false, meaning: 'Accepté par bienveillance pour faire plaisir à l\'autre' };
+      case 3: return { label: 'Ne gêne pas', code: 3, isExclusion: false, meaning: 'Tolérance totale et indifférence bienveillante' };
+      case 4: return { label: 'J\'en ai envie', code: 4, isExclusion: false, meaning: 'Désir réel de découverte ou de pratique partagée' };
+      case 5: return { label: 'Obligatoire', code: 5, isExclusion: false, meaning: 'Condition essentielle et indispensable' };
+      case 6: return { label: 'Très souhaité', code: 6, isExclusion: false, meaning: 'Forte attente d\'épanouissement partagé' };
+      case 7: return { label: 'Prioritaire', code: 7, isExclusion: false, meaning: 'Critère majeur de compatibilité relationnelle' };
+      case 8: return { label: 'Essentiel', code: 8, isExclusion: false, meaning: 'Quasi-indispensable à la relation' };
+      case 9: return { label: 'Impossible', code: 9, isExclusion: true, meaning: 'Code rédhibitoire : Refus absolu et non négociable' };
+      case 0: return { label: 'Non renseigné', code: 0, isExclusion: false, meaning: 'Non renseigné' };
+      default: return { label: `Niveau ${v}`, code: v, isExclusion: false, meaning: `Degré de désir ${v}` };
+    }
+  }
+
+  // 3. Axe G (Goûts & Appétence) : Appréciation
+  if (ax === 'G') {
+    switch (v) {
+      case 1: return { label: 'Un peu', code: 1, isExclusion: false, meaning: 'Léger intérêt' };
+      case 2: return { label: 'Moyennement', code: 2, isExclusion: false, meaning: 'Intérêt modéré' };
+      case 3: return { label: 'Beaucoup', code: 3, isExclusion: false, meaning: 'Grand attrait personnel' };
+      case 4: return { label: 'Passionnément', code: 4, isExclusion: false, meaning: 'Véritable passion' };
+      case 5: return { label: 'À la folie', code: 5, isExclusion: false, meaning: 'Enthousiasme absolu' };
+      case 9: return { label: 'Pas du tout', code: 9, isExclusion: true, meaning: 'Code d\'aversion : Aucun goût pour ce sujet' };
+      case 0: return { label: 'Non renseigné', code: 0, isExclusion: false, meaning: 'Non renseigné' };
+      default: return { label: `Niveau ${v}`, code: v, isExclusion: false, meaning: `Évaluation de goût niveau ${v}` };
+    }
+  }
+
+  return { label: String(v), code: v, isExclusion: false, meaning: '' };
+}
+
+// ==========================================================================
+// GESTION & FORMATAGE EXPLICITE DES AXES DE NOTATION DES QUIZ STANDARD
+// ==========================================================================
+function extractUahAxes(item) {
+  let axes = null;
+  let oldAxes = null;
+  let changes = null;
+  let nature = item.nature || (item.action_category === 'modification' ? 'Modification' : '1ère saisie');
+  let sujet = '';
+
+  if (item.details_json) {
+    try {
+      const parsed = typeof item.details_json === 'string' ? JSON.parse(item.details_json) : item.details_json;
+      if (parsed) {
+        if (parsed.nature) {
+          nature = parsed.nature;
+        }
+        if (parsed.axes && typeof parsed.axes === 'object') {
+          axes = parsed.axes;
+        }
+        if (parsed.old_axes && typeof parsed.old_axes === 'object') {
+          oldAxes = parsed.old_axes;
+        }
+        if (parsed.changes && typeof parsed.changes === 'object') {
+          changes = parsed.changes;
+        }
+        if (parsed.sujet) {
+          sujet = parsed.sujet;
+        }
+      }
+    } catch (e) {
+      // Ignorer l'erreur de parse éventuelle
+    }
+  }
+
+  const isModification = (nature === 'Modification' || item.action_category === 'modification');
+
+  // Tenter l'extraction par expressions régulières si axes non trouvés dans le JSON
+  if (!axes) {
+    const rawStr = `${item.summary || ''} ${item.details_json || ''}`;
+    const parsedAxes = {};
+    
+    // Format A=5, D=4, P=3, V=3, G=7 ou A: 5, D: 4
+    const matches = rawStr.matchAll(/([VADPG])\s*[:=]\s*(\d+)/gi);
+    for (const m of matches) {
+      parsedAxes[m[1].toUpperCase()] = parseInt(m[2], 10);
+    }
+    
+    // Format textuel explicite "Vécu = Souvent (3)" ou "Vécu : 3" ou "Vécu = Intensif (7)"
+    const mVecu = rawStr.match(/v[ée]cu[^·]*?\((\d+)\)/i) || rawStr.match(/v[ée]cu[^\d(]*[=(:\s]+(\d+)/i);
+    if (mVecu) parsedAxes['V'] = parseInt(mVecu[1], 10);
+    
+    const mActuel = rawStr.match(/actuel[^·]*?\((\d+)\)/i) || rawStr.match(/actuel[^\d(]*[=(:\s]+(\d+)/i);
+    if (mActuel) parsedAxes['A'] = parseInt(mActuel[1], 10);
+    
+    const mDesire = rawStr.match(/d[ée]sir[ée][^·]*?\((\d+)\)/i) || rawStr.match(/d[ée]sir[ée][^\d(]*[=(:\s]+(\d+)/i);
+    if (mDesire) parsedAxes['D'] = parseInt(mDesire[1], 10);
+    
+    const mAttendu = rawStr.match(/attendu[^·]*?\((\d+)\)/i) || rawStr.match(/attendu[^\d(]*[=(:\s]+(\d+)/i);
+    if (mAttendu) parsedAxes['P'] = parseInt(mAttendu[1], 10);
+    
+    const mGout = rawStr.match(/go[ûu]t[^·]*?\((\d+)\)/i) || rawStr.match(/go[ûu]t[^\d(]*[=(:\s]+(\d+)/i);
+    if (mGout) parsedAxes['G'] = parseInt(mGout[1], 10);
+
+    if (Object.keys(parsedAxes).length > 0) {
+      axes = parsedAxes;
+    }
+  }
+
+  // Si c'est une modification et que changes n'est pas encore rempli, chercher dans le summary (ex: "Vécu : Peu (1) ➔ Souvent (3)")
+  if (isModification && !changes && item.summary && item.summary.includes('➔')) {
+    changes = {};
+    const arrowMatches = item.summary.matchAll(/([VADPG]|v[ée]cu|actuel|d[ée]sir[ée]|attendu|go[ûu]t)[^:=(]*[:=]\s*.*?\((\d+)\)\s*➔\s*.*?\((\d+)\)/gi);
+    for (const am of arrowMatches) {
+      const axisName = am[1].toUpperCase();
+      let key = 'V';
+      if (axisName.startsWith('A') && !axisName.startsWith('ATT')) key = 'A';
+      else if (axisName.startsWith('D')) key = 'D';
+      else if (axisName.startsWith('P') || axisName.startsWith('ATT')) key = 'P';
+      else if (axisName.startsWith('G')) key = 'G';
+      const oVal = parseInt(am[2], 10);
+      const nVal = parseInt(am[3], 10);
+      changes[key] = { old: oVal, new: nVal };
+      if (!axes) axes = {};
+      axes[key] = nVal;
+    }
+  }
+
+  // Extraire le sujet depuis summary s'il est au format "Question #X (Sujet) :"
+  if (!sujet && item.summary) {
+    const sMatch = item.summary.match(/\(([^)]+)\)\s*:/);
+    if (sMatch) {
+      sujet = sMatch[1];
+    }
+  }
+
+  return { axes, oldAxes, changes, isModification, nature, sujet };
+}
+
+function formatUahActionSummary(item) {
+  if (item.action_type === 'QUESTION_ANSWER') {
+    const { axes, changes, isModification, sujet } = extractUahAxes(item);
+    if (axes && Object.keys(axes).length > 0) {
+      const axisConfigs = [
+        { key: 'V', name: 'Vécu', pillClass: 'pill-v' },
+        { key: 'A', name: 'Actuel', pillClass: 'pill-a' },
+        { key: 'D', name: 'Désiré', pillClass: 'pill-d' },
+        { key: 'P', name: 'Attendu autre', pillClass: 'pill-p' },
+        { key: 'G', name: 'Goût', pillClass: 'pill-g' }
+      ];
+
+      let pills = [];
+      axisConfigs.forEach(ac => {
+        if (axes[ac.key] !== undefined) {
+          const val = axes[ac.key];
+          const info = getAffinityScaleInfo(ac.key, val);
+          const pillExtraClass = info.isExclusion ? ' pill-exclusion' : '';
+
+          // Vérifier si cet axe a été modifié
+          const axisChange = (isModification && changes && changes[ac.key]) ? changes[ac.key] : null;
+
+          if (axisChange && axisChange.old !== undefined && axisChange.old !== null && axisChange.old !== val) {
+            const oldVal = axisChange.old;
+            const oldInfo = getAffinityScaleInfo(ac.key, oldVal);
+            const tooltip = `${ac.name} modifié : ${oldInfo.label} (${oldVal}) ➔ ${info.label} (${val}) - ${info.meaning}`;
+            pills.push(`
+              <span class="uah-axis-pill ${ac.pillClass} pill-modified${pillExtraClass}" title="${escapeHtml(tooltip)}">
+                <span class="axis-name">${escapeHtml(ac.name)}</span>
+                <span class="axis-score uah-diff-score">
+                  <span class="uah-old-score" title="Ancienne valeur : ${escapeHtml(oldInfo.label)}">${escapeHtml(oldInfo.label)} (${oldVal})</span>
+                  <span class="uah-arrow">➔</span>
+                  <span class="uah-new-score" title="Nouvelle valeur : ${escapeHtml(info.label)}">${escapeHtml(info.label)} (${val})</span>
+                </span>
+              </span>
+            `);
+          } else {
+            const tooltip = `${ac.name} : ${info.label} (${val}) - ${info.meaning}`;
+            pills.push(`
+              <span class="uah-axis-pill ${ac.pillClass}${pillExtraClass}" title="${escapeHtml(tooltip)}">
+                <span class="axis-name">${escapeHtml(ac.name)}</span>
+                <span class="axis-score">${escapeHtml(info.label)} (${val})</span>
+              </span>
+            `);
+          }
+        }
+      });
+
+      return `
+        <div class="uah-axes-summary-wrap">
+          ${sujet ? `<div class="uah-axes-subject-tag" title="Thématique : ${escapeHtml(sujet)}"><span>📂</span> ${escapeHtml(sujet)}</div>` : ''}
+          <div class="uah-axes-pills-row">
+            ${pills.join('')}
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  // Formatage pour les fiches d'identité et modifications textuelles
+  const summary = item.summary || '-';
+  if (item.action_type === 'IDENTITY_CARD_UPDATE' && summary.includes('➔')) {
+    // Mise en valeur des flèches d'évolution
+    const formatted = escapeHtml(summary).replace(/➔/g, '<span style="color:#fbbf24; font-weight:800; padding:0 3px;">➔</span>');
+    return `
+      <div class="uah-summary-text" title="${escapeHtml(summary)}">
+        ${formatted}
+      </div>
+    `;
+  }
+
+  return `
+    <div class="uah-summary-text" title="${escapeHtml(summary)}">
+      ${escapeHtml(summary)}
+    </div>
+  `;
+}
+
+function renderAdminActivityHistory(items, offset) {
+  const tbody = document.getElementById('adminUserActionsTableBody');
+  if (!tbody) return;
+
+  if (!items || items.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" style="text-align:center; padding:32px 16px; color:var(--text-dim);">
+          <div style="font-size:24px; margin-bottom:8px;">🔍</div>
+          <div>Aucune action utilisateur ne correspond aux critères de filtre sélectionnés.</div>
+          <button class="btn btn-xs btn-outline" onclick="resetUahFilters()" style="margin-top:10px;">Réinitialiser les filtres</button>
+        </td>
+      </tr>
+    `;
+    updateUahPaginationBar(0, 0, 0);
+    return;
+  }
+
+  tbody.innerHTML = items.map(item => {
+    // Formatage de la date
+    let dateStr = '-';
+    if (item.created_at) {
+      const d = new Date(item.created_at);
+      if (!isNaN(d.getTime())) {
+        dateStr = d.toLocaleString('fr-FR', {
+          day: '2-digit', month: '2-digit', year: 'numeric',
+          hour: '2-digit', minute: '2-digit', second: '2-digit'
+        });
+      } else {
+        dateStr = item.created_at;
+      }
+    }
+
+    // Avatar et Membre
+    const pseudo = item.pseudo || `Profil #${item.profile_id}`;
+    const initial = (pseudo.charAt(0) || 'U').toUpperCase();
+    const roleBadge = item.role === 'admin' 
+      ? '<span class="role-badge admin" style="font-size:10px; padding:1px 6px;">Admin</span>' 
+      : (item.role === 'subscriber' ? '<span class="role-badge subscriber" style="font-size:10px; padding:1px 6px;">Abonné</span>' : '<span class="role-badge guest" style="font-size:10px; padding:1px 6px;">Invité</span>');
+
+    // Nature de l'action : 1ère saisie ou Modification
+    const isFirstEntry = (item.nature === '1ère saisie' || (!item.nature && item.action_category === 'reponse'));
+    const natureBadge = isFirstEntry
+      ? '<span class="uah-badge first-entry" title="Première saisie de cette réponse">✨ 1ère saisie</span>'
+      : '<span class="uah-badge modification" title="Modification d\'une valeur préexistante">🔄 Modification</span>';
+
+    // Type d'action
+    let typeClass = 'uah-type-tag';
+    let typeLabel = item.action_type || 'AUTRE';
+    if (item.action_type === 'QUESTION_ANSWER') {
+      typeClass += ' question-answer';
+      typeLabel = 'Quiz standard';
+    } else if (item.action_type === 'IDENTITY_SELF') {
+      typeClass += ' identity-self';
+      typeLabel = '+ sur vous';
+    } else if (item.action_type === 'IDENTITY_PARTNER') {
+      typeClass += ' identity-partner';
+      typeLabel = '+ sur l\'autre';
+    } else if (item.action_type === 'IDENTITY_CARD_UPDATE') {
+      typeClass += ' card-update';
+      typeLabel = 'Fiche Identité';
+    } else if (item.action_type === 'PASSWORD_CHANGE') {
+      typeClass += ' password';
+      typeLabel = 'Mot de passe';
+    } else if (item.action_type === 'ACCESS_REQUEST') {
+      typeClass += ' question-answer';
+      typeLabel = 'Demande Accès';
+    } else if (item.action_type === 'MATCH_REQUEST') {
+      typeClass += ' identity-partner';
+      typeLabel = 'Demande Match';
+    }
+
+    const targetLabel = item.target_label || (item.target_id ? `Question #${item.target_id}` : '-');
+
+    return `
+      <tr>
+        <td>
+          <span class="uah-date-text">${escapeHtml(dateStr)}</span>
+        </td>
+        <td>
+          <div class="uah-user-cell">
+            <div class="uah-user-avatar">${escapeHtml(initial)}</div>
+            <div class="uah-user-info">
+              <div class="uah-user-pseudo">
+                <span>${escapeHtml(pseudo)}</span>
+                ${roleBadge}
+              </div>
+              <div class="uah-user-code">${escapeHtml(item.code_profil || `ID #${item.profile_id}`)}</div>
+            </div>
+          </div>
+        </td>
+        <td>${natureBadge}</td>
+        <td><span class="${typeClass}">${escapeHtml(typeLabel)}</span></td>
+        <td>
+          <div style="font-size:12.5px; color:var(--text-bright); max-width:220px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(targetLabel)}">
+            ${escapeHtml(targetLabel)}
+          </div>
+        </td>
+        <td>
+          ${formatUahActionSummary(item)}
+        </td>
+        <td style="text-align:right;">
+          <div style="display:flex; align-items:center; justify-content:flex-end; gap:5px;">
+            <button class="btn btn-xs btn-outline" onclick="openUahDetailsModal(${item.id})" title="Voir les détails complets">
+              <span>👁️</span>
+            </button>
+            <button class="btn btn-xs btn-danger-outline" onclick="deleteSingleUahAction(${item.id})" title="Supprimer cette action du journal d'audit">
+              <span>🗑️</span>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  const startIdx = offset + 1;
+  const endIdx = Math.min(offset + items.length, uahState.totalFiltered);
+  updateUahPaginationBar(startIdx, endIdx, uahState.totalFiltered);
+}
+
+function updateUahPaginationBar(startIdx, endIdx, total) {
+  const infoEl = document.getElementById('uahPaginationInfo');
+  const prevBtn = document.getElementById('btnUahPrevPage');
+  const nextBtn = document.getElementById('btnUahNextPage');
+  const indicator = document.getElementById('uahPageIndicator');
+
+  if (infoEl) {
+    if (total === 0) {
+      infoEl.textContent = "Aucune action trouvée";
+    } else {
+      infoEl.textContent = `Affichage de ${startIdx} à ${endIdx} sur ${total} action(s) filtrée(s)`;
+    }
+  }
+
+  if (indicator) {
+    indicator.textContent = `Page ${uahState.page} / ${uahState.totalPages}`;
+  }
+
+  if (prevBtn) {
+    prevBtn.disabled = (uahState.page <= 1);
+  }
+  if (nextBtn) {
+    nextBtn.disabled = (uahState.page >= uahState.totalPages);
+  }
+}
+
+function changeUahPage(delta) {
+  const newPage = uahState.page + delta;
+  if (newPage >= 1 && newPage <= uahState.totalPages) {
+    uahState.page = newPage;
+    loadAdminActivityHistory();
+  }
+}
+
+function applyHistoryFilters() {
+  const pseudoSelect = document.getElementById('uahFilterPseudo');
+  const catSelect = document.getElementById('uahFilterCategory');
+  const searchInput = document.getElementById('uahFilterSearch');
+  const dateFromInput = document.getElementById('uahFilterDateFrom');
+  const dateToInput = document.getElementById('uahFilterDateTo');
+
+  if (pseudoSelect) uahState.pseudo = pseudoSelect.value;
+  if (catSelect) uahState.category = catSelect.value;
+  if (searchInput) uahState.search = searchInput.value;
+  if (dateFromInput) uahState.dateFrom = dateFromInput.value;
+  if (dateToInput) uahState.dateTo = dateToInput.value;
+
+  uahState.page = 1;
+  loadAdminActivityHistory();
+}
+
+function onUahDateInputChanged() {
+  // Désactiver les boutons de raccourcis si l'utilisateur entre une date manuelle
+  setActiveUahPeriodButton(null);
+  applyHistoryFilters();
+}
+
+function setUahPeriodShortcut(shortcut) {
+  uahState.periodShortcut = shortcut;
+  setActiveUahPeriodButton(shortcut);
+
+  const now = new Date();
+  const dateToEl = document.getElementById('uahFilterDateTo');
+  const dateFromEl = document.getElementById('uahFilterDateFrom');
+
+  const formatYmd = (d) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  if (shortcut === 'today') {
+    const todayStr = formatYmd(now);
+    uahState.dateFrom = todayStr;
+    uahState.dateTo = todayStr;
+  } else if (shortcut === '7d') {
+    const past = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
+    uahState.dateFrom = formatYmd(past);
+    uahState.dateTo = formatYmd(now);
+  } else if (shortcut === '30d') {
+    const past = new Date(now.getTime() - 30 * 24 * 3600 * 1000);
+    uahState.dateFrom = formatYmd(past);
+    uahState.dateTo = formatYmd(now);
+  } else {
+    // all
+    uahState.dateFrom = '';
+    uahState.dateTo = '';
+  }
+
+  if (dateFromEl) dateFromEl.value = uahState.dateFrom;
+  if (dateToEl) dateToEl.value = uahState.dateTo;
+
+  applyHistoryFilters();
+}
+
+function setActiveUahPeriodButton(shortcut) {
+  ['btnUahToday', 'btnUah7d', 'btnUah30d', 'btnUahAll'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) btn.classList.remove('active');
+  });
+  if (shortcut === 'today') document.getElementById('btnUahToday')?.classList.add('active');
+  else if (shortcut === '7d') document.getElementById('btnUah7d')?.classList.add('active');
+  else if (shortcut === '30d') document.getElementById('btnUah30d')?.classList.add('active');
+  else if (shortcut === 'all') document.getElementById('btnUahAll')?.classList.add('active');
+}
+
+function debounceUahSearch() {
+  clearTimeout(uahSearchDebounceTimer);
+  uahSearchDebounceTimer = setTimeout(() => {
+    applyHistoryFilters();
+  }, 350);
+}
+
+function resetUahFilters() {
+  uahState.pseudo = 'all';
+  uahState.category = 'all';
+  uahState.dateFrom = '';
+  uahState.dateTo = '';
+  uahState.periodShortcut = 'all';
+  uahState.search = '';
+  uahState.page = 1;
+
+  const pseudoSelect = document.getElementById('uahFilterPseudo');
+  const catSelect = document.getElementById('uahFilterCategory');
+  const searchInput = document.getElementById('uahFilterSearch');
+  const dateFromInput = document.getElementById('uahFilterDateFrom');
+  const dateToInput = document.getElementById('uahFilterDateTo');
+
+  if (pseudoSelect) pseudoSelect.value = 'all';
+  if (catSelect) catSelect.value = 'all';
+  if (searchInput) searchInput.value = '';
+  if (dateFromInput) dateFromInput.value = '';
+  if (dateToInput) dateToInput.value = '';
+
+  setActiveUahPeriodButton('all');
+  loadAdminActivityHistory();
+}
+
+function openUahDetailsModal(itemId) {
+  const item = currentUahItems.find(it => it.id === itemId);
+  if (!item) return;
+
+  uahState.selectedActionId = itemId;
+  const modal = document.getElementById('modalUahDetails');
+  if (!modal) return;
+
+  document.getElementById('uahModalTitle').textContent = `Détail de l'Action #${item.id}`;
+  document.getElementById('uahModalSubtitle').textContent = `Type : ${item.action_type || 'Général'} &bull; Enregistré le ${item.created_at}`;
+
+  document.getElementById('uahModalDate').textContent = item.created_at || '-';
+  document.getElementById('uahModalUser').textContent = `${item.pseudo || 'Inconnu'} (${item.code_profil || `ID ${item.profile_id}`})`;
+  
+  // Nature de l'action
+  const isFirst = (item.nature === '1ère saisie' || (!item.nature && item.action_category === 'reponse'));
+  document.getElementById('uahModalCategory').innerHTML = isFirst
+    ? '<span class="uah-badge first-entry">✨ 1ère saisie</span>'
+    : '<span class="uah-badge modification">🔄 Modification</span>';
+
+  document.getElementById('uahModalType').textContent = item.action_type || '-';
+
+  document.getElementById('uahModalTargetLabel').textContent = item.target_label || (item.target_id ? `Question #${item.target_id}` : '-');
+  document.getElementById('uahModalSummary').textContent = item.summary || '-';
+
+  // Section de notation visuelle des axes (Quiz standard)
+  const axesBox = document.getElementById('uahModalAxesContainer');
+  const axesGrid = document.getElementById('uahModalAxesGrid');
+  if (axesBox && axesGrid) {
+    const { axes, changes, isModification } = extractUahAxes(item);
+    if (axes && Object.keys(axes).length > 0) {
+      const order = [
+        { key: 'V', name: 'Vécu (Passé)', class: 'card-v', fill: 'fill-v', desc: 'Situation passée et expérience accumulée' },
+        { key: 'A', name: 'Actuel (Présent)', class: 'card-a', fill: 'fill-a', desc: 'Situation actuelle vécue au quotidien' },
+        { key: 'D', name: 'Désiré (Souhait)', class: 'card-d', fill: 'fill-d', desc: 'Aspiration, envie de changement et d\'évolution future' },
+        { key: 'P', name: 'Attendu chez l\'autre', class: 'card-p', fill: 'fill-p', desc: 'Attente et critère recherché chez le partenaire' },
+        { key: 'G', name: 'Goût / Intérêt', class: 'card-g', fill: 'fill-g', desc: 'Appétence, affinité et intérêt personnel' }
+      ];
+
+      let cardsHtml = '';
+      order.forEach(cfg => {
+        if (axes[cfg.key] !== undefined) {
+          const val = axes[cfg.key];
+          const info = getAffinityScaleInfo(cfg.key, val);
+
+          let pct = 0;
+          let barFill = cfg.fill;
+          if (info.isExclusion) {
+            pct = 100;
+            barFill = 'fill-exclusion';
+          } else if (val <= 5) {
+            pct = Math.max(15, Math.round((val / 5) * 100));
+          } else {
+            pct = Math.max(15, Math.round((val / 9) * 100));
+          }
+
+          const badgeCardClass = info.isExclusion ? 'badge-exclusion' : '';
+          const scoreBadge = info.isExclusion
+            ? `<span class="axis-code-pill exclusion">🚫 ${escapeHtml(info.label)} <small>(Code 9)</small></span>`
+            : `<span class="axis-code-pill">${escapeHtml(info.label)} <small>(Code ${val})</small></span>`;
+
+          // Détecter si cet axe a subi une modification
+          const axisChange = (isModification && changes && changes[cfg.key] && changes[cfg.key].old !== undefined && changes[cfg.key].old !== null && changes[cfg.key].old !== val)
+            ? changes[cfg.key]
+            : null;
+
+          if (axisChange) {
+            const oldVal = axisChange.old;
+            const oldInfo = getAffinityScaleInfo(cfg.key, oldVal);
+            cardsHtml += `
+              <div class="uah-axis-modal-card ${cfg.class} ${badgeCardClass}">
+                <div class="uah-axis-card-top">
+                  <span class="uah-axis-card-label">
+                    ${escapeHtml(cfg.name)}
+                    <span class="axis-mod-tag">MODIFIÉ</span>
+                  </span>
+                  <span class="uah-axis-card-score">${scoreBadge}</span>
+                </div>
+                <div class="uah-modal-diff-compare">
+                  <div class="diff-step old">
+                    <span class="diff-step-title">Ancienne valeur :</span>
+                    <span class="diff-step-score">${escapeHtml(oldInfo.label)} (Code ${oldVal})</span>
+                    <span class="diff-step-desc">${escapeHtml(oldInfo.meaning)}</span>
+                  </div>
+                  <div class="diff-step-arrow">➔</div>
+                  <div class="diff-step new">
+                    <span class="diff-step-title">Nouvelle valeur :</span>
+                    <span class="diff-step-score">${escapeHtml(info.label)} (Code ${val})</span>
+                    <span class="diff-step-desc">${escapeHtml(info.meaning)}</span>
+                  </div>
+                </div>
+                <div class="uah-axis-bar-track">
+                  <div class="uah-axis-bar-fill ${barFill}" style="width: ${pct}%;"></div>
+                </div>
+              </div>
+            `;
+          } else {
+            const unchangedNotice = (isModification) ? '<small style="color:var(--text-dim); margin-left:5px; font-weight:normal;">(inchangé)</small>' : '';
+            cardsHtml += `
+              <div class="uah-axis-modal-card ${cfg.class} ${badgeCardClass}">
+                <div class="uah-axis-card-top">
+                  <span class="uah-axis-card-label">${escapeHtml(cfg.name)}${unchangedNotice}</span>
+                  <span class="uah-axis-card-score">${scoreBadge}</span>
+                </div>
+                <div class="uah-axis-bar-track">
+                  <div class="uah-axis-bar-fill ${barFill}" style="width: ${pct}%;"></div>
+                </div>
+                <div class="uah-axis-card-desc">
+                  <strong style="color:var(--text-bright);">${escapeHtml(info.label)} (Code ${val}) :</strong> ${escapeHtml(info.meaning)}
+                </div>
+              </div>
+            `;
+          }
+        }
+      });
+
+      axesGrid.innerHTML = cardsHtml;
+      axesBox.style.display = 'block';
+    } else {
+      axesBox.style.display = 'none';
+      axesGrid.innerHTML = '';
+    }
+  }
+
+  // Formatage du JSON
+  const jsonEl = document.getElementById('uahModalJson');
+  if (jsonEl) {
+    if (item.details_json) {
+      try {
+        const parsed = JSON.parse(item.details_json);
+        jsonEl.textContent = JSON.stringify(parsed, null, 2);
+      } catch (e) {
+        jsonEl.textContent = item.details_json;
+      }
+    } else {
+      jsonEl.textContent = "(Aucun détail technique supplémentaire)";
+    }
+  }
+
+  modal.style.display = 'flex';
+}
+
+function closeUahDetailsModal() {
+  const modal = document.getElementById('modalUahDetails');
+  if (modal) modal.style.display = 'none';
+}
+
+function exportAdminHistoryCsv() {
+  const params = new URLSearchParams();
+  if (uahState.pseudo && uahState.pseudo !== 'all') {
+    params.append('pseudo', uahState.pseudo);
+  }
+  if (uahState.category && uahState.category !== 'all') {
+    params.append('category', uahState.category);
+  }
+  if (uahState.dateFrom) {
+    params.append('date_from', uahState.dateFrom);
+  }
+  if (uahState.dateTo) {
+    params.append('date_to', uahState.dateTo);
+  }
+  if (uahState.search && uahState.search.trim()) {
+    params.append('search', uahState.search.trim());
+  }
+
+  const exportUrl = `${API_BASE}/api/admin/user-actions-history/export?${params.toString()}`;
+  window.open(exportUrl, '_blank');
+}
+
+// ==========================================================================
+// SUPPRESSION & PURGE DU JOURNAL D'AUDIT / HISTORIQUE UTILISATEURS
+// ==========================================================================
+let uahPurgeState = {
+  mode: 'older_than_days',
+  matchingCount: 0,
+  isExecuting: false
+};
+
+function deleteCurrentUahActionFromModal() {
+  if (!uahState.selectedActionId) return;
+  const idToDelete = uahState.selectedActionId;
+  closeUahDetailsModal();
+  deleteSingleUahAction(idToDelete);
+}
+
+async function deleteSingleUahAction(actionId) {
+  if (!actionId) return;
+  const item = (currentUahItems || []).find(it => it.id === actionId);
+  const label = item ? (item.summary || item.target_label || `#${actionId}`) : `#${actionId}`;
+
+  const confirmed = window.confirm(`Supprimer définitivement cette entrée du journal d'audit ?\n\n« ${label} »`);
+  if (!confirmed) return;
+
+  try {
+    const res = await authFetch(`${API_BASE}/api/admin/user-actions-history/${actionId}`, {
+      method: 'DELETE'
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showToast("🗑️ Entrée supprimée de l'historique.");
+      loadAdminActivityHistory();
+    } else {
+      alert(`Erreur lors de la suppression : ${data.error || 'Échec de la requête'}`);
+    }
+  } catch (err) {
+    console.error("Erreur suppression entrée audit :", err);
+    alert(`Erreur réseau lors de la suppression : ${err.message}`);
+  }
+}
+
+function openUahPurgeModal() {
+  const modal = document.getElementById('modalPurgeUah');
+  if (!modal) {
+    console.error("Modal #modalPurgeUah introuvable dans le DOM.");
+    return;
+  }
+
+  // 1. Afficher immédiatement la boîte de dialogue
+  modal.style.display = 'flex';
+
+  try {
+    // 2. Peupler le sélecteur d'utilisateurs dans la modale de purge à partir du menu principal
+    const userSelect = document.getElementById('uahPurgeUserSelect');
+    const mainFilterSelect = document.getElementById('uahFilterPseudo');
+    if (userSelect && mainFilterSelect) {
+      userSelect.innerHTML = mainFilterSelect.innerHTML;
+      if (userSelect.options.length > 0 && userSelect.options[0].value === 'all') {
+        userSelect.options[0].textContent = "-- Choisissez un membre --";
+      }
+      // Sélectionner le membre actif si déjà filtré
+      if (window.uahState && uahState.pseudo && uahState.pseudo !== 'all') {
+        userSelect.value = uahState.pseudo;
+      }
+    }
+
+    // 3. Initialiser la date par défaut pour date_before (il y a 30 jours)
+    const dateBeforeInput = document.getElementById('uahPurgeDateBeforeInput');
+    if (dateBeforeInput && !dateBeforeInput.value) {
+      const d = new Date();
+      d.setDate(d.getDate() - 30);
+      dateBeforeInput.value = d.toISOString().split('T')[0];
+    }
+
+    // 4. Réinitialiser la confirmation explicite
+    const confirmInput = document.getElementById('inputUahPurgeConfirm');
+    if (confirmInput) confirmInput.value = '';
+
+    // 5. Sélectionner le mode initial et calculer l'estimation
+    selectUahPurgeMode((window.uahPurgeState && uahPurgeState.mode) || 'older_than_days');
+  } catch (err) {
+    console.error("Erreur lors de l'initialisation de la modale de purge :", err);
+  }
+}
+
+function closeUahPurgeModal() {
+  const modal = document.getElementById('modalPurgeUah');
+  if (modal) modal.style.display = 'none';
+}
+
+function selectUahPurgeMode(mode) {
+  uahPurgeState.mode = mode;
+
+  const cards = [
+    { mode: 'older_than_days', cardId: 'optCardOlderThan', extraId: 'extraOlderThan' },
+    { mode: 'date_before', cardId: 'optCardDateBefore', extraId: 'extraDateBefore' },
+    { mode: 'filtered', cardId: 'optCardFiltered', extraId: null },
+    { mode: 'pseudo', cardId: 'optCardUser', extraId: 'extraUser' },
+    { mode: 'all', cardId: 'optCardAll', extraId: null }
+  ];
+
+  cards.forEach(c => {
+    const cardEl = document.getElementById(c.cardId);
+    if (cardEl) {
+      if (c.mode === mode) {
+        cardEl.classList.add('active');
+        const radio = cardEl.querySelector('input[type="radio"]');
+        if (radio) radio.checked = true;
+      } else {
+        cardEl.classList.remove('active');
+      }
+    }
+    if (c.extraId) {
+      const extraEl = document.getElementById(c.extraId);
+      if (extraEl) {
+        extraEl.style.display = (c.mode === mode) ? 'flex' : 'none';
+      }
+    }
+  });
+
+  // Description spécifique pour le mode filtré
+  const filteredDesc = document.getElementById('uahPurgeFilteredDesc');
+  if (filteredDesc) {
+    const filtersActive = [];
+    if (uahState.pseudo && uahState.pseudo !== 'all') filtersActive.push(`Membre: ${uahState.pseudo}`);
+    if (uahState.category && uahState.category !== 'all') filtersActive.push(`Nature: ${uahState.category}`);
+    if (uahState.dateFrom) filtersActive.push(`Du: ${uahState.dateFrom}`);
+    if (uahState.dateTo) filtersActive.push(`Au: ${uahState.dateTo}`);
+    if (uahState.search) filtersActive.push(`Recherche: "${uahState.search}"`);
+
+    if (filtersActive.length > 0) {
+      filteredDesc.innerHTML = `Supprime les entrées correspondant aux filtres actifs : <strong>${escapeHtml(filtersActive.join(' | '))}</strong>.`;
+    } else {
+      filteredDesc.textContent = "Aucun filtre actif : ce mode ciblera l'ensemble de l'historique.";
+    }
+  }
+
+  updateUahPurgeEstimate();
+}
+
+function getUahPurgePayload(dryRun = false) {
+  const mode = uahPurgeState.mode || 'older_than_days';
+  const chkBackup = document.getElementById('chkUahPurgeBackup');
+  const createBackup = chkBackup ? chkBackup.checked : true;
+
+  const payload = {
+    mode: mode,
+    dry_run: dryRun,
+    create_backup: createBackup
+  };
+
+  if (mode === 'older_than_days') {
+    const select = document.getElementById('uahPurgeDaysSelect');
+    payload.days = select ? parseInt(select.value, 10) : 30;
+  } else if (mode === 'date_before') {
+    const input = document.getElementById('uahPurgeDateBeforeInput');
+    payload.date_before = input ? input.value : '';
+  } else if (mode === 'pseudo') {
+    const select = document.getElementById('uahPurgeUserSelect');
+    payload.pseudo = select ? select.value : '';
+  } else if (mode === 'filtered') {
+    if (uahState.pseudo && uahState.pseudo !== 'all') payload.pseudo = uahState.pseudo;
+    if (uahState.category && uahState.category !== 'all') payload.category = uahState.category;
+    if (uahState.dateFrom) payload.date_from = uahState.dateFrom;
+    if (uahState.dateTo) payload.date_to = uahState.dateTo;
+    if (uahState.search) payload.search = uahState.search;
+  }
+
+  return payload;
+}
+
+async function updateUahPurgeEstimate() {
+  const countEl = document.getElementById('uahPurgeEstimateCount');
+  const detailsEl = document.getElementById('uahPurgeEstimateDetails');
+  const confirmBox = document.getElementById('uahPurgeConfirmField');
+  const execBtn = document.getElementById('btnConfirmExecutePurge');
+
+  if (countEl) countEl.textContent = 'Calcul en cours...';
+
+  try {
+    const payload = getUahPurgePayload(true); // dry_run: true
+    const res = await authFetch(`${API_BASE}/api/admin/user-actions-history/purge`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      if (countEl) countEl.textContent = 'Erreur d\'estimation';
+      return;
+    }
+
+    const data = await res.json();
+    uahPurgeState.matchingCount = data.matching_count ?? 0;
+
+    if (countEl) {
+      countEl.textContent = `${uahPurgeState.matchingCount} enregistrement(s)`;
+    }
+
+    if (detailsEl) {
+      if (uahPurgeState.matchingCount === 0) {
+        detailsEl.textContent = "Aucune entrée ne correspond à ce critère de purge.";
+      } else {
+        detailsEl.textContent = `${uahPurgeState.matchingCount} action(s) d'audit seront définitivement supprimée(s).`;
+      }
+    }
+
+    // Sécurité : saisie obligatoire de 'PURGER' pour suppression totale ou volume >= 100
+    const requiresExplicitText = (uahPurgeState.mode === 'all' || uahPurgeState.matchingCount >= 100);
+    if (confirmBox) {
+      confirmBox.style.display = requiresExplicitText ? 'block' : 'none';
+    }
+
+    checkUahPurgeConfirmInput();
+
+  } catch (err) {
+    console.error("Erreur estimation purge :", err);
+    if (countEl) countEl.textContent = 'Indisponible';
+  }
+}
+
+function checkUahPurgeConfirmInput() {
+  const confirmBox = document.getElementById('uahPurgeConfirmField');
+  const confirmInput = document.getElementById('inputUahPurgeConfirm');
+  const execBtn = document.getElementById('btnConfirmExecutePurge');
+  if (!execBtn) return;
+
+  const requiresExplicitText = (confirmBox && confirmBox.style.display !== 'none');
+  const count = uahPurgeState.matchingCount ?? 0;
+
+  if (count === 0) {
+    execBtn.disabled = true;
+    execBtn.style.opacity = '0.5';
+    execBtn.style.cursor = 'not-allowed';
+    return;
+  }
+
+  if (requiresExplicitText) {
+    const val = (confirmInput ? confirmInput.value : '').trim().toUpperCase();
+    if (val === 'PURGER') {
+      execBtn.disabled = false;
+      execBtn.style.opacity = '1';
+      execBtn.style.cursor = 'pointer';
+    } else {
+      execBtn.disabled = true;
+      execBtn.style.opacity = '0.5';
+      execBtn.style.cursor = 'not-allowed';
+    }
+  } else {
+    execBtn.disabled = false;
+    execBtn.style.opacity = '1';
+    execBtn.style.cursor = 'pointer';
+  }
+}
+
+async function confirmExecuteUahPurge() {
+  if (uahPurgeState.isExecuting) return;
+  const count = uahPurgeState.matchingCount ?? 0;
+  if (count === 0) {
+    alert("Aucun enregistrement ne correspond aux critères sélectionnés.");
+    return;
+  }
+
+  const confirmBox = document.getElementById('uahPurgeConfirmField');
+  const confirmInput = document.getElementById('inputUahPurgeConfirm');
+  const requiresExplicitText = (confirmBox && confirmBox.style.display !== 'none');
+
+  if (requiresExplicitText) {
+    const val = (confirmInput ? confirmInput.value : '').trim().toUpperCase();
+    if (val !== 'PURGER') {
+      alert("Veuillez saisir le mot « PURGER » pour déverrouiller la confirmation.");
+      if (confirmInput) confirmInput.focus();
+      return;
+    }
+  }
+
+  const confirmed = window.confirm(`⚠️ ATTENTION : Vous allez définitivement supprimer ${count} enregistrement(s) du journal d'audit.\n\nConfirmez-vous cette purge ?`);
+  if (!confirmed) return;
+
+  const execBtn = document.getElementById('btnConfirmExecutePurge');
+  const originalBtnHtml = execBtn ? execBtn.innerHTML : '';
+  if (execBtn) {
+    execBtn.disabled = true;
+    execBtn.innerHTML = '<span>⏳</span> Purge en cours...';
+  }
+  uahPurgeState.isExecuting = true;
+
+  try {
+    const payload = getUahPurgePayload(false); // dry_run: false
+    const res = await authFetch(`${API_BASE}/api/admin/user-actions-history/purge`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      closeUahPurgeModal();
+      let msg = `🗑️ Purge réussie : ${data.deleted_count} entrée(s) supprimée(s).`;
+      if (data.backup_file) {
+        msg += ` (Sauvegarde créée : ${data.backup_file})`;
+      }
+      showToast(msg);
+      loadAdminActivityHistory();
+    } else {
+      alert(`Erreur lors de la purge : ${data.error || 'Échec de l\'opération'}`);
+    }
+  } catch (err) {
+    console.error("Erreur exécution purge :", err);
+    alert(`Erreur réseau lors de la purge : ${err.message}`);
+  } finally {
+    uahPurgeState.isExecuting = false;
+    if (execBtn) {
+      execBtn.disabled = false;
+      execBtn.innerHTML = originalBtnHtml;
+    }
+  }
+}
+
+// Exportation des fonctions globales
+window.loadAdminActivityHistory = loadAdminActivityHistory;
+window.applyHistoryFilters = applyHistoryFilters;
+window.onUahDateInputChanged = onUahDateInputChanged;
+window.setUahPeriodShortcut = setUahPeriodShortcut;
+window.debounceUahSearch = debounceUahSearch;
+window.resetUahFilters = resetUahFilters;
+window.changeUahPage = changeUahPage;
+window.openUahDetailsModal = openUahDetailsModal;
+window.closeUahDetailsModal = closeUahDetailsModal;
+window.exportAdminHistoryCsv = exportAdminHistoryCsv;
+window.deleteSingleUahAction = deleteSingleUahAction;
+window.deleteCurrentUahActionFromModal = deleteCurrentUahActionFromModal;
+window.openUahPurgeModal = openUahPurgeModal;
+window.closeUahPurgeModal = closeUahPurgeModal;
+window.selectUahPurgeMode = selectUahPurgeMode;
+window.updateUahPurgeEstimate = updateUahPurgeEstimate;
+window.checkUahPurgeConfirmInput = checkUahPurgeConfirmInput;
+window.confirmExecuteUahPurge = confirmExecuteUahPurge;
+
+
 
 

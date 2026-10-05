@@ -1644,8 +1644,8 @@
             <div class="admin-hero-badge">
               <span class="pulse-dot"></span> Console de Contrôle Système
             </div>
-            <h2>Gestion des Rôles & Autorisations</h2>
-            <p>Supervisez les comptes d'utilisateurs et attribuez les rôles : <strong>Administrateur</strong> (contrôle total), <strong>Abonné</strong> (accès complet au calculateur d'affinité) et <strong>Invité</strong> (saisie et profil).</p>
+            <h2>Administration</h2>
+            <p>Supervision globale de l'application : gestion des membres et privilèges, traitement des demandes d'accès, historique d'audit, sauvegardes et matrice des droits.</p>
           </div>
           <div class="admin-stats-summary">
             <div class="admin-stat-chip chip-admin">
@@ -1663,154 +1663,322 @@
           </div>
         </div>
 
-        <!-- Tableau des Utilisateurs & Rôles -->
-        <div class="admin-content-card">
-          <div class="admin-table-toolbar">
-            <div>
-              <h3>Membres Enregistrés</h3>
-              <p class="text-dim-sm">Sélectionnez le rôle à appliquer ou cliquez sur <em>« Promouvoir »</em> pour attribuer instantanément l'abonnement.</p>
-            </div>
-            <button class="btn btn-sm btn-outline" onclick="loadProfiles()">
-              <span>🔄</span> Actualiser
-            </button>
-          </div>
+        <!-- Barre de Navigation par Onglets / Boutons d'Administration -->
+        <div class="admin-subnav-bar">
+          <button class="admin-subnav-btn active" data-subtab="users" onclick="switchAdminSubTab('users')">
+            <span class="admin-subnav-icon">👥</span>
+            <span>Membres</span>
+          </button>
+          <button class="admin-subnav-btn" data-subtab="requests" onclick="switchAdminSubTab('requests')">
+            <span class="admin-subnav-icon">📬</span>
+            <span>Demande d'accès</span>
+            <span class="admin-subnav-badge" id="adminPendingRequestsBadge" style="display: none;">0</span>
+          </button>
+          <button class="admin-subnav-btn" data-subtab="history" onclick="switchAdminSubTab('history')">
+            <span class="admin-subnav-icon">📜</span>
+            <span>Historique</span>
+          </button>
+          <button class="admin-subnav-btn" data-subtab="backups" onclick="switchAdminSubTab('backups')">
+            <span class="admin-subnav-icon">💾</span>
+            <span>Sauvegardes</span>
+          </button>
+          <button class="admin-subnav-btn" data-subtab="roles" onclick="switchAdminSubTab('roles')">
+            <span class="admin-subnav-icon">📖</span>
+            <span>Guide des Droits</span>
+          </button>
+        </div>
 
-          <div class="table-responsive">
-            <table class="custom-table" id="adminUsersTable">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Utilisateur</th>
-                  <th>Identité</th>
-                  <th>Ville</th>
-                  <th>Réponses</th>
-                  <th>Rôle Actuel</th>
-                  <th>Périmètre Questions</th>
-                  <th>Modifier le Rôle</th>
-                  <th style="text-align:right;">Action Immédiate</th>
-                </tr>
-              </thead>
-              <tbody id="adminUsersTableBody">
-                <!-- Rempli par JavaScript -->
-              </tbody>
-            </table>
+        <!-- Sous-Panneau 1 : Tableau des Utilisateurs & Rôles -->
+        <div class="admin-subpane active" id="adminSubpaneUsers">
+          <div class="admin-content-card">
+            <div class="admin-table-toolbar">
+              <div>
+                <h3>Membres Enregistrés</h3>
+                <p class="text-dim-sm">Sélectionnez le rôle à appliquer ou cliquez sur <em>« Promouvoir »</em> pour attribuer instantanément l'abonnement.</p>
+              </div>
+              <button class="btn btn-sm btn-outline" onclick="loadProfiles()">
+                <span>🔄</span> Actualiser
+              </button>
+            </div>
+
+            <div class="table-responsive">
+              <table class="custom-table" id="adminUsersTable">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Utilisateur</th>
+                    <th>Identité</th>
+                    <th>Ville</th>
+                    <th>Réponses</th>
+                    <th>Rôle Actuel</th>
+                    <th>Périmètre Questions</th>
+                    <th>Modifier le Rôle</th>
+                    <th style="text-align:right;">Action Immédiate</th>
+                  </tr>
+                </thead>
+                <tbody id="adminUsersTableBody">
+                  <!-- Rempli par JavaScript -->
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
-        <!-- Panneau de Gestion des Demandes d'Accès reçues -->
-        <div class="admin-content-card" style="margin-top: 24px;">
-          <div class="admin-table-toolbar">
-            <div>
-              <h3>Demandes d'Accès aux Périmètres reçues</h3>
-              <p class="text-dim-sm">Validez ou refusez les demandes d'accès à de nouvelles classes ou thématiques envoyées par les membres.</p>
+        <!-- Sous-Panneau 2 : Demande d'accès -->
+        <div class="admin-subpane" id="adminSubpaneRequests" style="display: none;">
+          <div class="admin-content-card">
+            <div class="admin-table-toolbar">
+              <div>
+                <h3>Demande d'accès</h3>
+                <p class="text-dim-sm">Validez ou refusez les demandes d'accès à de nouvelles classes ou thématiques envoyées par les membres.</p>
+              </div>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <button class="btn btn-sm btn-primary" id="btnBatchApproveRequests" onclick="batchApproveAdminAccessRequests()" style="display:none;">
+                  <span>✅</span> Tout accorder
+                </button>
+                <button class="btn btn-sm btn-outline" onclick="loadAdminAccessRequests()">
+                  <span>🔄</span> Actualiser les demandes
+                </button>
+              </div>
             </div>
-            <div style="display:flex; align-items:center; gap:8px;">
-              <button class="btn btn-sm btn-primary" id="btnBatchApproveRequests" onclick="batchApproveAdminAccessRequests()" style="display:none;">
-                <span>✅</span> Tout accorder
-              </button>
-              <button class="btn btn-sm btn-outline" onclick="loadAdminAccessRequests()">
-                <span>🔄</span> Actualiser les demandes
+
+            <div class="table-responsive">
+              <table class="custom-table" id="adminAccessRequestsTable">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Membre</th>
+                    <th>Rôle</th>
+                    <th>Action</th>
+                    <th>Cible demandée</th>
+                    <th>Type</th>
+                    <th>Statut</th>
+                    <th style="text-align:right;">Décision Admin</th>
+                  </tr>
+                </thead>
+                <tbody id="adminAccessRequestsTableBody">
+                  <!-- Rempli par JavaScript -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sous-Panneau 3 : Historique -->
+        <div class="admin-subpane" id="adminSubpaneHistory" style="display: none;">
+          <div class="admin-content-card" id="adminHistoryCard">
+            <div class="admin-table-toolbar" style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;">
+              <div style="flex: 1; min-width: 250px;">
+                <h3 style="display: flex; align-items: center; gap: 8px; margin: 0 0 4px 0;">
+                  <span>📜</span> Historique
+                </h3>
+                <p class="text-dim-sm" style="margin: 0;">Traçabilité complète des réponses aux questionnaires, critères et modifications de profils ou paramètres avec filtres avancés.</p>
+              </div>
+              <div class="uah-toolbar-actions" style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; white-space: nowrap; flex-shrink: 0;">
+                <button type="button" class="btn btn-sm btn-danger-outline" onclick="document.getElementById('modalPurgeUah').style.display='flex'; openUahPurgeModal();" title="Purger l'historique d'audit selon vos critères avec sauvegarde préalable de sécurité" style="display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; flex-shrink: 0;">
+                  <span>🗑️</span> Purger l'historique
+                </button>
+                <button type="button" class="btn btn-sm btn-outline" onclick="exportAdminHistoryCsv()" title="Télécharger l'historique filtré au format CSV (compatible Excel)" style="display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; flex-shrink: 0;">
+                  <span>📥</span> Exporter CSV
+                </button>
+                <button type="button" class="btn btn-sm btn-primary" onclick="loadAdminActivityHistory()" title="Actualiser le journal" style="display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; flex-shrink: 0;">
+                  <span>🔄</span> Actualiser
+                </button>
+              </div>
+            </div>
+
+          <!-- Cartes d'indicateurs rapides d'audit -->
+          <div class="uah-stats-row">
+            <div class="uah-stat-card card-reponses">
+              <div class="uah-stat-icon">📝</div>
+              <div class="uah-stat-content">
+                <span class="uah-stat-val" id="uahStatReponses">0</span>
+                <span class="uah-stat-lbl">Réponses aux Quiz</span>
+              </div>
+            </div>
+            <div class="uah-stat-card card-modifs">
+              <div class="uah-stat-icon">✏️</div>
+              <div class="uah-stat-content">
+                <span class="uah-stat-val" id="uahStatModifs">0</span>
+                <span class="uah-stat-lbl">Modifications Fiches</span>
+              </div>
+            </div>
+            <div class="uah-stat-card card-users">
+              <div class="uah-stat-icon">👥</div>
+              <div class="uah-stat-content">
+                <span class="uah-stat-val" id="uahStatUsers">0</span>
+                <span class="uah-stat-lbl">Membres Tracés</span>
+              </div>
+            </div>
+            <div class="uah-stat-card card-filtered">
+              <div class="uah-stat-icon">🎯</div>
+              <div class="uah-stat-content">
+                <span class="uah-stat-val" id="uahStatFiltered">0</span>
+                <span class="uah-stat-lbl">Actions Filtrées</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Barre de filtres avancés (Pseudo, Période, Catégorie, Recherche) -->
+          <div class="uah-filters-bar">
+            <div class="uah-filter-group">
+              <label for="uahFilterPseudo">👤 Membre :</label>
+              <select id="uahFilterPseudo" class="form-control uah-select" onchange="applyHistoryFilters()">
+                <option value="all">Tous les membres</option>
+              </select>
+            </div>
+
+            <div class="uah-filter-group">
+              <label for="uahFilterCategory">🏷️ Catégorie :</label>
+              <select id="uahFilterCategory" class="form-control uah-select" onchange="applyHistoryFilters()">
+                <option value="all">Toutes les natures</option>
+                <option value="reponse">✨ 1ères saisies de réponses</option>
+                <option value="modification">🔄 Modifications de valeurs</option>
+              </select>
+            </div>
+
+            <div class="uah-filter-group">
+              <label>📅 Période du :</label>
+              <input type="date" id="uahFilterDateFrom" class="form-control uah-input-date" onchange="onUahDateInputChanged()">
+            </div>
+
+            <div class="uah-filter-group">
+              <label>au :</label>
+              <input type="date" id="uahFilterDateTo" class="form-control uah-input-date" onchange="onUahDateInputChanged()">
+            </div>
+
+            <div class="uah-filter-shortcuts">
+              <button type="button" class="uah-btn-time" id="btnUahToday" onclick="setUahPeriodShortcut('today')">Aujourd'hui</button>
+              <button type="button" class="uah-btn-time" id="btnUah7d" onclick="setUahPeriodShortcut('7d')">7 jours</button>
+              <button type="button" class="uah-btn-time" id="btnUah30d" onclick="setUahPeriodShortcut('30d')">30 jours</button>
+              <button type="button" class="uah-btn-time active" id="btnUahAll" onclick="setUahPeriodShortcut('all')">Tout</button>
+            </div>
+
+            <div class="uah-filter-group uah-search-group">
+              <label for="uahFilterSearch">🔍 Recherche :</label>
+              <input type="text" id="uahFilterSearch" class="form-control uah-input-search" placeholder="Mot-clé, question, sujet..." oninput="debounceUahSearch()">
+            </div>
+
+            <div class="uah-filter-actions">
+              <button type="button" class="btn btn-sm btn-outline" onclick="resetUahFilters()" title="Réinitialiser tous les filtres">
+                <span>🧹</span> Effacer filtres
               </button>
             </div>
           </div>
 
-          <div class="table-responsive">
-            <table class="custom-table" id="adminAccessRequestsTable">
+          <!-- Tableau des actions utilisateurs -->
+          <div class="table-responsive" style="margin-top: 14px;">
+            <table class="custom-table uah-table" id="adminUserActionsTable">
               <thead>
                 <tr>
-                  <th>Date</th>
+                  <th style="width: 150px;">Date &amp; Heure</th>
                   <th>Membre</th>
-                  <th>Rôle</th>
-                  <th>Action</th>
-                  <th>Cible demandée</th>
-                  <th>Type</th>
-                  <th>Statut</th>
-                  <th style="text-align:right;">Décision Admin</th>
+                  <th style="width: 125px;">Nature</th>
+                  <th style="width: 130px;">Type d'Action</th>
+                  <th>Question / Cible</th>
+                  <th>Résumé de l'Action</th>
+                  <th style="text-align: right; width: 105px;">Actions</th>
                 </tr>
               </thead>
-              <tbody id="adminAccessRequestsTableBody">
+              <tbody id="adminUserActionsTableBody">
                 <!-- Rempli par JavaScript -->
               </tbody>
             </table>
           </div>
-        </div>
 
-        <!-- Sécurité et Sauvegarde de la Base Locale -->
-        <div class="admin-sub-card" style="margin-top: 24px; border: 1px solid rgba(16, 185, 129, 0.3); background: rgba(16, 185, 129, 0.03); border-radius: var(--radius-md); padding: 18px 22px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
-            <div>
-              <h3 style="margin: 0 0 4px 0; display: flex; align-items: center; gap: 8px;">
-                <span>💾</span> Sauvegardes &amp; Pérennité de la Base Locale (affinity.db)
-              </h3>
-              <p class="text-dim-sm" style="margin: 0;">Vos profils, questions de la banque et réponses aux questionnaires sont sécurisés automatiquement à chaque lancement.</p>
+          <!-- Pagination et compteur -->
+          <div class="uah-pagination-container" id="uahPaginationBar" style="display:flex; justify-content:space-between; align-items:center; margin-top:14px; flex-wrap:wrap; gap:10px;">
+            <div id="uahPaginationInfo" class="text-dim-sm">
+              Chargement de l'historique...
             </div>
-            <button class="btn btn-sm btn-primary" onclick="triggerManualLocalBackup()" style="display: inline-flex; align-items: center; gap: 8px;">
-              <span>💾</span> Créer une sauvegarde maintenant
-            </button>
-          </div>
-          <div id="adminBackupStatusInfo" style="margin-top: 12px; font-size: 12.5px; color: var(--text-dim);">
-            Chargement des sauvegardes...
+            <div class="uah-pagination-controls" style="display:flex; align-items:center; gap:6px;">
+              <button class="btn btn-xs btn-outline" id="btnUahPrevPage" onclick="changeUahPage(-1)" disabled>&larr; Précédent</button>
+              <span id="uahPageIndicator" style="font-size:12px; font-weight:600; color:var(--text-bright); padding:0 6px;">Page 1</span>
+              <button class="btn btn-xs btn-outline" id="btnUahNextPage" onclick="changeUahPage(1)" disabled>Suivant &rarr;</button>
+            </div>
           </div>
         </div>
 
-        <!-- Matrice des Droits par Rôle -->
-        <div class="roles-guide-section">
-          <div class="guide-title-row">
-            <h3>Matrice des Droits & Privilèges</h3>
-            <p class="text-dim-sm">Architecture de sécurité et d'accès aux services de l'application</p>
+        <!-- Sous-Panneau 4 : Sauvegardes & Pérennité de la Base Locale -->
+        <div class="admin-subpane" id="adminSubpaneBackups" style="display: none;">
+          <div class="admin-sub-card" style="border: 1px solid rgba(16, 185, 129, 0.3); background: rgba(16, 185, 129, 0.03); border-radius: var(--radius-md); padding: 18px 22px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+              <div>
+                <h3 style="margin: 0 0 4px 0; display: flex; align-items: center; gap: 8px;">
+                  <span>💾</span> Sauvegardes &amp; Pérennité de la Base Locale (affinity.db)
+                </h3>
+                <p class="text-dim-sm" style="margin: 0;">Vos profils, questions de la banque et réponses aux questionnaires sont sécurisés automatiquement à chaque lancement.</p>
+              </div>
+              <button class="btn btn-sm btn-primary" onclick="triggerManualLocalBackup()" style="display: inline-flex; align-items: center; gap: 8px;">
+                <span>💾</span> Créer une sauvegarde maintenant
+              </button>
+            </div>
+            <div id="adminBackupStatusInfo" style="margin-top: 12px; font-size: 12.5px; color: var(--text-dim);">
+              Chargement des sauvegardes...
+            </div>
           </div>
-          <div class="roles-cards-grid">
-            <div class="role-desc-card card-role-admin">
-              <div class="role-desc-header">
-                <span class="role-badge admin">👑 Administrateur</span>
-                <span class="role-scope-tag">Accès Total</span>
-              </div>
-              <p class="role-desc-text">Rôle suprême réservé aux gestionnaires de l'application.</p>
-              <ul class="role-perks-list">
-                <li><span class="icon-yes">✔</span> Gestion complète des utilisateurs et modification des rôles</li>
-                <li><span class="icon-yes">✔</span> Accès illimité au Calculateur & Radar d'Affinité</li>
-                <li><span class="icon-yes">✔</span> <strong>Banque de questions exclusive</strong> : ajout, édition et suppression</li>
-                <li><span class="icon-yes">✔</span> <strong>Gestion par profil</strong> des jeux, classes et types de questions</li>
-                <li><span class="icon-yes">✔</span> Création, édition et suppression de tous les profils</li>
-              </ul>
-            </div>
+        </div>
 
-            <div class="role-desc-card card-role-sub">
-              <div class="role-desc-header">
-                <span class="role-badge subscriber">⭐ Abonné</span>
-                <span class="role-scope-tag">Accès Privilégié</span>
-              </div>
-              <p class="role-desc-text">Rôle attribué par l'administrateur à un invité vérifié.</p>
-              <ul class="role-perks-list">
-                <li><span class="icon-yes">✔</span> <strong>Accès complet au Calculateur d'Affinité V-A-D-P</strong></li>
-                <li><span class="icon-yes">✔</span> Radar psychologique et détection des points de fusion</li>
-                <li><span class="icon-yes">✔</span> Personnalisation de son profil</li>
-                <li><span class="icon-yes">✔</span> Réponse aux questionnaires autorisés par l'administrateur</li>
-                <li><span class="icon-no">✖</span> <strong>Pas d'accès à la banque de questions</strong></li>
-                <li><span class="icon-no">✖</span> Pas d'accès à la console d'administration</li>
-              </ul>
-              <button class="btn btn-sm btn-outline" onclick="setSimulatedRole('subscriber'); switchTab('profiles');" style="margin-top: 14px; width: 100%; border-color: rgba(16,185,129,0.4); color: #34D399;">
-                <span>🧪</span> Tester la vue Abonné
-              </button>
+        <!-- Sous-Panneau 5 : Guide des Droits & Privilèges -->
+        <div class="admin-subpane" id="adminSubpaneRoles" style="display: none;">
+          <div class="roles-guide-section" style="margin-top: 0;">
+            <div class="guide-title-row">
+              <h3>Matrice des Droits & Privilèges</h3>
+              <p class="text-dim-sm">Architecture de sécurité et d'accès aux services de l'application</p>
             </div>
-
-            <div class="role-desc-card card-role-guest">
-              <div class="role-desc-header">
-                <span class="role-badge guest">👤 Invité</span>
-                <span class="role-scope-tag">Accès Découverte</span>
+            <div class="roles-cards-grid">
+              <div class="role-desc-card card-role-admin">
+                <div class="role-desc-header">
+                  <span class="role-badge admin">👑 Administrateur</span>
+                  <span class="role-scope-tag">Accès Total</span>
+                </div>
+                <p class="role-desc-text">Rôle suprême réservé aux gestionnaires de l'application.</p>
+                <ul class="role-perks-list">
+                  <li><span class="icon-yes">✔</span> Gestion complète des utilisateurs et modification des rôles</li>
+                  <li><span class="icon-yes">✔</span> Accès illimité au Calculateur & Radar d'Affinité</li>
+                  <li><span class="icon-yes">✔</span> <strong>Banque de questions exclusive</strong> : ajout, édition et suppression</li>
+                  <li><span class="icon-yes">✔</span> <strong>Gestion par profil</strong> des jeux, classes et types de questions</li>
+                  <li><span class="icon-yes">✔</span> Création, édition et suppression de tous les profils</li>
+                </ul>
               </div>
-              <p class="role-desc-text">Rôle attribué par défaut à tout nouvel utilisateur créé.</p>
-              <ul class="role-perks-list">
-                <li><span class="icon-yes">✔</span> Création et personnalisation de son propre profil</li>
-                <li><span class="icon-yes">✔</span> Complétion de son profil obligatoire</li>
-                <li><span class="icon-yes">✔</span> Saisie des réponses aux questionnaires autorisés</li>
-                <li><span class="icon-no">✖</span> <strong>Calculateur d'Affinité verrouillé</strong></li>
-                <li><span class="icon-no">✖</span> <strong>Pas d'accès à la banque de questions</strong></li>
-                <li><span class="icon-no">✖</span> Pas d'accès à la console d'administration</li>
-              </ul>
-              <button class="btn btn-sm btn-outline" onclick="setSimulatedRole('guest'); switchTab('profiles');" style="margin-top: 14px; width: 100%; border-color: rgba(148,163,184,0.4); color: #CBD5E1;">
-                <span>🧪</span> Tester la vue Invité
-              </button>
+
+              <div class="role-desc-card card-role-sub">
+                <div class="role-desc-header">
+                  <span class="role-badge subscriber">⭐ Abonné</span>
+                  <span class="role-scope-tag">Accès Privilégié</span>
+                </div>
+                <p class="role-desc-text">Rôle attribué par l'administrateur à un invité vérifié.</p>
+                <ul class="role-perks-list">
+                  <li><span class="icon-yes">✔</span> <strong>Accès complet au Calculateur d'Affinité V-A-D-P</strong></li>
+                  <li><span class="icon-yes">✔</span> Radar psychologique et détection des points de fusion</li>
+                  <li><span class="icon-yes">✔</span> Personnalisation de son profil</li>
+                  <li><span class="icon-yes">✔</span> Réponse aux questionnaires autorisés par l'administrateur</li>
+                  <li><span class="icon-no">✖</span> <strong>Pas d'accès à la banque de questions</strong></li>
+                  <li><span class="icon-no">✖</span> Pas d'accès à la console d'administration</li>
+                </ul>
+                <button class="btn btn-sm btn-outline" onclick="setSimulatedRole('subscriber'); switchTab('profiles');" style="margin-top: 14px; width: 100%; border-color: rgba(16,185,129,0.4); color: #34D399;">
+                  <span>🧪</span> Tester la vue Abonné
+                </button>
+              </div>
+
+              <div class="role-desc-card card-role-guest">
+                <div class="role-desc-header">
+                  <span class="role-badge guest">👤 Invité</span>
+                  <span class="role-scope-tag">Accès Découverte</span>
+                </div>
+                <p class="role-desc-text">Rôle attribué par défaut à tout nouvel utilisateur créé.</p>
+                <ul class="role-perks-list">
+                  <li><span class="icon-yes">✔</span> Création et personnalisation de son propre profil</li>
+                  <li><span class="icon-yes">✔</span> Complétion de son profil obligatoire</li>
+                  <li><span class="icon-yes">✔</span> Saisie des réponses aux questionnaires autorisés</li>
+                  <li><span class="icon-no">✖</span> <strong>Calculateur d'Affinité verrouillé</strong></li>
+                  <li><span class="icon-no">✖</span> <strong>Pas d'accès à la banque de questions</strong></li>
+                  <li><span class="icon-no">✖</span> Pas d'accès à la console d'administration</li>
+                </ul>
+                <button class="btn btn-sm btn-outline" onclick="setSimulatedRole('guest'); switchTab('profiles');" style="margin-top: 14px; width: 100%; border-color: rgba(148,163,184,0.4); color: #CBD5E1;">
+                  <span>🧪</span> Tester la vue Invité
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -3094,6 +3262,273 @@
     <option value="Russie">
     <option value="Ukraine">
   </datalist>
+
+  <!-- MODALE : DÉTAIL D'UNE ACTION UTILISATEUR (AUDIT ADMIN) -->
+  <div id="modalUahDetails" class="modal-backdrop" style="display: none; z-index: 2300;">
+    <div class="modal-card" style="max-width: 680px; width: 95%; max-height: 90vh; display: flex; flex-direction: column; padding: 0; overflow: hidden; background: var(--bg-card); border: 1px solid var(--border-color); box-shadow: 0 25px 60px rgba(0,0,0,0.85);">
+      <div class="modal-header" style="padding: 16px 22px; border-bottom: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.95); display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 22px;" id="uahModalIcon">🔍</span>
+          <div>
+            <h3 style="margin: 0; font-size: 16.5px; color: var(--text-bright);" id="uahModalTitle">Détail de l'Action Utilisateur</h3>
+            <p style="margin: 2px 0 0 0; font-size: 12px; color: var(--text-dim);" id="uahModalSubtitle">Enregistrement d'audit #0</p>
+          </div>
+        </div>
+        <button type="button" class="btn-close-modal" onclick="closeUahDetailsModal()">✕</button>
+      </div>
+
+      <div class="modal-body" style="padding: 20px 22px; overflow-y: auto; max-height: calc(90vh - 130px);">
+        <!-- Grille des métadonnées principales -->
+        <div class="uah-modal-meta-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px;">
+          <div class="uah-meta-box">
+            <span class="uah-meta-lbl">Date &amp; Heure</span>
+            <span class="uah-meta-val" id="uahModalDate">-</span>
+          </div>
+          <div class="uah-meta-box">
+            <span class="uah-meta-lbl">Membre</span>
+            <span class="uah-meta-val" id="uahModalUser">-</span>
+          </div>
+          <div class="uah-meta-box">
+            <span class="uah-meta-lbl">Nature de l'Action</span>
+            <span class="uah-meta-val" id="uahModalCategory">-</span>
+          </div>
+          <div class="uah-meta-box">
+            <span class="uah-meta-lbl">Type</span>
+            <span class="uah-meta-val" id="uahModalType">-</span>
+          </div>
+        </div>
+
+        <!-- Cible / Question -->
+        <div id="uahModalTargetSection" style="margin-bottom: 16px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px 14px;">
+          <div style="font-size: 11.5px; font-weight: 700; color: var(--primary); text-transform: uppercase; margin-bottom: 4px;">Question / Cible concernée</div>
+          <div id="uahModalTargetLabel" style="font-size: 13.5px; color: var(--text-bright); line-height: 1.4;">-</div>
+        </div>
+
+        <!-- Résumé de l'opération -->
+        <div style="margin-bottom: 16px; background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; padding: 12px 14px;">
+          <div style="font-size: 11.5px; font-weight: 700; color: #38BDF8; text-transform: uppercase; margin-bottom: 4px;">Résumé de l'Action</div>
+          <div id="uahModalSummary" style="font-size: 14px; font-weight: 500; color: #F0F9FF; line-height: 1.4;">-</div>
+        </div>
+
+        <!-- Section Évaluation multidimensionnelle (Axes de notation Quiz standard) -->
+        <div id="uahModalAxesContainer" class="uah-modal-axes-container" style="display: none; margin-bottom: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 6px;">
+            <div style="font-size: 11.5px; font-weight: 700; color: #c084fc; text-transform: uppercase; letter-spacing: 0.5px;">
+              Évaluation Multidimensionnelle des Axes
+            </div>
+            <span style="font-size: 11.5px; color: var(--text-dim); font-style: italic;">
+              Codes qualitatifs d'intensité (1 à 5, 7) et d'exclusion (9)
+            </span>
+          </div>
+          <div class="uah-modal-axes-grid" id="uahModalAxesGrid">
+            <!-- Rempli dynamiquement par JavaScript -->
+          </div>
+
+          <!-- Guide explicatif complet de la correspondance des chiffres Affinity -->
+          <div class="uah-scale-guide-card" style="margin-top: 14px; padding: 12px 14px; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: #38bdf8; margin-bottom: 6px;">
+              <span>📖</span> À quoi correspondent les chiffres dans Affinity ?
+            </div>
+            <p style="font-size: 11.5px; color: var(--text-dim); margin: 0 0 10px 0; line-height: 1.45;">
+              Dans la méthode Affinity de M. André ROGER, les chiffres enregistrés ne sont pas une note scolaire sur 9, mais des <strong>codes qualitatifs précis</strong> déterminant la compatibilité élective :
+            </p>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; font-size: 11px;">
+              <div style="background: rgba(168, 85, 247, 0.06); border: 1px solid rgba(168, 85, 247, 0.2); border-radius: 6px; padding: 8px 10px;">
+                <strong style="color: #d8b4fe; display: block; margin-bottom: 4px;">🟣 Axes V (Vécu) &amp; A (Actuel)</strong>
+                <div style="color: var(--text-bright); line-height: 1.5;">
+                  &bull; <strong>1</strong> = Peu<br>
+                  &bull; <strong>2</strong> = Régulièrement<br>
+                  &bull; <strong>3</strong> = Souvent<br>
+                  &bull; <strong>4</strong> = Très souvent<br>
+                  &bull; <strong>5</strong> = Accro<br>
+                  &bull; <strong>6 à 8</strong> = Intensif / Quasi-permanent<br>
+                  &bull; <strong style="color: #f87171;">9 = Jamais</strong> <em style="color:#94a3b8;">(Code d'absence totale)</em>
+                </div>
+              </div>
+              <div style="background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 6px; padding: 8px 10px;">
+                <strong style="color: #6ee7b7; display: block; margin-bottom: 4px;">🟢 Axes D (Désir) &amp; P (Partage)</strong>
+                <div style="color: var(--text-bright); line-height: 1.5;">
+                  &bull; <strong>1</strong> = Me gêne<br>
+                  &bull; <strong>2</strong> = Faire plaisir<br>
+                  &bull; <strong>3</strong> = Ne gêne pas<br>
+                  &bull; <strong>4</strong> = J'en ai envie<br>
+                  &bull; <strong>5</strong> = Obligatoire<br>
+                  &bull; <strong>6 à 8</strong> = Très souhaité / Prioritaire<br>
+                  &bull; <strong style="color: #f87171;">9 = Impossible</strong> <em style="color:#94a3b8;">(Code rédhibitoire)</em>
+                </div>
+              </div>
+              <div style="background: rgba(236, 72, 153, 0.06); border: 1px solid rgba(236, 72, 153, 0.2); border-radius: 6px; padding: 8px 10px;">
+                <strong style="color: #f472b6; display: block; margin-bottom: 4px;">🟡 Axe G (Goûts &amp; Appétence)</strong>
+                <div style="color: var(--text-bright); line-height: 1.5;">
+                  &bull; <strong>1</strong> = Un peu<br>
+                  &bull; <strong>2</strong> = Moyennement<br>
+                  &bull; <strong>3</strong> = Beaucoup<br>
+                  &bull; <strong>4</strong> = Passionnément<br>
+                  &bull; <strong>5</strong> = À la folie<br>
+                  &bull; <strong>6 à 8</strong> = Note d'évaluation 6 à 8 / 10<br>
+                  &bull; <strong style="color: #f87171;">9 = Pas du tout</strong> <em style="color:#94a3b8;">(Aversion)</em>
+                </div>
+              </div>
+            </div>
+            <div style="margin-top: 8px; font-size: 10.5px; color: #94a3b8; line-height: 1.4; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 6px;">
+              💡 <em>Exemple (7) :</em> Le chiffre <strong>7</strong> correspond à un niveau d'intensité supérieure (pratique intensive sur le vécu/actuel ou attente prioritaire sur le partage). Le chiffre <strong>9</strong> n'est pas un échelon supérieur, c'est le <strong>code d'exclusion</strong> (Jamais / Impossible).
+            </div>
+          </div>
+        </div>
+
+        <!-- Détails techniques bruts / JSON formaté -->
+        <div>
+          <div style="font-size: 11.5px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; margin-bottom: 6px;">Données Techniques Détaillées</div>
+          <pre id="uahModalJson" style="background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; font-family: monospace; font-size: 12px; color: #94A3B8; overflow-x: auto; max-height: 220px; white-space: pre-wrap; word-break: break-all; margin: 0;"></pre>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="padding: 12px 22px; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); border-top: 1px solid var(--border-color);">
+        <button type="button" class="btn btn-sm btn-danger-outline" id="btnUahDeleteSingleInModal" onclick="deleteCurrentUahActionFromModal()" title="Supprimer définitivement cette entrée du journal d'audit">
+          <span>🗑️</span> Supprimer cette entrée
+        </button>
+        <button type="button" class="btn btn-sm btn-outline" onclick="closeUahDetailsModal()">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Purge de l'Historique d'Audit (User Actions History) -->
+  <div id="modalPurgeUah" class="modal-backdrop" style="display: none; z-index: 2310;" onclick="if(event.target === this) closeUahPurgeModal()">
+    <div class="modal-card uah-purge-card">
+      <div class="modal-header" style="padding: 16px 22px; border-bottom: 1px solid rgba(239,68,68,0.3); background: rgba(26, 12, 16, 0.95); display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 22px;">🗑️</span>
+          <div>
+            <h3 style="margin: 0; font-size: 16.5px; color: #fca5a5;">Purger le Journal d'Audit &amp; Historique</h3>
+            <p style="margin: 2px 0 0 0; font-size: 12px; color: var(--text-dim);">Nettoyage contrôlé avec sauvegarde automatique de sécurité</p>
+          </div>
+        </div>
+        <button type="button" class="btn-close-modal" onclick="closeUahPurgeModal()">✕</button>
+      </div>
+
+      <div class="modal-body" style="padding: 20px 22px; overflow-y: auto; max-height: calc(85vh - 120px);">
+        <!-- Options de sélection du périmètre de purge -->
+        <div style="font-size: 12.5px; font-weight: 700; color: var(--text-bright); margin-bottom: 10px;">
+          Choisissez le périmètre de purge :
+        </div>
+
+        <div class="uah-purge-options">
+          <!-- Option 1 : Ancienneté en jours -->
+          <label class="uah-purge-opt-card active" id="optCardOlderThan" onclick="selectUahPurgeMode('older_than_days')">
+            <input type="radio" name="uahPurgeMode" value="older_than_days" checked onchange="selectUahPurgeMode('older_than_days')">
+            <div class="uah-purge-opt-info">
+              <div class="uah-purge-opt-title">
+                <span>⏱️</span> Entrées antérieures à une durée
+              </div>
+              <div class="uah-purge-opt-desc">
+                Supprime les actions plus anciennes que le nombre de jours choisi.
+              </div>
+              <div class="uah-purge-opt-extra" id="extraOlderThan">
+                <select id="uahPurgeDaysSelect" class="form-control uah-select" style="max-width: 220px;" onchange="updateUahPurgeEstimate()">
+                  <option value="7">Plus de 7 jours</option>
+                  <option value="30" selected>Plus de 30 jours (Recommandé)</option>
+                  <option value="90">Plus de 90 jours (3 mois)</option>
+                  <option value="180">Plus de 180 jours (6 mois)</option>
+                  <option value="365">Plus de 365 jours (1 an)</option>
+                </select>
+              </div>
+            </div>
+          </label>
+
+          <!-- Option 2 : Antérieur à une date précise -->
+          <label class="uah-purge-opt-card" id="optCardDateBefore" onclick="selectUahPurgeMode('date_before')">
+            <input type="radio" name="uahPurgeMode" value="date_before" onchange="selectUahPurgeMode('date_before')">
+            <div class="uah-purge-opt-info">
+              <div class="uah-purge-opt-title">
+                <span>📅</span> Entrées antérieures à une date calendaire
+              </div>
+              <div class="uah-purge-opt-desc">
+                Supprime tout l'historique enregistré avant la date sélectionnée.
+              </div>
+              <div class="uah-purge-opt-extra" id="extraDateBefore" style="display: none;">
+                <input type="date" id="uahPurgeDateBeforeInput" class="form-control uah-input-date" onchange="updateUahPurgeEstimate()">
+              </div>
+            </div>
+          </label>
+
+          <!-- Option 3 : Actions actuellement filtrées -->
+          <label class="uah-purge-opt-card" id="optCardFiltered" onclick="selectUahPurgeMode('filtered')">
+            <input type="radio" name="uahPurgeMode" value="filtered" onchange="selectUahPurgeMode('filtered')">
+            <div class="uah-purge-opt-info">
+              <div class="uah-purge-opt-title">
+                <span>🎯</span> Entrées correspondant aux filtres actifs
+              </div>
+              <div class="uah-purge-opt-desc" id="uahPurgeFilteredDesc">
+                Supprime uniquement les actions actuellement visibles selon les critères de recherche et filtres appliqués.
+              </div>
+            </div>
+          </label>
+
+          <!-- Option 4 : Membre spécifique -->
+          <label class="uah-purge-opt-card" id="optCardUser" onclick="selectUahPurgeMode('pseudo')">
+            <input type="radio" name="uahPurgeMode" value="pseudo" onchange="selectUahPurgeMode('pseudo')">
+            <div class="uah-purge-opt-info">
+              <div class="uah-purge-opt-title">
+                <span>👤</span> Entrées d'un membre spécifique
+              </div>
+              <div class="uah-purge-opt-desc">
+                Supprime uniquement l'historique d'audit lié à un profil donné.
+              </div>
+              <div class="uah-purge-opt-extra" id="extraUser" style="display: none;">
+                <select id="uahPurgeUserSelect" class="form-control uah-select" style="max-width: 260px;" onchange="updateUahPurgeEstimate()">
+                  <!-- Rempli dynamiquement -->
+                </select>
+              </div>
+            </div>
+          </label>
+
+          <!-- Option 5 : Remise à zéro totale -->
+          <label class="uah-purge-opt-card" id="optCardAll" onclick="selectUahPurgeMode('all')">
+            <input type="radio" name="uahPurgeMode" value="all" onchange="selectUahPurgeMode('all')">
+            <div class="uah-purge-opt-info">
+              <div class="uah-purge-opt-title" style="color: #f87171;">
+                <span>⚠️</span> Tout purger (Remise à zéro complète)
+              </div>
+              <div class="uah-purge-opt-desc">
+                Efface l'intégralité de l'historique d'audit pour repartir de zéro.
+              </div>
+            </div>
+          </label>
+        </div>
+
+        <!-- Encadré d'estimation dynamique -->
+        <div class="uah-purge-preview-box">
+          <div class="uah-purge-preview-icon">📊</div>
+          <div class="uah-purge-preview-text">
+            Volume ciblé : <span class="uah-purge-preview-count" id="uahPurgeEstimateCount">Calcul en cours...</span><br>
+            <span style="font-size: 11px; color: var(--text-dim);" id="uahPurgeEstimateDetails">Ces entrées seront définitivement retirées de l'audit.</span>
+          </div>
+        </div>
+
+        <!-- Sécurité : Sauvegarde automatique -->
+        <div class="uah-purge-safety-box">
+          <input type="checkbox" id="chkUahPurgeBackup" checked>
+          <label for="chkUahPurgeBackup" style="cursor: pointer; margin: 0; line-height: 1.35;">
+            <strong>Créer une sauvegarde automatique avant la purge (Recommandé)</strong><br>
+            Une copie horodatée de <code>affinity.db</code> sera créée dans <code>backups/</code> avant suppression.
+          </label>
+        </div>
+
+        <!-- Champ de confirmation pour les purges sensibles (ex. tout purger ou grand volume) -->
+        <div class="uah-purge-confirm-field" id="uahPurgeConfirmField" style="display: none;">
+          <label for="inputUahPurgeConfirm">Tapez <strong>PURGER</strong> ci-dessous pour confirmer cette action irréversible :</label>
+          <input type="text" id="inputUahPurgeConfirm" class="form-control" placeholder="PURGER" style="max-width: 200px; text-transform: uppercase;" oninput="checkUahPurgeConfirmInput()">
+        </div>
+      </div>
+
+      <div class="modal-footer" style="padding: 14px 22px; display: flex; justify-content: space-between; align-items: center; background: rgba(15, 23, 42, 0.95); border-top: 1px solid var(--border-color);">
+        <button type="button" class="btn btn-sm btn-outline" onclick="closeUahPurgeModal()">Annuler</button>
+        <button type="button" class="btn btn-sm btn-danger" id="btnConfirmExecutePurge" onclick="confirmExecuteUahPurge()">
+          <span>🗑️</span> Exécuter la purge
+        </button>
+      </div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>

@@ -991,8 +991,261 @@ def init_db():
             VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', seed_questions)
         
+def format_axis_answer_label(axis, val):
+    """Traduit les codes numériques d'Affinity en libellés explicites en français."""
+    try:
+        v = int(val)
+    except (ValueError, TypeError):
+        return f"{val}"
+    
+    ax = (axis or "").upper()
+    if ax in ("V", "A"):
+        labels = {
+            1: "Peu",
+            2: "Régulièrement",
+            3: "Souvent",
+            4: "Très souvent",
+            5: "Accro",
+            6: "Forte intensité",
+            7: "Intensif",
+            8: "Quasi-permanent",
+            9: "Jamais",
+            0: "Non renseigné"
+        }
+        lbl = labels.get(v, f"Niveau {v}")
+        return f"{lbl} ({v})" if v != 9 else "Jamais (code 9)"
+    elif ax in ("D", "P"):
+        labels = {
+            1: "Me gêne",
+            2: "Faire plaisir",
+            3: "Ne gêne pas",
+            4: "J'en ai envie",
+            5: "Obligatoire",
+            6: "Très souhaité",
+            7: "Prioritaire",
+            8: "Essentiel",
+            9: "Impossible",
+            0: "Non renseigné"
+        }
+        lbl = labels.get(v, f"Niveau {v}")
+        return f"{lbl} ({v})" if v != 9 else "Impossible (code 9)"
+    elif ax == "G":
+        labels = {
+            1: "Un peu",
+            2: "Moyennement",
+            3: "Beaucoup",
+            4: "Passionnément",
+            5: "À la folie",
+            9: "Pas du tout",
+            0: "Non renseigné"
+        }
+        lbl = labels.get(v, f"Note {v}/10")
+        return f"{lbl} ({v})" if v != 9 else "Pas du tout (code 9)"
+    return f"{v}"
+
+def init_user_actions_history_table(c):
+    # Table d'historique complet et traçabilité de toutes les réponses et modifications des utilisateurs
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS user_actions_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            profile_id INTEGER NOT NULL,
+            pseudo TEXT NOT NULL,
+            action_category TEXT NOT NULL, -- 'reponse', 'modification'
+            action_type TEXT NOT NULL,     -- 'QUESTION_ANSWER', 'IDENTITY_SELF', 'IDENTITY_PARTNER', 'IDENTITY_CARD_UPDATE', 'PASSWORD_CHANGE', 'ACCESS_REQUEST', 'MATCH_REQUEST'
+            nature TEXT DEFAULT '1ère saisie', -- '1ère saisie' ou 'Modification'
+            target_id INTEGER,
+            target_label TEXT,
+            summary TEXT NOT NULL,
+            details_json TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+        )
+    ''')
+    try:
+        c.execute("ALTER TABLE user_actions_history ADD COLUMN nature TEXT DEFAULT '1ère saisie'")
+    except sqlite3.OperationalError:
+        pass
+
+    c.execute("CREATE INDEX IF NOT EXISTS idx_uah_profile_id ON user_actions_history(profile_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_uah_pseudo ON user_actions_history(pseudo)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_uah_created_at ON user_actions_history(created_at)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_uah_category ON user_actions_history(action_category)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_uah_nature ON user_actions_history(nature)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_uah_type ON user_actions_history(action_type)")
+
+    # Amorçage rétroactif de l'historique si la table est encore vierge
+    c.execute("SELECT count(*) as nb FROM user_actions_history")
+    if c.fetchone()["nb"] == 0:
+        # 1. Réponses questionnaires standard (answers)
+        c.execute("""
+            SELECT a.profile_id, p.pseudo, a.question_id, q.texte, q.sujet, q.type, q.classe,
+                   GROUP_CONCAT(a.axis || '=' || a.value, ', ') as axes_values,
+                   MIN(a.created_at) as first_created
+            FROM answers a
+            JOIN profiles p ON a.profile_id = p.id
+            JOIN questions q ON a.question_id = q.id
+            GROUP BY a.profile_id, a.question_id
+            ORDER BY MIN(a.created_at) ASC
+        """)
+        for row in c.fetchall():
+            pid = row["profile_id"]
+            pseudo = row["pseudo"]
+            qid = row["question_id"]
+            texte = row["texte"] or ""
+            sujet = row["sujet"] or ""
+            q_type = row["type"]
+            vals = row["axes_values"]
+            # Extraction et explicitation des axes V-A-D-P / G
+            axis_map = {"V": "Vécu (passé)", "A": "Actuel (présent)", "D": "Désiré (souhait)", "P": "Attendu autre", "G": "Goût / Intérêt"}
+            axis_ord = {"V": 1, "A": 2, "D": 3, "P": 4, "G": 5}
+            import re
+            extracted_axes = {}
+            for match in re.finditer(r'([VADPG])\s*=\s*(\d+)', vals or ''):
+                extracted_axes[match.group(1)] = int(match.group(2))
+            if extracted_axes:
+                sorted_ax = sorted(extracted_axes.items(), key=lambda x: axis_ord.get(x[0], 99))
+                vals_desc = [f"{axis_map.get(k, k)} = {format_axis_answer_label(k, v)}" for k, v in sorted_ax]
+                desc_str = " · ".join(vals_desc)
+                summ = f"Question #{qid} ({sujet}) : {desc_str}" if sujet else f"Question #{qid} : {desc_str}"
+            else:
+                summ = f"Question #{qid} ({sujet}) : {vals}" if sujet else f"Question #{qid} : {vals}"
+            det = {"question_id": qid, "sujet": sujet, "classe": row["classe"], "type": q_type, "axes": extracted_axes, "reponses": vals}
+            c.execute("""
+                INSERT INTO user_actions_history (profile_id, pseudo, action_category, action_type, target_id, target_label, summary, details_json, created_at)
+                VALUES (?, ?, 'reponse', 'QUESTION_ANSWER', ?, ?, ?, ?, ?)
+            """, (pid, pseudo, qid, texte[:120], summ, json.dumps(det, ensure_ascii=False), t_created))
+
+        # 2. Réponses identité soi (+ sur vous)
+        c.execute("""
+            SELECT s.profile_id, p.pseudo, s.question_id, q.texte, q.sujet, s.valeur_num, s.valeur_text, s.updated_at
+            FROM identity_answers_self s
+            JOIN profiles p ON s.profile_id = p.id
+            JOIN questions q ON s.question_id = q.id
+            ORDER BY s.updated_at ASC
+        """)
+        for row in c.fetchall():
+            pid = row["profile_id"]
+            pseudo = row["pseudo"]
+            qid = row["question_id"]
+            texte = row["texte"] or ""
+            sujet = row["sujet"] or ""
+            v_num = row["valeur_num"]
+            v_txt = row["valeur_text"]
+            val_display = str(int(v_num)) if (v_num is not None and v_num == int(v_num)) else (str(v_num) if v_num is not None else (v_txt or ""))
+            summ = f"+ sur vous ({sujet}) : {val_display}"
+            det = {"question_id": qid, "sujet": sujet, "valeur_num": v_num, "valeur_text": v_txt}
+            c.execute("""
+                INSERT INTO user_actions_history (profile_id, pseudo, action_category, action_type, target_id, target_label, summary, details_json, created_at)
+                VALUES (?, ?, 'reponse', 'IDENTITY_SELF', ?, ?, ?, ?, ?)
+            """, (pid, pseudo, qid, texte[:120], summ, json.dumps(det, ensure_ascii=False), row["updated_at"] or datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+
+        # 3. Critères identité partenaire (+ sur l'autre)
+        c.execute("""
+            SELECT pt.profile_id, p.pseudo, pt.question_id, q.texte, q.sujet, pt.min_val, pt.max_val, pt.options_json, pt.indifferent, pt.updated_at
+            FROM identity_answers_partner pt
+            JOIN profiles p ON pt.profile_id = p.id
+            JOIN questions q ON pt.question_id = q.id
+            ORDER BY pt.updated_at ASC
+        """)
+        for row in c.fetchall():
+            pid = row["profile_id"]
+            pseudo = row["pseudo"]
+            qid = row["question_id"]
+            texte = row["texte"] or ""
+            sujet = row["sujet"] or ""
+            indiff = bool(row["indifferent"])
+            min_v = row["min_val"]
+            max_v = row["max_val"]
+            opts = row["options_json"]
+            if indiff:
+                summ = f"+ sur l'autre ({sujet}) : Indifférent"
+            elif min_v is not None and max_v is not None:
+                min_disp = int(min_v) if min_v == int(min_v) else min_v
+                max_disp = int(max_v) if max_v == int(max_v) else max_v
+                summ = f"+ sur l'autre ({sujet}) : [{min_disp} à {max_disp}]"
+            elif opts and opts != "[]":
+                summ = f"+ sur l'autre ({sujet}) : Options {opts}"
+            else:
+                summ = f"+ sur l'autre ({sujet}) : Critère renseigné"
+            det = {"question_id": qid, "sujet": sujet, "min_val": min_v, "max_val": max_v, "options": opts, "indifferent": indiff}
+            c.execute("""
+                INSERT INTO user_actions_history (profile_id, pseudo, action_category, action_type, target_id, target_label, summary, details_json, created_at)
+                VALUES (?, ?, 'reponse', 'IDENTITY_PARTNER', ?, ?, ?, ?, ?)
+            """, (pid, pseudo, qid, texte[:120], summ, json.dumps(det, ensure_ascii=False), row["updated_at"] or datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+
+        # 4. Fiches d'identité (identity_cards)
+        c.execute("""
+            SELECT ic.*, p.pseudo
+            FROM identity_cards ic
+            JOIN profiles p ON ic.profile_id = p.id
+            WHERE ic.sexe IN (1, 2) OR (ic.habite_commune IS NOT NULL AND ic.habite_commune != '') OR (ic.ville IS NOT NULL AND ic.ville != '')
+            ORDER BY ic.updated_at ASC
+        """)
+        for row in c.fetchall():
+            pid = row["profile_id"]
+            pseudo = row["pseudo"]
+            commune = row["habite_commune"] or row["ville"] or "Non spécifiée"
+            sexe_txt = "Homme" if row["sexe"] == 1 else ("Femme" if row["sexe"] == 2 else "Non précisé")
+            parts = [f"Sexe : {sexe_txt}", f"Commune : {commune}"]
+            if row["date_naissance"]: parts.append(f"Né(e) : {row['date_naissance']}")
+            if row["taille"]: parts.append(f"Taille : {row['taille']} cm")
+            if row["poids"]: parts.append(f"Poids : {row['poids']} kg")
+            summ = f"Fiche d'identité : {', '.join(parts)}"
+            card_dict = {k: row[k] for k in row.keys() if row[k] is not None and k != "pseudo"}
+            c.execute("""
+                INSERT INTO user_actions_history (profile_id, pseudo, action_category, action_type, target_id, target_label, summary, details_json, created_at)
+                VALUES (?, ?, 'modification', 'IDENTITY_CARD_UPDATE', ?, 'Fiche d''identité', ?, ?, ?)
+            """, (pid, pseudo, pid, summ, json.dumps(card_dict, ensure_ascii=False), row["updated_at"] or datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+
     conn.commit()
     conn.close()
+
+def log_user_action(conn_or_c, profile_id, pseudo=None, action_category="reponse", action_type="QUESTION_ANSWER", summary="", target_id=None, target_label=None, details=None, nature=None, created_at=None):
+    """
+    Enregistre un événement dans la table user_actions_history pour assurer l'audit et la traçabilité.
+    nature : '1ère saisie' ou 'Modification'
+    """
+    try:
+        if hasattr(conn_or_c, "cursor"):
+            c = conn_or_c.cursor()
+            should_commit = True
+        else:
+            c = conn_or_c
+            should_commit = False
+
+        if not pseudo:
+            c.execute("SELECT pseudo FROM profiles WHERE id = ?", (profile_id,))
+            p_row = c.fetchone()
+            pseudo = p_row["pseudo"] if p_row else f"Profil #{profile_id}"
+
+        # Détermination de la nature par défaut si non spécifiée
+        if not nature:
+            nature = "Modification" if action_category == "modification" else "1ère saisie"
+
+        if isinstance(details, dict) and "nature" not in details:
+            details["nature"] = nature
+
+        details_str = json.dumps(details, ensure_ascii=False) if details and isinstance(details, (dict, list)) else (details if isinstance(details, str) else None)
+        target_label_str = str(target_label)[:250] if target_label else None
+        summary_str = str(summary)[:500]
+
+        if created_at:
+            c.execute("""
+                INSERT INTO user_actions_history 
+                (profile_id, pseudo, action_category, action_type, nature, target_id, target_label, summary, details_json, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (profile_id, pseudo, action_category, action_type, nature, target_id, target_label_str, summary_str, details_str, created_at))
+        else:
+            c.execute("""
+                INSERT INTO user_actions_history 
+                (profile_id, pseudo, action_category, action_type, nature, target_id, target_label, summary, details_json, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """, (profile_id, pseudo, action_category, action_type, nature, target_id, target_label_str, summary_str, details_str))
+
+        if should_commit:
+            conn_or_c.commit()
+    except Exception as ex:
+        print(f"[AUDIT LOG WARNING] Erreur enregistrement historique : {ex}")
 
 # ==========================================================================
 # DIAGNOSTIC PRÉALABLE : COMPATIBILITÉ IDENTITÉ ("+ SUR MOI" vs "+ SUR L'AUTRE")
@@ -2394,6 +2647,218 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                 conn.close()
                 return self._send_json({"requests": requests_list, "total": len(requests_list)})
 
+            # --- Historique complet des réponses et modifications utilisateurs (Audit Admin) ---
+            elif path == "/api/admin/user-actions-history":
+                query_params = urllib.parse.parse_qs(parsed.query)
+                filter_pseudo = query_params.get("pseudo", [None])[0]
+                filter_profile_id = query_params.get("profile_id", [None])[0]
+                filter_date_from = query_params.get("date_from", [None])[0]
+                filter_date_to = query_params.get("date_to", [None])[0]
+                filter_category = query_params.get("category", [None])[0]
+                filter_action_type = query_params.get("action_type", [None])[0]
+                filter_search = query_params.get("search", [None])[0]
+                limit_val = min(int(query_params.get("limit", [100])[0]), 1000)
+                offset_val = max(int(query_params.get("offset", [0])[0]), 0)
+
+                conditions = ["1=1"]
+                params = []
+
+                if filter_pseudo and filter_pseudo.strip() and filter_pseudo.strip().lower() not in ("all", "tous"):
+                    conditions.append("(LOWER(h.pseudo) LIKE ? OR LOWER(p.pseudo) LIKE ? OR LOWER(p.code_profil) LIKE ?)")
+                    p_term = f"%{filter_pseudo.strip().lower()}%"
+                    params.extend([p_term, p_term, p_term])
+
+                if filter_profile_id and filter_profile_id.strip() and filter_profile_id.strip().isdigit():
+                    conditions.append("h.profile_id = ?")
+                    params.append(int(filter_profile_id.strip()))
+
+                if filter_date_from and filter_date_from.strip():
+                    df = filter_date_from.strip()
+                    if len(df) == 10: df += " 00:00:00"
+                    conditions.append("h.created_at >= ?")
+                    params.append(df)
+
+                if filter_date_to and filter_date_to.strip():
+                    dt = filter_date_to.strip()
+                    if len(dt) == 10: dt += " 23:59:59"
+                    conditions.append("h.created_at <= ?")
+                    params.append(dt)
+
+                filter_nature = query_params.get("nature", [None])[0]
+                if not filter_nature and filter_category:
+                    if filter_category.strip().lower() in ("reponse", "1ère saisie", "first_entry"):
+                        filter_nature = "1ère saisie"
+                    elif filter_category.strip().lower() in ("modification", "modif", "update"):
+                        filter_nature = "Modification"
+
+                if filter_nature and filter_nature.strip() and filter_nature.strip().lower() not in ("all", "toutes", "tout"):
+                    n_val = "1ère saisie" if ("1" in filter_nature.lower() or "rep" in filter_nature.lower()) else "Modification"
+                    c_val = "reponse" if n_val == "1ère saisie" else "modification"
+                    conditions.append("(h.nature = ? OR (h.nature IS NULL AND h.action_category = ?))")
+                    params.extend([n_val, c_val])
+                elif filter_category and filter_category.strip() and filter_category.strip().lower() not in ("all", "toutes"):
+                    conditions.append("h.action_category = ?")
+                    params.append(filter_category.strip().lower())
+
+                if filter_action_type and filter_action_type.strip() and filter_action_type.strip().lower() not in ("all", "tous"):
+                    conditions.append("h.action_type = ?")
+                    params.append(filter_action_type.strip())
+
+                if filter_search and filter_search.strip():
+                    s_term = f"%{filter_search.strip().lower()}%"
+                    conditions.append("(LOWER(h.summary) LIKE ? OR LOWER(h.target_label) LIKE ? OR LOWER(h.details_json) LIKE ?)")
+                    params.extend([s_term, s_term, s_term])
+
+                where_clause = " AND ".join(conditions)
+
+                # Nombre total d'enregistrements filtrés
+                c.execute(f"""
+                    SELECT COUNT(*) as cnt 
+                    FROM user_actions_history h
+                    LEFT JOIN profiles p ON h.profile_id = p.id
+                    WHERE {where_clause}
+                """, tuple(params))
+                filtered_total = c.fetchone()["cnt"]
+
+                # Récupération des données paginées
+                sql_items = f"""
+                    SELECT h.id, h.profile_id, h.pseudo, h.action_category, h.action_type,
+                           COALESCE(h.nature, CASE WHEN h.action_category = 'modification' THEN 'Modification' ELSE '1ère saisie' END) as nature,
+                           h.target_id, h.target_label, h.summary, h.details_json, h.created_at,
+                           p.avatar, p.code_profil, p.role
+                    FROM user_actions_history h
+                    LEFT JOIN profiles p ON h.profile_id = p.id
+                    WHERE {where_clause}
+                    ORDER BY h.created_at DESC, h.id DESC
+                    LIMIT ? OFFSET ?
+                """
+                c.execute(sql_items, tuple(params) + (limit_val, offset_val))
+                items = [dict(r) for r in c.fetchall()]
+
+                # Statistiques globales
+                c.execute("SELECT COUNT(*) as nb_total FROM user_actions_history")
+                total_all = c.fetchone()["nb_total"]
+                c.execute("SELECT COUNT(*) as nb_rep FROM user_actions_history WHERE nature = '1ère saisie' OR (nature IS NULL AND action_category = 'reponse')")
+                total_rep = c.fetchone()["nb_rep"]
+                c.execute("SELECT COUNT(*) as nb_mod FROM user_actions_history WHERE nature = 'Modification' OR (nature IS NULL AND action_category = 'modification')")
+                total_mod = c.fetchone()["nb_mod"]
+                c.execute("SELECT COUNT(DISTINCT profile_id) as nb_u FROM user_actions_history")
+                total_users = c.fetchone()["nb_u"]
+
+                # Liste des utilisateurs distincts pour le sélecteur
+                c.execute("""
+                    SELECT DISTINCT h.profile_id, h.pseudo, p.code_profil, p.role, p.avatar, COUNT(*) as actions_count
+                    FROM user_actions_history h
+                    LEFT JOIN profiles p ON h.profile_id = p.id
+                    GROUP BY h.profile_id, h.pseudo
+                    ORDER BY h.pseudo COLLATE NOCASE ASC
+                """)
+                users_list = [dict(r) for r in c.fetchall()]
+
+                conn.close()
+                return self._send_json({
+                    "items": items,
+                    "total_count": total_all,
+                    "filtered_count": filtered_total,
+                    "limit": limit_val,
+                    "offset": offset_val,
+                    "stats": {
+                        "total_actions": total_all,
+                        "total_reponses": total_rep,
+                        "total_modifications": total_mod,
+                        "active_users_count": total_users
+                    },
+                    "users": users_list
+                })
+
+            # --- Export CSV de l'historique filtré ---
+            elif path == "/api/admin/user-actions-history/export":
+                query_params = urllib.parse.parse_qs(parsed.query)
+                filter_pseudo = query_params.get("pseudo", [None])[0]
+                filter_date_from = query_params.get("date_from", [None])[0]
+                filter_date_to = query_params.get("date_to", [None])[0]
+                filter_category = query_params.get("category", [None])[0]
+                filter_search = query_params.get("search", [None])[0]
+
+                conditions = ["1=1"]
+                params = []
+
+                if filter_pseudo and filter_pseudo.strip() and filter_pseudo.strip().lower() not in ("all", "tous"):
+                    conditions.append("(LOWER(h.pseudo) LIKE ? OR LOWER(p.pseudo) LIKE ? OR LOWER(p.code_profil) LIKE ?)")
+                    p_term = f"%{filter_pseudo.strip().lower()}%"
+                    params.extend([p_term, p_term, p_term])
+
+                if filter_date_from and filter_date_from.strip():
+                    df = filter_date_from.strip()
+                    if len(df) == 10: df += " 00:00:00"
+                    conditions.append("h.created_at >= ?")
+                    params.append(df)
+
+                if filter_date_to and filter_date_to.strip():
+                    dt = filter_date_to.strip()
+                    if len(dt) == 10: dt += " 23:59:59"
+                    conditions.append("h.created_at <= ?")
+                    params.append(dt)
+
+                if filter_category and filter_category.strip() and filter_category.strip().lower() not in ("all", "toutes"):
+                    conditions.append("h.action_category = ?")
+                    params.append(filter_category.strip().lower())
+
+                if filter_search and filter_search.strip():
+                    s_term = f"%{filter_search.strip().lower()}%"
+                    conditions.append("(LOWER(h.summary) LIKE ? OR LOWER(h.target_label) LIKE ?)")
+                    params.extend([s_term, s_term])
+
+                where_clause = " AND ".join(conditions)
+
+                c.execute(f"""
+                    SELECT h.id, h.created_at, h.pseudo, p.code_profil, p.role,
+                           h.action_category, h.action_type,
+                           COALESCE(h.nature, CASE WHEN h.action_category = 'modification' THEN 'Modification' ELSE '1ère saisie' END) as nature,
+                           h.target_label, h.summary, h.details_json
+                    FROM user_actions_history h
+                    LEFT JOIN profiles p ON h.profile_id = p.id
+                    WHERE {where_clause}
+                    ORDER BY h.created_at DESC, h.id DESC
+                    LIMIT 5000
+                """, tuple(params))
+                rows = c.fetchall()
+                conn.close()
+
+                # Construction du CSV avec BOM UTF-8 pour Excel
+                import io, csv
+                output = io.StringIO()
+                output.write('\ufeff') # UTF-8 BOM
+                writer = csv.writer(output, delimiter=';', quoting=csv.QUOTE_MINIMAL)
+                writer.writerow([
+                    "ID", "Date et Heure", "Pseudo", "Code Profil", "Rôle",
+                    "Nature", "Type d'Action", "Question / Cible", "Résumé de l'Action", "Détails Techniques"
+                ])
+                for r in rows:
+                    nat_fr = r["nature"] if "nature" in r.keys() and r["nature"] else ("Modification" if r["action_category"] == "modification" else "1ère saisie")
+                    writer.writerow([
+                        r["id"],
+                        r["created_at"],
+                        r["pseudo"] or "",
+                        r["code_profil"] or "",
+                        r["role"] or "",
+                        nat_fr,
+                        r["action_type"] or "",
+                        r["target_label"] or "",
+                        r["summary"] or "",
+                        r["details_json"] or ""
+                    ])
+
+                csv_content = output.getvalue().encode('utf-8')
+                self.send_response(200)
+                self.send_header("Content-Type", "text/csv; charset=utf-8")
+                self.send_header("Content-Disposition", f"attachment; filename=\"historique_actions_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv\"")
+                self.send_header("Content-Length", str(len(csv_content)))
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(csv_content)
+                return
+
             # --- Questions et sous-questions liées ---
             elif path.startswith("/api/questions/") and path.endswith("/subquestions"):
                 qid = int(path.split("/")[3])
@@ -2688,6 +3153,7 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                 return self._send_json({"error": "Ancien mot de passe incorrect."}, 403)
             s, h = hash_password(new_pwd)
             c.execute("UPDATE profiles SET salt = ?, password_hash = ? WHERE id = ?", (s, h, user["id"]))
+            log_user_action(c, user["id"], user.get("pseudo"), action_category="modification", action_type="PASSWORD_CHANGE", summary="Mot de passe modifié par l'utilisateur", target_label="Sécurité")
             conn.commit()
             conn.close()
             return self._send_json({"success": True, "message": "Mot de passe mis à jour avec succès."})
@@ -2704,6 +3170,7 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                 return self._send_json({"error": "Profil cible et mot de passe (min 4 caractères) requis."}, 400)
             s, h = hash_password(new_pwd)
             c.execute("UPDATE profiles SET salt = ?, password_hash = ? WHERE id = ?", (s, h, target_id))
+            log_user_action(c, target_id, None, action_category="modification", action_type="PASSWORD_CHANGE", summary="Mot de passe réinitialisé par l'administrateur", target_label="Sécurité")
             conn.commit()
             conn.close()
             return self._send_json({"success": True, "message": f"Mot de passe réinitialisé pour le profil #{target_id}."})
@@ -2815,6 +3282,9 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
 
             sit_famille_val = str(data.get("situation_famille", "")).strip() if data.get("situation_famille") else (str(data.get("statut", "")).strip() if data.get("statut") else "")
 
+            c.execute("SELECT * FROM identity_cards WHERE profile_id = ?", (pid,))
+            old_card_row = c.fetchone()
+
             c.execute("""
                 INSERT INTO identity_cards (
                     profile_id, nom, prenom, date_naissance, sexe, ville, statut, bio,
@@ -2886,6 +3356,48 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                 data.get("aime_chez_moi", ""),
                 data.get("aime_pas_chez_moi", "")
             ))
+
+            # Audit log de la modification de la fiche d'identité
+            c.execute("SELECT pseudo FROM profiles WHERE id = ?", (pid,))
+            p_row = c.fetchone()
+            act_pseudo = p_row["pseudo"] if p_row else f"Profil #{pid}"
+
+            # Déterminer si 1ère saisie ou modification
+            is_card_modification = bool(old_card_row and any(old_card_row[k] for k in ["habite_commune", "taille", "poids", "sexe", "situation_famille", "recherche_de"] if k in old_card_row.keys()))
+            card_nature = "Modification" if is_card_modification else "1ère saisie"
+            card_category = "modification" if is_card_modification else "reponse"
+
+            changes = {}
+            summ_parts = []
+
+            def check_field_diff(label, old_val, new_val, unit=""):
+                u_str = f" {unit}" if unit and new_val else ""
+                if is_card_modification:
+                    if old_val and new_val and str(old_val).strip() != str(new_val).strip():
+                        changes[label] = {"old": old_val, "new": new_val}
+                        summ_parts.append(f"{label} : {old_val}{u_str} ➔ {new_val}{u_str}")
+                    elif not old_val and new_val:
+                        changes[label] = {"old": None, "new": new_val}
+                        summ_parts.append(f"{label} : {new_val}{u_str}")
+                else:
+                    if new_val:
+                        summ_parts.append(f"{label} : {new_val}{u_str}")
+
+            check_field_diff("Commune", old_card_row["habite_commune"] if old_card_row else None, ville_val)
+            old_sexe_str = ("Homme" if old_card_row["sexe"] == 1 else "Femme") if old_card_row and old_card_row["sexe"] in (1, 2) else None
+            new_sexe_str = ("Homme" if int(data.get("sexe")) == 1 else "Femme") if data.get("sexe") in (1, 2, "1", "2") else None
+            check_field_diff("Sexe", old_sexe_str, new_sexe_str)
+            check_field_diff("Taille", old_card_row["taille"] if old_card_row else None, data.get("taille"), "cm")
+            check_field_diff("Poids", old_card_row["poids"] if old_card_row else None, data.get("poids"), "kg")
+            check_field_diff("Statut", old_card_row["situation_famille"] if old_card_row else None, sit_famille_val)
+            check_field_diff("Recherche", old_card_row["recherche_de"] if old_card_row else None, recherche_val)
+
+            summ_str = "Mise à jour Fiche : " + (", ".join(summ_parts) if summ_parts else "Informations enregistrées")
+            det_data = dict(data)
+            det_data["nature"] = card_nature
+            det_data["changes"] = changes if is_card_modification else None
+            log_user_action(c, pid, act_pseudo, action_category=card_category, action_type="IDENTITY_CARD_UPDATE", summary=summ_str, target_id=pid, target_label="Fiche d'identité", details=det_data, nature=card_nature)
+
             conn.commit()
             conn.close()
             return self._send_json({"success": True, "message": "Fiche d'identité mise à jour avec succès."})
@@ -2919,6 +3431,14 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                             valeur_text = excluded.valeur_text,
                             updated_at = CURRENT_TIMESTAMP
                     """, (pid, qid, float(v_num) if v_num not in (None, "") else None, str(v_txt).strip() if v_txt else None))
+                    
+                    c.execute("SELECT sujet, texte FROM questions WHERE id = ?", (qid,))
+                    q_inf = c.fetchone()
+                    q_suj = q_inf["sujet"] if q_inf else f"Question #{qid}"
+                    q_txt = q_inf["texte"] if q_inf else ""
+                    val_disp = str(int(float(v_num))) if (v_num is not None and float(v_num) == int(float(v_num))) else (str(v_num) if v_num is not None else (v_txt or ""))
+                    summ = f"+ sur vous ({q_suj}) : {val_disp}"
+                    log_user_action(c, pid, None, action_category="reponse", action_type="IDENTITY_SELF", summary=summ, target_id=qid, target_label=q_txt, details={"question_id": qid, "sujet": q_suj, "valeur_num": v_num, "valeur_text": v_txt})
             conn.commit()
 
             # Sexe du profil pour déterminer exactement les questions éligibles (identique au GET)
@@ -2995,6 +3515,22 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                             indifferent = excluded.indifferent,
                             updated_at = CURRENT_TIMESTAMP
                     """, (pid, qid, float(min_v) if min_v not in (None, "") else None, float(max_v) if max_v not in (None, "") else None, opts_json, indiff))
+                    
+                    c.execute("SELECT sujet, texte FROM questions WHERE id = ?", (qid,))
+                    q_inf = c.fetchone()
+                    q_suj = q_inf["sujet"] if q_inf else f"Question #{qid}"
+                    q_txt = q_inf["texte"] if q_inf else ""
+                    if indiff:
+                        summ = f"+ sur l'autre ({q_suj}) : Indifférent"
+                    elif min_v is not None and max_v is not None:
+                        min_disp = int(float(min_v)) if float(min_v) == int(float(min_v)) else min_v
+                        max_disp = int(float(max_v)) if float(max_v) == int(float(max_v)) else max_v
+                        summ = f"+ sur l'autre ({q_suj}) : [{min_disp} à {max_disp}]"
+                    elif opts:
+                        summ = f"+ sur l'autre ({q_suj}) : Options {opts}"
+                    else:
+                        summ = f"+ sur l'autre ({q_suj}) : Critère renseigné"
+                    log_user_action(c, pid, None, action_category="reponse", action_type="IDENTITY_PARTNER", summary=summ, target_id=qid, target_label=q_txt, details={"question_id": qid, "sujet": q_suj, "min_val": min_v, "max_val": max_v, "options": opts, "indifferent": bool(indiff)})
             conn.commit()
 
             # Sexe du profil pour déterminer exactement les questions éligibles partenaire (identique au GET)
@@ -3059,9 +3595,10 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                 VALUES (?, ?, ?, ?, 'pending')
             """, (pid, target_type, str(target_value), action_type))
             req_id = c.lastrowid
+            msg = "Demande d'accès transmise à l'administrateur." if action_type == "grant" else "Demande de suppression d'accès transmise à l'administrateur."
+            log_user_action(c, pid, None, action_category="modification", action_type="ACCESS_REQUEST", summary=msg, target_id=req_id, target_label=f"{target_type} {target_value}", details={"target_type": target_type, "target_value": target_value, "action_type": action_type})
             conn.commit()
             conn.close()
-            msg = "Demande d'accès transmise à l'administrateur." if action_type == "grant" else "Demande de suppression d'accès transmise à l'administrateur."
             return self._send_json({"success": True, "id": req_id, "action_type": action_type, "message": msg}, 201)
 
         # Enregistrement de réponses au questionnaire
@@ -3072,20 +3609,103 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                 conn.close()
                 return self._send_json({"error": "Données incomplètes."}, 400)
 
-            c.execute("SELECT role FROM profiles WHERE id = ?", (profile_id,))
+            c.execute("SELECT pseudo, role FROM profiles WHERE id = ?", (profile_id,))
             prof_row = c.fetchone()
             if prof_row and prof_row["role"] == "admin":
                 conn.close()
                 return self._send_json({"error": "Un administrateur ne répond pas aux questionnaires."}, 403)
-                
+            prof_pseudo = prof_row["pseudo"] if prof_row else f"Profil #{profile_id}"
+
+            # Déterminer les anciennes réponses existantes avant la mise à jour pour détecter 1ère saisie vs modification
+            distinct_qids = list({ans.get("question_id") for ans in answers_list if ans.get("question_id") is not None})
+            old_answers_by_q = {}
+            for qid in distinct_qids:
+                c.execute("SELECT axis, value FROM answers WHERE profile_id = ? AND question_id = ?", (profile_id, qid))
+                old_answers_by_q[qid] = {r["axis"]: r["value"] for r in c.fetchall()}
+
+            # Regrouper les réponses par question pour un enregistrement propre
+            grouped_by_q = {}
             for ans in answers_list:
+                qid = ans.get("question_id")
+                ax = ans.get("axis")
+                val = ans.get("value")
                 c.execute("""
                     INSERT INTO answers (profile_id, question_id, axis, value)
                     VALUES (?, ?, ?, ?)
                     ON CONFLICT(profile_id, question_id, axis) DO UPDATE SET
                         value = excluded.value,
                         created_at = CURRENT_TIMESTAMP
-                """, (profile_id, ans["question_id"], ans["axis"], ans["value"]))
+                """, (profile_id, qid, ax, val))
+                if qid not in grouped_by_q:
+                    grouped_by_q[qid] = {}
+                grouped_by_q[qid][ax] = val
+
+            # Historisation d'audit pour chaque question répondue
+            axis_labels = {
+                "V": "Vécu",
+                "A": "Actuel",
+                "D": "Désiré",
+                "P": "Attendu autre",
+                "G": "Goût"
+            }
+            axis_order = {"V": 1, "A": 2, "D": 3, "P": 4, "G": 5}
+            for qid, ax_vals in grouped_by_q.items():
+                old_ax_vals = old_answers_by_q.get(qid, {})
+                is_modification = bool(old_ax_vals)
+                nature = "Modification" if is_modification else "1ère saisie"
+                action_category = "modification" if is_modification else "reponse"
+
+                c.execute("SELECT texte, sujet, classe, type FROM questions WHERE id = ?", (qid,))
+                q_info = c.fetchone()
+                q_txt = q_info["texte"] if q_info else f"Question #{qid}"
+                q_suj = q_info["sujet"] if q_info else ""
+                sorted_axes = sorted(ax_vals.items(), key=lambda x: axis_order.get(x[0], 99))
+
+                changes = {}
+                if is_modification:
+                    changed_parts = []
+                    for k, new_v in sorted_axes:
+                        old_v = old_ax_vals.get(k)
+                        if old_v is not None and old_v != new_v:
+                            changes[k] = {
+                                "old": old_v,
+                                "new": new_v,
+                                "old_label": format_axis_answer_label(k, old_v),
+                                "new_label": format_axis_answer_label(k, new_v)
+                            }
+                            changed_parts.append(f"{axis_labels.get(k, k)} : {format_axis_answer_label(k, old_v)} ➔ {format_axis_answer_label(k, new_v)}")
+                        elif old_v is None:
+                            changes[k] = {
+                                "old": None,
+                                "new": new_v,
+                                "old_label": None,
+                                "new_label": format_axis_answer_label(k, new_v)
+                            }
+                            changed_parts.append(f"{axis_labels.get(k, k)} : nouveau {format_axis_answer_label(k, new_v)}")
+
+                    if changed_parts:
+                        diff_str = " · ".join(changed_parts)
+                        summ = f"Question #{qid} ({q_suj}) : {diff_str}" if q_suj else f"Question #{qid} : {diff_str}"
+                    else:
+                        vals_desc = [f"{axis_labels.get(k, k)} = {format_axis_answer_label(k, v)}" for k, v in sorted_axes]
+                        vals_str = " · ".join(vals_desc)
+                        summ = f"Question #{qid} ({q_suj}) : {vals_str}" if q_suj else f"Question #{qid} : {vals_str}"
+                else:
+                    vals_desc = [f"{axis_labels.get(k, k)} = {format_axis_answer_label(k, v)}" for k, v in sorted_axes]
+                    vals_str = " · ".join(vals_desc)
+                    summ = f"Question #{qid} ({q_suj}) : {vals_str}" if q_suj else f"Question #{qid} : {vals_str}"
+
+                det = {
+                    "question_id": qid,
+                    "sujet": q_suj,
+                    "classe": q_info["classe"] if q_info else None,
+                    "type": q_info["type"] if q_info else None,
+                    "nature": nature,
+                    "axes": ax_vals,
+                    "old_axes": old_ax_vals if is_modification else None,
+                    "changes": changes if is_modification else None
+                }
+                log_user_action(c, profile_id, prof_pseudo, action_category=action_category, action_type="QUESTION_ANSWER", summary=summ, target_id=qid, target_label=q_txt, details=det, nature=nature)
                 
             conn.commit()
             conn.close()
@@ -3208,6 +3828,13 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                 VALUES (?, ?, 'pending', ?, 'ALL', ?, ?)
             """, (sender_id, receiver_id, proposed_classes, proposed_restitution, proposed_restitution))
             req_id = c.lastrowid
+
+            # Audit log de la demande de match
+            c.execute("SELECT pseudo FROM profiles WHERE id = ?", (receiver_id,))
+            rec_row = c.fetchone()
+            rec_pseudo = rec_row["pseudo"] if rec_row else f"Profil #{receiver_id}"
+            log_user_action(c, sender_id, p_sender["pseudo"] if "pseudo" in p_sender.keys() else None, action_category="modification", action_type="MATCH_REQUEST", summary=f"Demande de match envoyée à {rec_pseudo}", target_id=req_id, target_label="Demande de match", details={"receiver_id": receiver_id, "receiver_pseudo": rec_pseudo, "proposed_classes": proposed_classes})
+
             conn.commit()
             
             # Formatage de retour pour le client
@@ -3408,6 +4035,141 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
             conn.close()
             return self._send_json({"success": True, "count": cnt, "message": f"{cnt} question(s) validée(s) avec succès !"})
 
+        # Sauvegarde manuelle de la base locale
+        elif path == "/api/admin/backup":
+            conn.close()
+            bkp = backup_local_db()
+            if bkp:
+                return self._send_json({"success": True, "message": "Sauvegarde de sécurité créée avec succès.", "file": os.path.basename(bkp)})
+            return self._send_json({"error": "Échec lors de la création de la sauvegarde locale."}, 500)
+
+        # Purge du journal d'audit / historique des actions utilisateurs
+        elif path == "/api/admin/user-actions-history/purge":
+            user = self.get_current_user()
+            if user and user.get("role") != "admin":
+                conn.close()
+                return self._send_json({"error": "Action réservée à l'administrateur."}, 403)
+
+            mode = data.get("mode", "older_than_days")
+            dry_run = bool(data.get("dry_run", False))
+            create_backup = bool(data.get("create_backup", True))
+
+            conditions = ["1=1"]
+            params = []
+
+            if mode == "all":
+                pass # 1=1 supprime tout
+            elif mode == "older_than_days":
+                days = int(data.get("days", 30))
+                cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
+                conditions.append("created_at < ?")
+                params.append(cutoff)
+            elif mode == "date_before":
+                dt = str(data.get("date_before", "")).strip()
+                if len(dt) == 10:
+                    dt += " 00:00:00"
+                conditions.append("created_at < ?")
+                params.append(dt)
+            elif mode == "profile_id":
+                pid = int(data.get("profile_id"))
+                conditions.append("profile_id = ?")
+                params.append(pid)
+            elif mode == "pseudo":
+                ps = str(data.get("pseudo", "")).strip()
+                conditions.append("(LOWER(pseudo) = LOWER(?) OR profile_id IN (SELECT id FROM profiles WHERE LOWER(pseudo) = LOWER(?)))")
+                params.extend([ps, ps])
+            elif mode == "filtered":
+                filter_pseudo = data.get("pseudo")
+                filter_date_from = data.get("date_from")
+                filter_date_to = data.get("date_to")
+                filter_nature = data.get("nature")
+                filter_category = data.get("category")
+                filter_search = data.get("search")
+
+                if filter_pseudo and filter_pseudo.strip() and filter_pseudo.strip().lower() not in ("all", "tous"):
+                    conditions.append("(LOWER(pseudo) LIKE ? OR profile_id IN (SELECT id FROM profiles WHERE LOWER(pseudo) LIKE ? OR LOWER(code_profil) LIKE ?))")
+                    p_term = f"%{filter_pseudo.strip().lower()}%"
+                    params.extend([p_term, p_term, p_term])
+
+                if filter_date_from and filter_date_from.strip():
+                    df = filter_date_from.strip()
+                    if len(df) == 10: df += " 00:00:00"
+                    conditions.append("created_at >= ?")
+                    params.append(df)
+
+                if filter_date_to and filter_date_to.strip():
+                    dt = filter_date_to.strip()
+                    if len(dt) == 10: dt += " 23:59:59"
+                    conditions.append("created_at <= ?")
+                    params.append(dt)
+
+                if not filter_nature and filter_category:
+                    if filter_category.strip().lower() in ("reponse", "1ère saisie", "first_entry"):
+                        filter_nature = "1ère saisie"
+                    elif filter_category.strip().lower() in ("modification", "modif", "update"):
+                        filter_nature = "Modification"
+
+                if filter_nature and filter_nature.strip() and filter_nature.strip().lower() not in ("all", "toutes", "tout"):
+                    n_val = "1ère saisie" if ("1" in filter_nature.lower() or "rep" in filter_nature.lower()) else "Modification"
+                    c_val = "reponse" if n_val == "1ère saisie" else "modification"
+                    conditions.append("(nature = ? OR (nature IS NULL AND action_category = ?))")
+                    params.extend([n_val, c_val])
+                elif filter_category and filter_category.strip() and filter_category.strip().lower() not in ("all", "toutes"):
+                    conditions.append("action_category = ?")
+                    params.append(filter_category.strip().lower())
+
+                if filter_search and filter_search.strip():
+                    s_term = f"%{filter_search.strip().lower()}%"
+                    conditions.append("(LOWER(summary) LIKE ? OR LOWER(target_label) LIKE ? OR LOWER(details_json) LIKE ?)")
+                    params.extend([s_term, s_term, s_term])
+            else:
+                conn.close()
+                return self._send_json({"error": "Mode de purge non reconnu."}, 400)
+
+            where_clause = " AND ".join(conditions)
+
+            # Comptage préalable
+            c.execute(f"SELECT COUNT(*) as cnt FROM user_actions_history WHERE {where_clause}", tuple(params))
+            matching_count = c.fetchone()["cnt"]
+
+            if dry_run:
+                conn.close()
+                return self._send_json({
+                    "success": True,
+                    "dry_run": True,
+                    "matching_count": matching_count
+                })
+
+            backup_file = None
+            if create_backup and matching_count > 0:
+                backup_file = backup_local_db()
+
+            c.execute(f"DELETE FROM user_actions_history WHERE {where_clause}", tuple(params))
+            deleted_count = c.rowcount
+            conn.commit()
+
+            # Enregistrement de l'action de purge dans le journal d'audit
+            admin_id = user["id"] if user else 1
+            admin_pseudo = user["pseudo"] if user else "ar30960 (Admin)"
+            log_user_action(
+                c, admin_id, admin_pseudo,
+                action_category="modification",
+                action_type="AUDIT_PURGE",
+                summary=f"Purge d'historique ({mode}) : {deleted_count} entrée(s) purgée(s)",
+                target_label="Journal d'audit",
+                details={"mode": mode, "deleted_count": deleted_count, "backup_created": bool(backup_file)}
+            )
+            conn.commit()
+            conn.close()
+
+            return self._send_json({
+                "success": True,
+                "deleted_count": deleted_count,
+                "backup_created": bool(backup_file),
+                "backup_file": os.path.basename(backup_file) if backup_file else None,
+                "message": f"Purge effectuée avec succès : {deleted_count} enregistrement(s) supprimé(s)."
+            })
+
         conn.close()
         return self._send_json({"error": "Endpoint non trouvé"}, 404)
 
@@ -3528,6 +4290,14 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
             if c.rowcount == 0:
                 conn.close()
                 return self._send_json({"error": "Demande de match introuvable."}, 404)
+
+            # Audit log de la réponse au match
+            c.execute("SELECT sender_id, receiver_id FROM match_requests WHERE id = ?", (req_id,))
+            mr_info = c.fetchone()
+            if mr_info:
+                resp_label = "acceptée" if new_status == "accepted" else "déclinée"
+                log_user_action(c, mr_info["receiver_id"], None, action_category="modification", action_type="MATCH_REQUEST", summary=f"Demande de match #{req_id} {resp_label}", target_id=req_id, target_label="Demande de match", details={"status": new_status, "validated_classes": validated_classes})
+
             conn.commit()
             conn.close()
 
@@ -3774,14 +4544,6 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
             conn.close()
             return self._send_json({"success": True, "message": "Question modifiée avec succès."})
 
-        # Sauvegarde manuelle de la base locale
-        elif path == "/api/admin/backup":
-            conn.close()
-            bkp = backup_local_db()
-            if bkp:
-                return self._send_json({"success": True, "message": "Sauvegarde de sécurité créée avec succès.", "file": os.path.basename(bkp)})
-            return self._send_json({"error": "Échec lors de la création de la sauvegarde locale."}, 500)
-            
         conn.close()
         return self._send_json({"error": "Endpoint non trouvé"}, 404)
 
@@ -3827,6 +4589,18 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
             conn.commit()
             conn.close()
             return self._send_json({"success": True, "deleted_id": mrid, "message": "Demande de match supprimée."})
+        elif path.startswith("/api/admin/user-actions-history/"):
+            user = self.get_current_user()
+            if user and user.get("role") != "admin":
+                return self._send_json({"error": "Action réservée à l'administrateur."}, 403)
+            ahid = int(path.split("/")[4])
+            conn = get_db()
+            c = conn.cursor()
+            c.execute("DELETE FROM user_actions_history WHERE id = ?", (ahid,))
+            deleted = c.rowcount
+            conn.commit()
+            conn.close()
+            return self._send_json({"success": True, "deleted_id": ahid, "deleted_count": deleted, "message": "Entrée de l'historique supprimée avec succès."})
         return self._send_json({"error": "Non supporté"}, 404)
 
 def backup_local_db():

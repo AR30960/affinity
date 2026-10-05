@@ -279,9 +279,84 @@ L'application **Affinity** est un moteur de calcul d'affinités électives basé
     - *Référentiel des API REST* exhaustif (Authentification, Profils, Questions, Matchs, Demandes d'accès individuelles et par lot `batch-respond`, Administration).
     - *Maintenance, sauvegardes et déploiement* opérationnel sous Windows.
 
+- **Fait - [04/10/2026]** : ~~Restructuration ergonomique de l'Administration et clarification visuelle de l'Historique d'Audit :~~
+  - **1. Navigation par sous-onglets / boutons dans l'Administration** :
+    - Fin de l'empilement vertical infini des cartes. Mise en place d'une barre de sous-navigation d'administration moderne `.admin-subnav-bar` avec 5 sous-onglets interactifs :
+      1. `👥 Membres` : Gestion des profils, attribution et promotion des rôles.
+      2. `📬 Demande d'accès` : Tableau des requêtes d'accès reçues avec badge dynamique de notification pour les demandes en attente.
+      3. `📜 Historique` : Journal d'audit complet avec filtres par membre, dates, catégories, recherche texte et pagination.
+      4. `💾 Sauvegardes` : État de santé et création instantanée de sauvegarde locale SQLite (`affinity.db`).
+      5. `📖 Guide des Droits` : Matrice comparative des privilèges d'accès (Invité, Abonné, Administrateur).
+    - Mémorisation du sous-onglet sélectionné et actualisations ciblées sans rechargement lourd.
+  - **2. Renommages conformes** :
+    - Fenêtre principale d'administration : Renommée en **« Administration »** (au lieu de *« Administration & Rôles »*).
+    - Section des requêtes : Renommée en **« Demande d'accès »** (au lieu de *« Demandes d'Accès aux Périmètres reçues »*).
+    - Section du journal d'audit : Renommée en **« Historique »** (au lieu de *« Historique des Réponses & Modifications Utilisateurs »*).
+  - **3. Résumé d'action parlant et compréhensif pour les Quiz standard** :
+    - Fin des abréviations cryptiques du type `A=5, D=4, P=3, V=3`.
+    - Restitution en clair des axes psychologiques et relationnels avec pastilles de couleurs distinctives :
+      - 🟣 **Vécu (passé)** : `X / 9` (situation passée et expérience accumulée)
+      - 🔵 **Actuel (présent)** : `X / 9` (situation vécue au présent)
+      - 🟢 **Désiré (souhait)** : `X / 9` (aspiration et souhaits d'évolution future)
+      - 🟠 **Attendu autre** : `X / 9` (attentes vis-à-vis du partenaire)
+      - 🟡 **Goût / Intérêt** : `X / 9` (appétence personnelle)
+    - Affichage de la thématique / sujet au-dessus des pastilles.
+    - Modale de détails enrichie : affichage d'un bloc dédié *« Évaluation Multidimensionnelle »* avec cartes individuelles par axe et barres de progression graphiques animées.
+    - Rétrocompatibilité totale assurée pour l'ensemble des données d'historique en base et lors des exports CSV.
+
+  - **4. Clarification des Chiffres et Décodage Qualitatif Réel (Fini les mentions trompeuses « X/9 »)** :
+    - *Origine du problème* : Dans la conception originale d'Affinity (M. André ROGER), les chiffres ne sont pas des fractions scolaires sur 9, mais des **codes qualitatifs précis** (1 à 5 pour les degrés d'intensité, et 9 pour l'exclusion absolue).
+    - *Précision apportée dans la modale « Détails »* :
+      - Chaque carte d'axe affiche désormais le **libellé textuel réel** suivi du code : ex. `Souvent (Code 3)`, `Accro (Code 5)`, `J'en ai envie (Code 4)`, `Ne gêne pas (Code 3)`.
+      - Explication claire des cas particuliers :
+        - Le chiffre **9** est mis en valeur avec un badge rouge d'alerte : `🚫 Jamais (Code 9 : Absence totale)` ou `🚫 Impossible (Code 9 : Rédhibitoire)`.
+        - Les chiffres intermédiaires supérieurs comme **7** ou **8** sont explicités comme des degrés d'intensité élevée : `Intensif (7)`, `Quasi-permanent (8)`.
+      - Ajout d'un encadré synthétique permanent **« 📖 À quoi correspondent les chiffres dans Affinity ? »** récapitulant les 3 grilles (Vécu/Actuel, Désir/Partage, Goûts) avec les correspondances directes Chiffre ➔ Mot clé.
+    - *Pastilles du tableau d'historique et résumés* :
+      - Affichage direct du mot-clé et du chiffre entre parenthèses : `Vécu : Souvent (3)`, `Désiré : J'en ai envie (4)`, `Attendu autre : Impossible (9)`, `Vécu : Intensif (7)`.
+      - Suppression de toute mention ambiguë du type `/9`.
+      - Mise à jour de l'API, de la base `affinity.db` et des exports CSV.
+
+- ~~**Fait - 05/10/2026** : Historique d'activité / Audit - Suppression du `/9`, affichage des libellés avec code entre parenthèses, distinction 1ère saisie vs Modification et traçabilité comparée (ancienne ➔ nouvelle valeur) dans la liste et la modale de détails.~~
+  - **Suppression du `/9`** : Disparition intégrale de toute mention trompeuse de note scolaire sur 9 dans la liste et dans la modale de détails.
+  - **Libellé + Chiffre entre parenthèses** : Affichage systématique du libellé qualitatif et du code numérique pour chaque axe (ex: `Vécu : Souvent (3)`, `Actuel : Souvent (3)`, `Désiré : Ne gêne pas (3)`, `Attendu autre : J'en ai envie (4)`).
+  - **Nature de la saisie** : Colonne "Nature" dédiée avec badges distincts `✨ 1ère saisie` (enregistrement initial) et `🔄 Modification` (mise à jour d'une réponse ou fiche).
+  - **Traçabilité des modifications (ancienne ➔ nouvelle valeur)** :
+    - Dans la liste : affichage direct des évolutions sur les axes modifiés (ex: `Vécu : Peu (1) ➔ Souvent (3)`).
+    - Dans le détail : bloc comparatif avant/après présentant l'ancienne valeur avec son libellé et code, la flèche d'évolution `➔`, et la nouvelle valeur avec sa description complète.
+    - Également appliqué aux fiches d'identité (ex: `Commune : Marseille ➔ Lyon`).
+
+- ~~**Fait - 05/10/2026** : Purge et suppression sécurisée du journal d'audit / historique des actions utilisateurs.~~
+  - **Bouton « Purger l'historique » dans la barre d'outils d'audit** : Accès direct à la modale de configuration et de contrôle de purge.
+  - **Périmètres de purge multiples & flexibles** :
+    - *Par ancienneté en jours* : Plus de 7 jours, 30 jours (recommandé), 90 jours (3 mois), 180 jours (6 mois), 365 jours (1 an).
+    - *Par date calendaire précise* : Suppression de tout l'historique antérieur à une date choisie via un calendrier.
+    - *Par filtres actifs* : Purge ciblée sur les actions actuellement visibles à l'écran (recherche textuelle, nature, date, membre).
+    - *Par membre spécifique* : Purge exclusive des actions d'un profil sélectionné.
+    - *Remise à zéro totale* : Effacement complet de l'historique d'audit pour redémarrer à neuf.
+  - **Estimation dynamique en temps réel (`dry_run: true`)** : Affichage instantané du volume exact d'enregistrements ciblés avant toute action destructrice.
+  - **Sécurisation anti-perte accidentelle** :
+    - *Sauvegarde automatique préalable* : Création d'une copie horodatée de `affinity.db` dans `backups/` avant exécution de la purge (option cochée par défaut).
+    - *Mot de passe de confirmation « PURGER »* : Déverrouillage obligatoire par saisie explicite du mot « PURGER » pour les remises à zéro totales ou les volumes importants (≥ 100 enregistrements).
+  - **Suppression unitaire précise** :
+    - Bouton corbeille `🗑️` sur chaque ligne du tableau d'audit pour supprimer une action isolée sans impacter le reste.
+    - Bouton « Supprimer cette entrée » également disponible dans le pied de la modale de détails.
+  - **Traçabilité de l'opération de purge (`AUDIT_PURGE`)** : Chaque purge effectuée par l'administrateur est elle-même consignée dans le journal d'audit avec son mode, le nombre de lignes supprimées et le nom du fichier de sauvegarde créé.
+  - **Tests automatisés validés** : Script de validation HTTP complet dans `test_audit_purge.py`.
+
+- ~~**Fait - 05/10/2026** : Alignement strict sur une seule ligne des boutons d'actions d'historique & Fiabilisation de l'ouverture de la boîte de dialogue de purge.~~
+  - **Alignement sur une même ligne** : Les boutons « Purger l'historique », « Exporter CSV » et « Actualiser » sont désormais regroupés dans un conteneur dédié `.uah-toolbar-actions` avec `flex-wrap: nowrap`, `white-space: nowrap` et `flex-shrink: 0`. Ils restent rigoureusement alignés sur une seule et même ligne horizontale sans risque de coupure ni passage à la ligne.
+  - **Ouverture immédiate et infaillible de la boîte de dialogue de purge** :
+    - `modal.style.display = 'flex'` est exécuté dès la première instruction de `openUahPurgeModal()`, avec déclencheur direct inline de secours (`onclick="document.getElementById('modalPurgeUah').style.display='flex'; openUahPurgeModal();"`).
+    - Encapsulation des requêtes d'estimation et du peuplement des filtres dans un bloc sécurisé `try...catch` pour éliminer tout risque de blocage de l'interface.
+    - Ajout de la fermeture de la boîte de dialogue au clic extérieur sur l'arrière-plan semi-transparent.
+
 ---
 
 ## 4. NOUVELLES DEMANDES
 
 *(Inscrivez ici vos prochaines demandes. Une fois prise en compte, l'assistant les passera en « Fait - [Date] » avec le texte barré).*
+
+
+
 
