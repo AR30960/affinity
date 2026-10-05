@@ -990,6 +990,10 @@ def init_db():
             INSERT INTO questions (pack_id, cible, classe, thematique, sujet, type, texte)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', seed_questions)
+
+    init_user_actions_history_table(conn, c)
+    conn.commit()
+    conn.close()
         
 def format_axis_answer_label(axis, val):
     """Traduit les codes numériques d'Affinity en libellés explicites en français."""
@@ -1043,7 +1047,7 @@ def format_axis_answer_label(axis, val):
         return f"{lbl} ({v})" if v != 9 else "Pas du tout (code 9)"
     return f"{v}"
 
-def init_user_actions_history_table(c):
+def init_user_actions_history_table(conn, c):
     # Table d'historique complet et traçabilité de toutes les réponses et modifications des utilisateurs
     c.execute('''
         CREATE TABLE IF NOT EXISTS user_actions_history (
@@ -1198,7 +1202,6 @@ def init_user_actions_history_table(c):
             """, (pid, pseudo, pid, summ, json.dumps(card_dict, ensure_ascii=False), row["updated_at"] or datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
 
     conn.commit()
-    conn.close()
 
 def log_user_action(conn_or_c, profile_id, pseudo=None, action_category="reponse", action_type="QUESTION_ANSWER", summary="", target_id=None, target_label=None, details=None, nature=None, created_at=None):
     """
@@ -4050,125 +4053,136 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
                 conn.close()
                 return self._send_json({"error": "Action réservée à l'administrateur."}, 403)
 
-            mode = data.get("mode", "older_than_days")
-            dry_run = bool(data.get("dry_run", False))
-            create_backup = bool(data.get("create_backup", True))
+            try:
+                # S'assurer que la table et ses index existent bien
+                init_user_actions_history_table(conn, c)
 
-            conditions = ["1=1"]
-            params = []
+                mode = data.get("mode", "older_than_days")
+                dry_run = bool(data.get("dry_run", False))
+                create_backup = bool(data.get("create_backup", True))
 
-            if mode == "all":
-                pass # 1=1 supprime tout
-            elif mode == "older_than_days":
-                days = int(data.get("days", 30))
-                cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
-                conditions.append("created_at < ?")
-                params.append(cutoff)
-            elif mode == "date_before":
-                dt = str(data.get("date_before", "")).strip()
-                if len(dt) == 10:
-                    dt += " 00:00:00"
-                conditions.append("created_at < ?")
-                params.append(dt)
-            elif mode == "profile_id":
-                pid = int(data.get("profile_id"))
-                conditions.append("profile_id = ?")
-                params.append(pid)
-            elif mode == "pseudo":
-                ps = str(data.get("pseudo", "")).strip()
-                conditions.append("(LOWER(pseudo) = LOWER(?) OR profile_id IN (SELECT id FROM profiles WHERE LOWER(pseudo) = LOWER(?)))")
-                params.extend([ps, ps])
-            elif mode == "filtered":
-                filter_pseudo = data.get("pseudo")
-                filter_date_from = data.get("date_from")
-                filter_date_to = data.get("date_to")
-                filter_nature = data.get("nature")
-                filter_category = data.get("category")
-                filter_search = data.get("search")
+                conditions = ["1=1"]
+                params = []
 
-                if filter_pseudo and filter_pseudo.strip() and filter_pseudo.strip().lower() not in ("all", "tous"):
-                    conditions.append("(LOWER(pseudo) LIKE ? OR profile_id IN (SELECT id FROM profiles WHERE LOWER(pseudo) LIKE ? OR LOWER(code_profil) LIKE ?))")
-                    p_term = f"%{filter_pseudo.strip().lower()}%"
-                    params.extend([p_term, p_term, p_term])
-
-                if filter_date_from and filter_date_from.strip():
-                    df = filter_date_from.strip()
-                    if len(df) == 10: df += " 00:00:00"
-                    conditions.append("created_at >= ?")
-                    params.append(df)
-
-                if filter_date_to and filter_date_to.strip():
-                    dt = filter_date_to.strip()
-                    if len(dt) == 10: dt += " 23:59:59"
-                    conditions.append("created_at <= ?")
+                if mode == "all":
+                    pass # 1=1 supprime tout
+                elif mode == "older_than_days":
+                    days = int(data.get("days", 30))
+                    cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
+                    conditions.append("created_at < ?")
+                    params.append(cutoff)
+                elif mode == "date_before":
+                    dt = str(data.get("date_before", "")).strip()
+                    if len(dt) == 10:
+                        dt += " 00:00:00"
+                    conditions.append("created_at < ?")
                     params.append(dt)
+                elif mode == "profile_id":
+                    pid = int(data.get("profile_id"))
+                    conditions.append("profile_id = ?")
+                    params.append(pid)
+                elif mode == "pseudo":
+                    ps = str(data.get("pseudo", "")).strip()
+                    conditions.append("(LOWER(pseudo) = LOWER(?) OR profile_id IN (SELECT id FROM profiles WHERE LOWER(pseudo) = LOWER(?)))")
+                    params.extend([ps, ps])
+                elif mode == "filtered":
+                    filter_pseudo = data.get("pseudo")
+                    filter_date_from = data.get("date_from")
+                    filter_date_to = data.get("date_to")
+                    filter_nature = data.get("nature")
+                    filter_category = data.get("category")
+                    filter_search = data.get("search")
 
-                if not filter_nature and filter_category:
-                    if filter_category.strip().lower() in ("reponse", "1ère saisie", "first_entry"):
-                        filter_nature = "1ère saisie"
-                    elif filter_category.strip().lower() in ("modification", "modif", "update"):
-                        filter_nature = "Modification"
+                    if filter_pseudo and filter_pseudo.strip() and filter_pseudo.strip().lower() not in ("all", "tous"):
+                        conditions.append("(LOWER(pseudo) LIKE ? OR profile_id IN (SELECT id FROM profiles WHERE LOWER(pseudo) LIKE ? OR LOWER(code_profil) LIKE ?))")
+                        p_term = f"%{filter_pseudo.strip().lower()}%"
+                        params.extend([p_term, p_term, p_term])
 
-                if filter_nature and filter_nature.strip() and filter_nature.strip().lower() not in ("all", "toutes", "tout"):
-                    n_val = "1ère saisie" if ("1" in filter_nature.lower() or "rep" in filter_nature.lower()) else "Modification"
-                    c_val = "reponse" if n_val == "1ère saisie" else "modification"
-                    conditions.append("(nature = ? OR (nature IS NULL AND action_category = ?))")
-                    params.extend([n_val, c_val])
-                elif filter_category and filter_category.strip() and filter_category.strip().lower() not in ("all", "toutes"):
-                    conditions.append("action_category = ?")
-                    params.append(filter_category.strip().lower())
+                    if filter_date_from and filter_date_from.strip():
+                        df = filter_date_from.strip()
+                        if len(df) == 10: df += " 00:00:00"
+                        conditions.append("created_at >= ?")
+                        params.append(df)
 
-                if filter_search and filter_search.strip():
-                    s_term = f"%{filter_search.strip().lower()}%"
-                    conditions.append("(LOWER(summary) LIKE ? OR LOWER(target_label) LIKE ? OR LOWER(details_json) LIKE ?)")
-                    params.extend([s_term, s_term, s_term])
-            else:
+                    if filter_date_to and filter_date_to.strip():
+                        dt = filter_date_to.strip()
+                        if len(dt) == 10: dt += " 23:59:59"
+                        conditions.append("created_at <= ?")
+                        params.append(dt)
+
+                    if not filter_nature and filter_category:
+                        if filter_category.strip().lower() in ("reponse", "1ère saisie", "first_entry"):
+                            filter_nature = "1ère saisie"
+                        elif filter_category.strip().lower() in ("modification", "modif", "update"):
+                            filter_nature = "Modification"
+
+                    if filter_nature and filter_nature.strip() and filter_nature.strip().lower() not in ("all", "toutes", "tout"):
+                        n_val = "1ère saisie" if ("1" in filter_nature.lower() or "rep" in filter_nature.lower()) else "Modification"
+                        c_val = "reponse" if n_val == "1ère saisie" else "modification"
+                        conditions.append("(nature = ? OR (nature IS NULL AND action_category = ?))")
+                        params.extend([n_val, c_val])
+                    elif filter_category and filter_category.strip() and filter_category.strip().lower() not in ("all", "toutes"):
+                        conditions.append("action_category = ?")
+                        params.append(filter_category.strip().lower())
+
+                    if filter_search and filter_search.strip():
+                        s_term = f"%{filter_search.strip().lower()}%"
+                        conditions.append("(LOWER(summary) LIKE ? OR LOWER(target_label) LIKE ? OR LOWER(details_json) LIKE ?)")
+                        params.extend([s_term, s_term, s_term])
+                else:
+                    conn.close()
+                    return self._send_json({"error": "Mode de purge non reconnu."}, 400)
+
+                where_clause = " AND ".join(conditions)
+
+                # Comptage préalable
+                c.execute(f"SELECT COUNT(*) as cnt FROM user_actions_history WHERE {where_clause}", tuple(params))
+                matching_count = c.fetchone()["cnt"]
+
+                if dry_run:
+                    conn.close()
+                    return self._send_json({
+                        "success": True,
+                        "dry_run": True,
+                        "matching_count": matching_count
+                    })
+
+                backup_file = None
+                if create_backup and matching_count > 0:
+                    backup_file = backup_local_db()
+
+                c.execute(f"DELETE FROM user_actions_history WHERE {where_clause}", tuple(params))
+                deleted_count = c.rowcount
+                conn.commit()
+
+                # Enregistrement de l'action de purge dans le journal d'audit
+                admin_id = user["id"] if user else 1
+                admin_pseudo = user["pseudo"] if user else "ar30960 (Admin)"
+                log_user_action(
+                    c, admin_id, admin_pseudo,
+                    action_category="modification",
+                    action_type="AUDIT_PURGE",
+                    summary=f"Purge d'historique ({mode}) : {deleted_count} entrée(s) purgée(s)",
+                    target_label="Journal d'audit",
+                    details={"mode": mode, "deleted_count": deleted_count, "backup_created": bool(backup_file)}
+                )
+                conn.commit()
                 conn.close()
-                return self._send_json({"error": "Mode de purge non reconnu."}, 400)
 
-            where_clause = " AND ".join(conditions)
-
-            # Comptage préalable
-            c.execute(f"SELECT COUNT(*) as cnt FROM user_actions_history WHERE {where_clause}", tuple(params))
-            matching_count = c.fetchone()["cnt"]
-
-            if dry_run:
-                conn.close()
                 return self._send_json({
                     "success": True,
-                    "dry_run": True,
-                    "matching_count": matching_count
+                    "deleted_count": deleted_count,
+                    "backup_created": bool(backup_file),
+                    "backup_file": os.path.basename(backup_file) if backup_file else None,
+                    "message": f"Purge effectuée avec succès : {deleted_count} enregistrement(s) supprimé(s)."
                 })
-
-            backup_file = None
-            if create_backup and matching_count > 0:
-                backup_file = backup_local_db()
-
-            c.execute(f"DELETE FROM user_actions_history WHERE {where_clause}", tuple(params))
-            deleted_count = c.rowcount
-            conn.commit()
-
-            # Enregistrement de l'action de purge dans le journal d'audit
-            admin_id = user["id"] if user else 1
-            admin_pseudo = user["pseudo"] if user else "ar30960 (Admin)"
-            log_user_action(
-                c, admin_id, admin_pseudo,
-                action_category="modification",
-                action_type="AUDIT_PURGE",
-                summary=f"Purge d'historique ({mode}) : {deleted_count} entrée(s) purgée(s)",
-                target_label="Journal d'audit",
-                details={"mode": mode, "deleted_count": deleted_count, "backup_created": bool(backup_file)}
-            )
-            conn.commit()
-            conn.close()
-
-            return self._send_json({
-                "success": True,
-                "deleted_count": deleted_count,
-                "backup_created": bool(backup_file),
-                "backup_file": os.path.basename(backup_file) if backup_file else None,
-                "message": f"Purge effectuée avec succès : {deleted_count} enregistrement(s) supprimé(s)."
-            })
+            except Exception as err:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+                print(f"[PURGE ERROR] {err}")
+                return self._send_json({"error": f"Erreur lors de la purge : {str(err)}"}, 500)
 
         conn.close()
         return self._send_json({"error": "Endpoint non trouvé"}, 404)
