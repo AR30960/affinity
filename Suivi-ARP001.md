@@ -351,6 +351,13 @@ L'application **Affinity** est un moteur de calcul d'affinités électives basé
     - Encapsulation des requêtes d'estimation et du peuplement des filtres dans un bloc sécurisé `try...catch` pour éliminer tout risque de blocage de l'interface.
     - Ajout de la fermeture de la boîte de dialogue au clic extérieur sur l'arrière-plan semi-transparent.
 
+- ~~**Fait - 05/10/2026** : Déploiement et mise à jour complète en production sur Render (`https://affinity-3l9i.onrender.com`).~~
+  - **Synchronisation du dépôt GitHub (`main`)** : Tous les commits relatifs à la purge sécurisée d'historique, l'alignement sur une ligne des boutons et l'affichage qualitatif des réponses ont été synchronisés et poussés.
+  - **Mise en production validée en ligne** :
+    - HTML & CSS : Présence confirmée du conteneur `.uah-toolbar-actions` et de la modale de purge `#modalPurgeUah`.
+    - Authentification : Connexion administrateur opérationnelle (`ar30960`).
+    - API Purge : Endpoint `/api/admin/user-actions-history/purge` validé en ligne avec succès (`dry_run` et estimation en temps réel).
+
 ---
 
 ## 4. NOUVELLES DEMANDES
