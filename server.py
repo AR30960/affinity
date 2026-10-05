@@ -1077,130 +1077,6 @@ def init_user_actions_history_table(conn, c):
     c.execute("CREATE INDEX IF NOT EXISTS idx_uah_nature ON user_actions_history(nature)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_uah_type ON user_actions_history(action_type)")
 
-    # Amorçage rétroactif de l'historique si la table est encore vierge
-    c.execute("SELECT count(*) as nb FROM user_actions_history")
-    if c.fetchone()["nb"] == 0:
-        # 1. Réponses questionnaires standard (answers)
-        c.execute("""
-            SELECT a.profile_id, p.pseudo, a.question_id, q.texte, q.sujet, q.type, q.classe,
-                   GROUP_CONCAT(a.axis || '=' || a.value, ', ') as axes_values,
-                   MIN(a.created_at) as first_created
-            FROM answers a
-            JOIN profiles p ON a.profile_id = p.id
-            JOIN questions q ON a.question_id = q.id
-            GROUP BY a.profile_id, a.question_id
-            ORDER BY MIN(a.created_at) ASC
-        """)
-        for row in c.fetchall():
-            pid = row["profile_id"]
-            pseudo = row["pseudo"]
-            qid = row["question_id"]
-            texte = row["texte"] or ""
-            sujet = row["sujet"] or ""
-            q_type = row["type"]
-            vals = row["axes_values"]
-            # Extraction et explicitation des axes V-A-D-P / G
-            axis_map = {"V": "Vécu (passé)", "A": "Actuel (présent)", "D": "Désiré (souhait)", "P": "Attendu autre", "G": "Goût / Intérêt"}
-            axis_ord = {"V": 1, "A": 2, "D": 3, "P": 4, "G": 5}
-            import re
-            extracted_axes = {}
-            for match in re.finditer(r'([VADPG])\s*=\s*(\d+)', vals or ''):
-                extracted_axes[match.group(1)] = int(match.group(2))
-            if extracted_axes:
-                sorted_ax = sorted(extracted_axes.items(), key=lambda x: axis_ord.get(x[0], 99))
-                vals_desc = [f"{axis_map.get(k, k)} = {format_axis_answer_label(k, v)}" for k, v in sorted_ax]
-                desc_str = " · ".join(vals_desc)
-                summ = f"Question #{qid} ({sujet}) : {desc_str}" if sujet else f"Question #{qid} : {desc_str}"
-            else:
-                summ = f"Question #{qid} ({sujet}) : {vals}" if sujet else f"Question #{qid} : {vals}"
-            det = {"question_id": qid, "sujet": sujet, "classe": row["classe"], "type": q_type, "axes": extracted_axes, "reponses": vals}
-            c.execute("""
-                INSERT INTO user_actions_history (profile_id, pseudo, action_category, action_type, target_id, target_label, summary, details_json, created_at)
-                VALUES (?, ?, 'reponse', 'QUESTION_ANSWER', ?, ?, ?, ?, ?)
-            """, (pid, pseudo, qid, texte[:120], summ, json.dumps(det, ensure_ascii=False), t_created))
-
-        # 2. Réponses identité soi (+ sur vous)
-        c.execute("""
-            SELECT s.profile_id, p.pseudo, s.question_id, q.texte, q.sujet, s.valeur_num, s.valeur_text, s.updated_at
-            FROM identity_answers_self s
-            JOIN profiles p ON s.profile_id = p.id
-            JOIN questions q ON s.question_id = q.id
-            ORDER BY s.updated_at ASC
-        """)
-        for row in c.fetchall():
-            pid = row["profile_id"]
-            pseudo = row["pseudo"]
-            qid = row["question_id"]
-            texte = row["texte"] or ""
-            sujet = row["sujet"] or ""
-            v_num = row["valeur_num"]
-            v_txt = row["valeur_text"]
-            val_display = str(int(v_num)) if (v_num is not None and v_num == int(v_num)) else (str(v_num) if v_num is not None else (v_txt or ""))
-            summ = f"+ sur vous ({sujet}) : {val_display}"
-            det = {"question_id": qid, "sujet": sujet, "valeur_num": v_num, "valeur_text": v_txt}
-            c.execute("""
-                INSERT INTO user_actions_history (profile_id, pseudo, action_category, action_type, target_id, target_label, summary, details_json, created_at)
-                VALUES (?, ?, 'reponse', 'IDENTITY_SELF', ?, ?, ?, ?, ?)
-            """, (pid, pseudo, qid, texte[:120], summ, json.dumps(det, ensure_ascii=False), row["updated_at"] or datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-
-        # 3. Critères identité partenaire (+ sur l'autre)
-        c.execute("""
-            SELECT pt.profile_id, p.pseudo, pt.question_id, q.texte, q.sujet, pt.min_val, pt.max_val, pt.options_json, pt.indifferent, pt.updated_at
-            FROM identity_answers_partner pt
-            JOIN profiles p ON pt.profile_id = p.id
-            JOIN questions q ON pt.question_id = q.id
-            ORDER BY pt.updated_at ASC
-        """)
-        for row in c.fetchall():
-            pid = row["profile_id"]
-            pseudo = row["pseudo"]
-            qid = row["question_id"]
-            texte = row["texte"] or ""
-            sujet = row["sujet"] or ""
-            indiff = bool(row["indifferent"])
-            min_v = row["min_val"]
-            max_v = row["max_val"]
-            opts = row["options_json"]
-            if indiff:
-                summ = f"+ sur l'autre ({sujet}) : Indifférent"
-            elif min_v is not None and max_v is not None:
-                min_disp = int(min_v) if min_v == int(min_v) else min_v
-                max_disp = int(max_v) if max_v == int(max_v) else max_v
-                summ = f"+ sur l'autre ({sujet}) : [{min_disp} à {max_disp}]"
-            elif opts and opts != "[]":
-                summ = f"+ sur l'autre ({sujet}) : Options {opts}"
-            else:
-                summ = f"+ sur l'autre ({sujet}) : Critère renseigné"
-            det = {"question_id": qid, "sujet": sujet, "min_val": min_v, "max_val": max_v, "options": opts, "indifferent": indiff}
-            c.execute("""
-                INSERT INTO user_actions_history (profile_id, pseudo, action_category, action_type, target_id, target_label, summary, details_json, created_at)
-                VALUES (?, ?, 'reponse', 'IDENTITY_PARTNER', ?, ?, ?, ?, ?)
-            """, (pid, pseudo, qid, texte[:120], summ, json.dumps(det, ensure_ascii=False), row["updated_at"] or datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-
-        # 4. Fiches d'identité (identity_cards)
-        c.execute("""
-            SELECT ic.*, p.pseudo
-            FROM identity_cards ic
-            JOIN profiles p ON ic.profile_id = p.id
-            WHERE ic.sexe IN (1, 2) OR (ic.habite_commune IS NOT NULL AND ic.habite_commune != '') OR (ic.ville IS NOT NULL AND ic.ville != '')
-            ORDER BY ic.updated_at ASC
-        """)
-        for row in c.fetchall():
-            pid = row["profile_id"]
-            pseudo = row["pseudo"]
-            commune = row["habite_commune"] or row["ville"] or "Non spécifiée"
-            sexe_txt = "Homme" if row["sexe"] == 1 else ("Femme" if row["sexe"] == 2 else "Non précisé")
-            parts = [f"Sexe : {sexe_txt}", f"Commune : {commune}"]
-            if row["date_naissance"]: parts.append(f"Né(e) : {row['date_naissance']}")
-            if row["taille"]: parts.append(f"Taille : {row['taille']} cm")
-            if row["poids"]: parts.append(f"Poids : {row['poids']} kg")
-            summ = f"Fiche d'identité : {', '.join(parts)}"
-            card_dict = {k: row[k] for k in row.keys() if row[k] is not None and k != "pseudo"}
-            c.execute("""
-                INSERT INTO user_actions_history (profile_id, pseudo, action_category, action_type, target_id, target_label, summary, details_json, created_at)
-                VALUES (?, ?, 'modification', 'IDENTITY_CARD_UPDATE', ?, 'Fiche d''identité', ?, ?, ?)
-            """, (pid, pseudo, pid, summ, json.dumps(card_dict, ensure_ascii=False), row["updated_at"] or datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-
     conn.commit()
 
 def log_user_action(conn_or_c, profile_id, pseudo=None, action_category="reponse", action_type="QUESTION_ANSWER", summary="", target_id=None, target_label=None, details=None, nature=None, created_at=None):
@@ -4149,7 +4025,10 @@ class AffinityHandler(http.server.SimpleHTTPRequestHandler):
 
                 backup_file = None
                 if create_backup and matching_count > 0:
-                    backup_file = backup_local_db()
+                    try:
+                        backup_file = backup_local_db()
+                    except Exception as bkp_err:
+                        print(f"[PURGE BACKUP WARNING] {bkp_err}")
 
                 c.execute(f"DELETE FROM user_actions_history WHERE {where_clause}", tuple(params))
                 deleted_count = c.rowcount
